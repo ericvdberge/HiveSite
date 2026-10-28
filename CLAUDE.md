@@ -12,7 +12,7 @@ A block-based website builder, designed and built by a team of AI agents. Owners
 - Test: `dotnet test`
 - Format: `dotnet format`
 - Spec index: `node scripts/spec-index.mjs` (CI runs it with `--check`)
-- Board: `node scripts/board.mjs list [Column]`, `node scripts/board.mjs move <issue> "<Column>"`
+- Board: `node scripts/board.mjs list [Column]`, `node scripts/board.mjs move <issue> "<Column>"`, `node scripts/board.mjs sync` (closed issues → Done; run it after you merge)
 
 ## Factory
 Work is run by the agents in `.claude/agents/` following `.claude/skills/run-story`. Run the manager as the main thread: `claude --agent manager`.

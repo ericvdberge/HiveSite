@@ -23,14 +23,16 @@ Backlog ─(human)→ Ready → Spec review ─(human merges spec PR)→ Buildin
 ## Before you start
 
 1. Read `CLAUDE.md`. Its **Factory** section names the teams (`team:*` label → dev agent), the build and test commands, and the board.
-2. Find the story: the issue number you were given, or the top item in **Ready**: `node scripts/board.mjs list Ready`.
-3. Read the issue, its comments and its linked spec. Work out which step it is in from its column and the last manager comment.
+2. Catch the board up with what humans did since the last run: `node scripts/board.mjs sync`. It moves closed issues to **Done** and stories with an open spec PR to **Spec review**. GitHub does not move cards on its own, so never skip this.
+3. Find the story: the issue number you were given, or the top item in **Ready**: `node scripts/board.mjs list Ready`.
+4. Read the issue, its comments and its linked spec. Work out which step it is in from its column and the last manager comment.
 
 ## Steps
 
 ### 1. Spec
 - If the story links specs that are all `approved` or `built`, or says `Spec: none`, skip to step 2.
 - Otherwise start `api-architect` with the story number. It opens a spec PR.
+- When you come back after the human merged the spec PR, the story is still in **Spec review**. Move it on yourself as step 2 starts.
 - Move the story to **Spec review**, comment with the PR link, and **stop**. Tell the human: "Review and merge spec PR #N to continue."
 
 ### 2. Plan
@@ -50,14 +52,17 @@ Backlog ─(human)→ Ready → Spec review ─(human merges spec PR)→ Buildin
 
 ### 5. Hand over
 - When review and tests pass: `gh pr ready <pr>`, move the story to **Ready to merge**, comment a summary with links, and **stop**.
-- The human merges. GitHub closes the issue and the board moves it to **Done**.
+- The human merges and GitHub closes the issue. The card stays in **Ready to merge** until the next run's `sync` moves it to **Done**.
 
 ## Board commands
 
 ```bash
 node scripts/board.mjs list [Column]
 node scripts/board.mjs move <issue> "<Column>"
+node scripts/board.mjs sync   # closed → Done, open spec PR → Spec review
 ```
+
+Move the card in the same step as the work it reports, before the issue comment. A step is not done while its card is in the wrong column.
 
 ## Guardrails
 
