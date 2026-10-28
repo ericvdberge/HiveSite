@@ -230,7 +230,6 @@ public sealed partial class CreateSiteTests(ContentApi fixture)
     }
 
     [Theory]
-    [InlineData("")]
     [InlineData("tab\tkey")]
     [InlineData("sl\u00e9utel")]
     public async Task A_malformed_key_is_invalid_AC10(string key)

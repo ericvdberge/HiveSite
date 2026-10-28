@@ -66,7 +66,9 @@ internal static class SiteEndpoints
 
     private static System.Text.Json.JsonElement Element(this System.Text.Json.JsonDocument document) => document.RootElement;
 
-    /// <summary>1 to 255 printable ASCII characters, or absent.</summary>
+    /// <summary>1 to 255 printable ASCII characters.</summary>
+    public static bool IsValidKey(string key) => key.Length is >= 1 and <= 255 && key.All(ch => ch is >= ' ' and <= '~');
+
     private static string? ReadKey(HttpContext http, out IResult? error)
     {
         error = null;
@@ -75,7 +77,7 @@ internal static class SiteEndpoints
             return null;
         }
         var key = values.ToString();
-        if (values.Count != 1 || key.Length is < 1 or > 255 || key.Any(ch => ch is < ' ' or > '~'))
+        if (values.Count != 1 || !IsValidKey(key))
         {
             error = Http.Invalid("'Idempotency-Key' must be 1 to 255 printable ASCII characters.", "Idempotency-Key");
         }
