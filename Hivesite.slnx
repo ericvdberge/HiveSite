@@ -1,0 +1,25 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Hivesite.Host/Hivesite.Host.csproj" />
+    <Project Path="src/Hivesite.Shared/Hivesite.Shared.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/Content/">
+    <Project Path="src/Modules/Content/Hivesite.Content/Hivesite.Content.csproj" />
+    <Project Path="src/Modules/Content/Hivesite.Content.Contracts/Hivesite.Content.Contracts.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/Rendering/">
+    <Project Path="src/Modules/Rendering/Hivesite.Rendering/Hivesite.Rendering.csproj" />
+    <Project Path="src/Modules/Rendering/Hivesite.Rendering.Contracts/Hivesite.Rendering.Contracts.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/Publishing/">
+    <Project Path="src/Modules/Publishing/Hivesite.Publishing/Hivesite.Publishing.csproj" />
+    <Project Path="src/Modules/Publishing/Hivesite.Publishing.Contracts/Hivesite.Publishing.Contracts.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Hivesite.ArchitectureTests/Hivesite.ArchitectureTests.csproj" />
+    <Project Path="tests/Hivesite.Testing/Hivesite.Testing.csproj" />
+    <Project Path="tests/Hivesite.Content.Tests/Hivesite.Content.Tests.csproj" />
+    <Project Path="tests/Hivesite.Rendering.Tests/Hivesite.Rendering.Tests.csproj" />
+    <Project Path="tests/Hivesite.Publishing.Tests/Hivesite.Publishing.Tests.csproj" />
+  </Folder>
+</Solution>
