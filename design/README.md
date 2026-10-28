@@ -4,7 +4,7 @@ Visual design for Hivesite sites, written so renderers never need a hard-coded v
 
 - `tokens.json`: three themes, each with the same keys.
 - `blocks/<type>.md`: one layout note per block type in API-003.
-- `samples/blocks.html`: every block in every theme, built from `tokens.json` by `node design/samples/build.mjs design/tokens.json design/samples/blocks.html`. Open it and switch themes at the top, or add `?theme=ivory`. Screenshots sit next to it.
+- The block notes will become the default Vue components in `@hivesite/blocks` (#36).
 - `check-contrast.mjs`: `node design/check-contrast.mjs design/tokens.json` checks that the themes share their keys and prints every contrast ratio.
 - `brand/`: logo, lockups and motion samples (a separate task).
 
@@ -96,5 +96,5 @@ Follows the brand: one shape at a time, no flashes, slow in and slow out, nothin
 ## Changing tokens
 
 - Add or rename a key in all three themes in the same PR. The keys must match exactly.
-- Run `check-contrast.mjs`, rebuild the sample, and list the ratios in the PR.
+- Run `check-contrast.mjs` and list the ratios in the PR.
 - A renamed key is a breaking change for Rendering; say so in the PR and link the Rendering story.
