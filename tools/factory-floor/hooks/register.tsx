@@ -403,7 +403,8 @@ export const register: Register = on => {
     const running = runs.filter(r => !r.endedAt)
     const backlog = cards.filter(c => c.status === 'Backlog')
     const ready = cards.filter(c => c.status === 'Ready')
-    const wait = limitedUntil && limitedUntil > Date.now() ? `Rate limited · retrying at ${clockTime(limitedUntil)}` : undefined
+    // Held until the next read succeeds and clears it.
+    const wait = limitedUntil ? `Rate limited · retrying at ${clockTime(limitedUntil)}` : undefined
     const line =
       busy ?? wait ?? note ?? (fetchedAt ? `Updated ${ago(fetchedAt)} ago · every ${POLL_MS / 60_000} min while shown` : 'Loading the board…')
 
