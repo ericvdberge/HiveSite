@@ -1,0 +1,35 @@
+name: Story
+description: Something a user can do afterwards, built by one team in one PR
+title: "Owner can …"
+labels: ["type:story"]
+body:
+  - type: textarea
+    id: why
+    attributes:
+      label: Why
+      description: Who needs this and what it unlocks.
+    validations:
+      required: true
+  - type: input
+    id: spec
+    attributes:
+      label: Spec
+      description: API-xxx, or "none" for non-API work.
+      placeholder: API-004
+  - type: textarea
+    id: ac
+    attributes:
+      label: Acceptance criteria
+      description: Given / when / then. Each maps to a spec item.
+      value: |
+        - [ ] AC1 — Given …, when …, then … (maps to: …)
+  - type: textarea
+    id: tasks
+    attributes:
+      label: Tasks
+      value: |
+        - [ ] …
+  - type: textarea
+    id: out
+    attributes:
+      label: Out of scope

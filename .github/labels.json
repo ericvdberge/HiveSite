@@ -1,0 +1,20 @@
+[
+  { "name": "type:case", "color": "6e5fb8", "description": "Business case for a human to approve" },
+  { "name": "type:story", "color": "94733a", "description": "A user-visible change one team builds in one PR" },
+  { "name": "type:task", "color": "cdae74", "description": "A piece of a story, or setup work" },
+  { "name": "type:spec", "color": "1d76db", "description": "API spec or design PR" },
+  { "name": "type:bug", "color": "d73a4a", "description": "Something is broken" },
+  { "name": "team:factory", "color": "a69d8c", "description": "The agent factory itself: agents, skills, scripts, tooling" },
+  { "name": "team:content", "color": "6e5fb8", "description": "Content module: sites, pages, blocks" },
+  { "name": "team:rendering", "color": "2f8a71", "description": "Rendering module: themes, renderers, preview" },
+  { "name": "team:publishing", "color": "b4673a", "description": "Publishing module: releases, rollback, serving" },
+  { "name": "team:design", "color": "e99695", "description": "Design tokens, layouts, brand" },
+  { "name": "phase:0", "color": "ededed", "description": "Set up" },
+  { "name": "phase:1", "color": "ededed", "description": "Design" },
+  { "name": "phase:2", "color": "ededed", "description": "Build" },
+  { "name": "phase:3", "color": "ededed", "description": "Automate" },
+  { "name": "phase:4", "color": "ededed", "description": "Grow" },
+  { "name": "needs-spec", "color": "fbca04", "description": "Story has no approved spec yet" },
+  { "name": "needs-human", "color": "b60205", "description": "Agents stopped; a human must decide" },
+  { "name": "approved", "color": "0e8a16", "description": "A human approved this case" }
+]

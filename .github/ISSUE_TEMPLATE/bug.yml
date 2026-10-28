@@ -1,0 +1,14 @@
+name: Bug
+description: Something does not work as the spec says
+labels: ["type:bug"]
+body:
+  - type: textarea
+    id: what
+    attributes: { label: What happens, description: "Request, response, and what you expected instead." }
+    validations: { required: true }
+  - type: input
+    id: spec
+    attributes: { label: Spec, placeholder: API-004 }
+  - type: textarea
+    id: steps
+    attributes: { label: Steps to reproduce }
