@@ -20,8 +20,6 @@ app.UseExceptionHandler(error => error.Run(context =>
         statusCode: StatusCodes.Status500InternalServerError)
     .ExecuteAsync(context)));
 
-app.MapGet("/health", () => Results.Ok(new { status = "ok" }));
-
 app.MapContentEndpoints();
 app.MapRenderingEndpoints();
 app.MapPublishingEndpoints();
