@@ -26,7 +26,7 @@ Work is run by the agents in `.claude/agents/` following `.claude/skills/run-sto
 | specs | `api-architect` | `specs/` |
 | `team:factory` | a human with Claude | `.claude/`, `scripts/`, `.github/` |
 
-Board: the GitHub project in `.github/factory.json`. Columns: Backlog → Ready → Spec review → Building → Agent review → Ready to merge → Done. Humans move stories into Ready, merge spec PRs and merge build PRs. Agents never merge.
+Board: [project 8](https://github.com/users/ericvdberge/projects/8), recorded in `.github/factory.json`. Columns: Backlog → Ready → Spec review → Building → Agent review → Ready to merge → Done. Humans move stories into Ready, merge spec PRs and merge build PRs. Agents never merge.
 
 Expertise comes from existing plugins enabled in `.claude/settings.json`: `pr-review-toolkit` (Anthropic) for code review, and `dotnet-contribution`, `backend-development`, `ui-design`, `startup-business-analyst` from [wshobson/agents](https://github.com/wshobson/agents). Tune our own agents and skills when they slip; don't fork the upstream ones.
 
