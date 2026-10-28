@@ -11,13 +11,29 @@
 | [API-003](content/API-003-block-types.md) | Block type registry | approved | #14 | API-001 |
 | [API-004](content/API-004-page-blocks.md) | Page blocks | approved | #15 | API-001, API-002, API-003 |
 
+## publishing
+
+| Spec | Title | Status | Stories | Depends on |
+|---|---|---|---|---|
+| [API-020](publishing/API-020-releases-and-rollback.md) | Releases and rollback | in review | #19, #20 | API-001, API-002, API-004, API-010, API-011 |
+| [API-021](publishing/API-021-serving.md) | Serving the live site | in review | #21 | API-001, API-002, API-011, API-020 |
+
+## rendering
+
+| Spec | Title | Status | Stories | Depends on |
+|---|---|---|---|---|
+| [API-010](rendering/API-010-themes.md) | Themes | in review | #16 | API-001 |
+| [API-011](rendering/API-011-block-rendering-and-preview.md) | Block rendering and draft preview | in review | #17, #18 | API-001, API-002, API-003, API-004, API-010 |
+| [API-012](rendering/API-012-intro-and-loader.md) | Intro and loader on published sites | in review | #22 | API-010, API-011, API-021 |
+
 ## By status
 
 - **draft** (0): —
-- **in review** (0): —
+- **in review** (5): API-010, API-011, API-012, API-020, API-021
 - **approved** (4): API-001, API-002, API-003, API-004
 - **built** (0): —
 
 ## Open questions
 
-None.
+- API-010: Where is a site's chosen theme stored? The plan says Rendering has no database. This spec proposes that the Rendering module keeps one small table (`rendering.site_themes`: `site_id`, `theme`, `updated_at`) for the endpoints, while the renderers themselves stay pure (API-011). The alternative is a `theme` field stored by Content and set through `Hivesite.Content.Contracts`, which API-001 would then need to mention.
+- API-010: Do the token groups and names above match `design/tokens.json` from #9? The designer is writing it in parallel. Before approval, either the file adopts these names or this spec adopts the file's.
