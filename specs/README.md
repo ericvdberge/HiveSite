@@ -35,5 +35,4 @@
 
 ## Open questions
 
-- API-010: Where is a site's chosen theme stored? The plan says Rendering has no database. This spec proposes that the Rendering module keeps one small table (`rendering.site_themes`: `site_id`, `theme`, `updated_at`) for the endpoints, while the renderers themselves stay pure (API-011). The alternative is a `theme` field stored by Content and set through `Hivesite.Content.Contracts`, which API-001 would then need to mention.
-- API-010: Do the token groups and names above match `design/tokens.json` from #9? The designer is writing it in parallel. Before approval, either the file adopts these names or this spec adopts the file's.
+None.

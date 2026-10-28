@@ -21,7 +21,7 @@ Auth: site owner
 
 Headers: `Idempotency-Key` (optional, see API-001 Idempotency)
 
-Renders the site as it is now (API-011 `RenderSite`, `mode` `release`, the site's current theme from API-010), stores the files as a new release and makes it live. The call returns when the release is live.
+Renders the site as it is now (API-011 `RenderSite`, `mode` `release`, with the site's current brand styling from API-001), stores the files as a new release and makes it live. The call returns when the release is live.
 
 Request
 ```json
@@ -97,7 +97,7 @@ Response 200
       "number": 2,
       "note": "",
       "is_live": true,
-      "theme": "linen",
+      "theme": "ivory",
       "theme_version": 1,
       "site_slug": "atelier-noor",
       "page_count": 3,
@@ -135,7 +135,7 @@ Response 200
   "number": 2,
   "note": "",
   "is_live": true,
-  "theme": "linen",
+  "theme": "ivory",
   "theme_version": 1,
   "site_slug": "atelier-noor",
   "page_count": 3,
@@ -170,7 +170,7 @@ Response 200
   "number": 2,
   "note": "",
   "is_live": true,
-  "theme": "linen",
+  "theme": "ivory",
   "theme_version": 1,
   "site_slug": "atelier-noor",
   "page_count": 3,
@@ -195,14 +195,14 @@ Errors
 - `number`: 1, 2, 3, … per site, in the order releases are created. Never reused, also after pruning. Owners speak of "release 3".
 - `note`: 0 to 200 characters after trimming, default `""`. Set on publish, never changed.
 - `is_live`: `true` for exactly one release of a site once it has published, `false` for all others.
-- `theme`, `theme_version`: the theme key and version (API-010) the release was rendered with.
+- `theme`, `theme_version`: the theme key (`brand_styling.theme`, API-001) and theme version (API-010) the release was rendered with.
 - `site_slug`: the site slug when the release was created. For information only; the live site is always served under the current slug (API-021).
 - `page_count`: the number of pages in the release. `file_count` and `size_bytes`: the stored files and their total size in bytes.
 - `created_at`: when the release was created. `live_since`: when it last became live, or `null` when it is not live.
 - Every field is always present. Only `live_since` can be `null`.
 
 ### Publishing
-- Publish reads the site, its pages in `menu_order` and their blocks in one consistent read through `Hivesite.Content.Contracts`, and the site theme through `Hivesite.Rendering.Contracts` (API-010). It then calls `RenderSite` (API-011).
+- Publish reads the site with its brand styling, its pages in `menu_order` and their blocks in one consistent read through `Hivesite.Content.Contracts`. It then calls `RenderSite` (API-011), and takes `theme_version` from the theme registry in `Hivesite.Rendering.Contracts` (API-010).
 - The release holds exactly the files `RenderSite` returned, under their paths. They are written to file storage (a local folder now, blob storage later) before the release is made live. If storing fails, no release is created and the live release does not change.
 - The release also records, internally, the slug of its home page (`menu_order` 0), so API-021 can redirect `/s/{site_slug}/{home_slug}` to the site root.
 - A release never changes after it is created. Its files are never rewritten.

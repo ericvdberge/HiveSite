@@ -54,7 +54,7 @@ The script plays the golden thread from `docs/plan.html`, in three beats, with t
 | 0 – 0.85 s | Light traces the hexagon (sine ease), large and centred on a `color.background` veil. |
 | 0.7 – 1.1 s | Gold fill (`color.accent`) and the H appear. |
 | 1.25 – 2.0 s | The mark glides into its place in the header (`.hs-mark`); the veil fades and the site appears around it. |
-| 1.7 – 2.7 s | The first blocks settle, 70 ms apart, each over 400 ms. |
+| 1.7 – 2.7 s | The first blocks settle, `motion.stagger` (70 ms) apart, each over `motion.duration_slow` (500 ms). |
 
 - Total length 2.7 s. Every single motion takes at least 300 ms. One shape moves at a time; there are no flashes; every motion ends where the next one starts.
 - Blocks that settle: at most the first 6 blocks that are in the viewport when the intro starts. Later blocks are shown without motion.

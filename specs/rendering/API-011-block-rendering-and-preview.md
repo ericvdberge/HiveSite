@@ -10,9 +10,9 @@ version: 1
 ---
 
 ## Purpose
-Rendering turns a site's content and theme into static HTML, the same way every time. A site owner can see any draft page as HTML before it is published.
+Rendering turns a site's content and brand styling into static HTML, the same way every time. A site owner can see any draft page as HTML before it is published.
 
-Auth, ids, errors, validation and timestamps follow the shared conventions in API-001. Block types and their attributes are in API-003, the blocks document in API-004, themes and tokens in API-010.
+Auth, ids, errors, validation and timestamps follow the shared conventions in API-001. Brand styling is in API-001, block types and their attributes in API-003, the blocks document in API-004, themes and tokens in API-010.
 
 ## Endpoints
 
@@ -20,10 +20,10 @@ Auth, ids, errors, validation and timestamps follow the shared conventions in AP
 Auth: site owner
 
 Query:
-- `theme` (optional): a theme key from API-010. Renders with that theme instead of the site's, without saving it, so an owner can compare themes.
+- `theme` (optional): a theme key from API-010. Renders with that theme instead of the site's `brand_styling.theme`, without saving it, so an owner can compare themes. The site's `display_font` and `corners` still apply.
 - `list_page` (optional): integer from 1, default 1. Which list page to show when the page has a paged collection `card_list` (see Paging).
 
-Renders the page as it is now in Content: current blocks, current menu, current site settings. Nothing is stored.
+Renders the page as it is now in Content: current blocks, current menu, current site settings and brand styling. Nothing is stored.
 
 Request
 ```
@@ -34,7 +34,7 @@ Response 200
 
 Headers: `Content-Type: text/html; charset=utf-8`, `Cache-Control: no-store`, `X-Robots-Tag: noindex`, `Content-Security-Policy` as in Security below.
 
-The site is Atelier Noor (`language` `nl`, theme `atelier`) with three pages in menu order: Home (`01a181cf-2a4a-7cd5-bb2c-5c6582ac33a0`), About (`01a181d4-5e8b-75fc-bd2f-613219bf3f79`, slug `about`) and Our work (`01a181d8-810e-7cfa-b14e-65065bb59fa1`, slug `our-work`). Our work has a `hero` and a `rich_text` block.
+The site is Atelier Noor (`language` `nl`, brand styling `atelier` with `from_theme` for both choices, so `<html>` has no `data-display-font` or `data-corners`) with three pages in menu order: Home (`01a181cf-2a4a-7cd5-bb2c-5c6582ac33a0`), About (`01a181d4-5e8b-75fc-bd2f-613219bf3f79`, slug `about`) and Our work (`01a181d8-810e-7cfa-b14e-65065bb59fa1`, slug `our-work`). Our work has a `hero` and a `rich_text` block.
 ```html
 <!doctype html>
 <html lang="nl" data-theme="atelier">
@@ -132,13 +132,17 @@ Shown as JSON; in code it is a set of records with the same names in PascalCase.
 ```json
 {
   "mode": "release",
-  "theme": "atelier",
   "site": {
     "id": "01a181c9-b7ca-70bc-abf5-a9e81e300af7",
     "name": "Atelier Noor",
     "slug": "atelier-noor",
     "language": "nl",
-    "description": "Handmade ceramics from Utrecht."
+    "description": "Handmade ceramics from Utrecht.",
+    "brand_styling": {
+      "theme": "atelier",
+      "display_font": "from_theme",
+      "corners": "from_theme"
+    }
   },
   "pages": [
     {
@@ -153,6 +157,7 @@ Shown as JSON; in code it is a set of records with the same names in PascalCase.
 }
 ```
 - `mode`: `release` or `preview` (see Modes).
+- `site.brand_styling`: the site's brand styling as Content returns it (API-001). Preview with a `theme` override passes the override in `site.brand_styling.theme`. The theme's tokens and assets come from the registry in code (API-010), so they are part of the renderer, not of the input.
 - `pages`: every page of the site in `menu_order`, each with its stored blocks document (API-004). The caller reads the site, the pages and their blocks in one consistent read through `Hivesite.Content.Contracts`.
 - The blocks are trusted: they were validated by API-004 and are not validated again.
 
@@ -188,8 +193,8 @@ Release HTML never contains the site slug, except in the not-found page's `<base
 ## Document
 
 Every HTML page has the structure of the example above, in this order:
-1. `<!doctype html>`, then `<html lang="{site.language}" data-theme="{theme}">`.
-2. `<head>`: `charset`, `viewport`, `robots` (preview only), `generator` (`Hivesite`), `color-scheme` (the theme's `scheme`), `<title>`, `description` (left out when `site.description` is `""`), the stylesheet link. Nothing else.
+1. `<!doctype html>`, then `<html lang="{site.language}" data-theme="{theme}">`, where `{theme}` is `brand_styling.theme`. When `display_font` or `corners` is not `from_theme`, `data-display-font="{display_font}"` and then `data-corners="{corners}"` follow `data-theme`, in that order (API-010 Brand styling).
+2. `<head>`: `charset`, `viewport`, `robots` (preview only), `generator` (`Hivesite`), `color-scheme` (the theme's `color_scheme`), `<title>`, `description` (left out when `site.description` is `""`), the stylesheet link. Nothing else.
 3. `<body>`: skip link to `#hs-main`, preview label (preview only), `<header class="hs-header">` with the site name linked to the home page and the menu, `<main class="hs-main" id="hs-main">` with the blocks, `<footer class="hs-footer">` with the site name.
 
 ### Title
@@ -319,7 +324,7 @@ Built-in text is chosen by the primary subtag of `site.language`. `nl` gets Dutc
 ## Rules
 
 ### Purity and determinism
-- `RenderPage` and `RenderSite` are pure. Same snapshot (and arguments) in, same bytes out. Snapshot tests cover every block type in every theme, both modes, list pages and the not-found page.
+- `RenderPage` and `RenderSite` are pure. Same snapshot (and arguments) in, same bytes out. Snapshot tests cover every block type in every theme, both modes, list pages, the not-found page, and each `display_font` and `corners` value at least once.
 - Renderers use design tokens only, through the theme stylesheet's custom properties. HTML carries classes, never values.
 
 ### Limits
@@ -327,7 +332,7 @@ Built-in text is chosen by the primary subtag of `site.language`. `nl` gets Dutc
 - `list_page` in a preview: 1 to the page's `N`. The highest possible `N` is 49 (49 other pages, `page_size` 1).
 
 ### Preview
-- Preview reads the site, its pages and their blocks through `Hivesite.Content.Contracts` and the site theme through API-010, then calls `RenderPage` with `mode` `preview`.
+- Preview reads the site with its brand styling, its pages and their blocks in one read through `Hivesite.Content.Contracts`, then calls `RenderPage` with `mode` `preview`. Rendering stores nothing and has no database.
 - Preview is read-only and raises no events.
 - Preview has no intro, loader or script.
 
