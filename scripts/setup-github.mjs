@@ -38,8 +38,11 @@ for (const l of labels) {
 }
 console.log(`labels: ${labels.length} synced`);
 
-// 2. Board
-let project = ghJson("project", "list", "--owner", owner).projects.find(p => p.title === title);
+// 2. Board: the one in .github/factory.json, else one with this title, else a new one
+const known = existsSync(new URL("../.github/factory.json", import.meta.url))
+  ? JSON.parse(readFileSync(new URL("../.github/factory.json", import.meta.url), "utf8")).project
+  : undefined;
+let project = ghJson("project", "list", "--owner", owner).projects.find(p => (known ? p.number === known : p.title === title));
 if (!project) project = ghJson("project", "create", "--owner", owner, "--title", title);
 gh("project", "link", String(project.number), "--owner", owner, "--repo", repo);
 console.log(`board: #${project.number} ${project.url}`);
