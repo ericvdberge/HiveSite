@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\Hivesite.Shared\Hivesite.Shared.csproj" />
+    <ProjectReference Include="..\Hivesite.Publishing.Contracts\Hivesite.Publishing.Contracts.csproj" />
+  </ItemGroup>
+</Project>
