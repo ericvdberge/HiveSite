@@ -33,7 +33,8 @@ export type AgentRun = {
 }
 
 // What the pane says it is doing or last did.
-export type Status = { busy?: string; note?: string; isError?: boolean }
+// limitedUntil: when the GraphQL budget resets and the board is read again.
+export type Status = { busy?: string; note?: string; isError?: boolean; limitedUntil?: number }
 
 declare module 'claude-code' {
   interface PluginState {
