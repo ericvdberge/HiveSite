@@ -1,5 +1,4 @@
 using System.Globalization;
-using System.Text;
 using System.Text.Json;
 using Hivesite.Content.Contracts;
 using Hivesite.Content.Domain;
@@ -25,6 +24,7 @@ public sealed record SiteResponse(
 internal sealed class SiteService(
     ContentDbContext db,
     TimeProvider clock,
+    CursorProtector cursors,
     IOptions<JsonOptions> json,
     IEnumerable<ISiteChangedHandler> handlers)
 {
@@ -197,25 +197,23 @@ internal sealed class SiteService(
         }
     }
 
-    private static string EncodeCursor(Site last)
+    private string EncodeCursor(Site last)
     {
         var payload = JsonSerializer.Serialize(new { c = last.CreatedAt.ToString("yyyy-MM-ddTHH:mm:ss'Z'", CultureInfo.InvariantCulture), i = last.Id.ToString("D") });
-        return "c_" + Convert.ToBase64String(Encoding.UTF8.GetBytes(payload)).TrimEnd('=').Replace('+', '-').Replace('/', '_');
+        return cursors.Protect(payload);
     }
 
-    private static bool TryDecodeCursor(string cursor, out DateTime createdAt, out Guid id)
+    private bool TryDecodeCursor(string cursor, out DateTime createdAt, out Guid id)
     {
         createdAt = default;
         id = default;
-        if (!cursor.StartsWith("c_", StringComparison.Ordinal))
+        if (!cursors.TryUnprotect(cursor, out var payload))
         {
             return false;
         }
         try
         {
-            var b64 = cursor[2..].Replace('-', '+').Replace('_', '/');
-            b64 = b64.PadRight(b64.Length + ((4 - (b64.Length % 4)) % 4), '=');
-            using var doc = JsonDocument.Parse(Convert.FromBase64String(b64));
+            using var doc = JsonDocument.Parse(payload);
             var root = doc.RootElement;
             return root.ValueKind == JsonValueKind.Object
                 && root.TryGetProperty("c", out var c) && c.ValueKind == JsonValueKind.String
@@ -223,7 +221,7 @@ internal sealed class SiteService(
                 && root.TryGetProperty("i", out var i) && i.ValueKind == JsonValueKind.String
                 && Guid.TryParseExact(i.GetString(), "D", out id);
         }
-        catch (Exception ex) when (ex is FormatException or JsonException)
+        catch (JsonException)
         {
             return false;
         }

@@ -127,6 +127,28 @@ public sealed class ReadSiteTests(ContentApi fixture)
     }
 
     [Fact]
+    public async Task A_well_formed_but_forged_cursor_is_refused_AC15()
+    {
+        var api = await fixture.ReadyAsync();
+        var owner = ContentApi.NewOwner();
+        await api.CreateAsync(owner);
+        await api.CreateAsync(owner);
+        var payload = "{\"c\":\"2000-01-01T00:00:00Z\",\"i\":\"00000000-0000-0000-0000-000000000000\"}";
+        var unsigned = "c_" + Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(payload)).TrimEnd('=').Replace('+', '-').Replace('/', '_');
+        var real = (await api.GetAsync(owner, "/sites?limit=1")).Node("next_cursor").GetString()!;
+        var tampered = real[..^3] + (real.EndsWith("AAA", StringComparison.Ordinal) ? "BBB" : "AAA");
+
+        foreach (var cursor in new[] { unsigned, tampered })
+        {
+            var response = await api.GetAsync(owner, $"/sites?cursor={Uri.EscapeDataString(cursor)}");
+
+            Assert.Equal(HttpStatusCode.BadRequest, response.Status);
+            Assert.Equal("invalid_cursor", response.ErrorCode);
+            Assert.Equal("cursor", response.ErrorField);
+        }
+    }
+
+    [Fact]
     public async Task A_cursor_from_another_owner_never_returns_their_data_AC15()
     {
         var api = await fixture.ReadyAsync();

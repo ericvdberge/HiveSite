@@ -19,6 +19,8 @@ public static class ContentModule
             Configure(options, sp.GetRequiredService<IConfiguration>().GetConnectionString("Content")));
         services.TryAddSingleton(TimeProvider.System);
         services.TryAddSingleton<IOwnerResolver, NoOwnerResolver>();
+        services.AddDataProtection();
+        services.AddSingleton<CursorProtector>();
         services.AddScoped<SiteService>();
         return services;
     }
