@@ -6,7 +6,7 @@ status: in review
 owner: api-architect
 stories: [13]
 depends_on: [API-001]
-version: 1
+version: 2
 ---
 
 ## Purpose
@@ -31,11 +31,11 @@ Request
 
 Response 201
 
-Headers: `Location: /pages/pg_4n7c1x9k2m5q8w3e`
+Headers: `Location: /pages/01a181d8-810e-7cfa-b14e-65065bb59fa1`
 ```json
 {
-  "id": "pg_4n7c1x9k2m5q8w3e",
-  "site_id": "st_8f3k2m9q4x7v1c5b",
+  "id": "01a181d8-810e-7cfa-b14e-65065bb59fa1",
+  "site_id": "01a181c9-b7ca-70bc-abf5-a9e81e300af7",
   "title": "Our work",
   "slug": "our-work",
   "menu_order": 2,
@@ -46,11 +46,11 @@ Headers: `Location: /pages/pg_4n7c1x9k2m5q8w3e`
 
 Errors
 - 400 `invalid_request`: body is not JSON, `title` or `slug` is missing, a field has the wrong type, an unknown field is present, or a value breaks a limit in Rules. The message names the field.
+- 400 `slug_taken`: another page of this site already uses this slug.
+- 400 `idempotency_key_reused`
+- 400 `too_many_pages`: the site already has 50 pages.
 - 401 `unauthenticated`
 - 404 `site_not_found`
-- 409 `slug_taken`: another page of this site already uses this slug.
-- 409 `idempotency_key_reused`
-- 422 `too_many_pages`: the site already has 50 pages.
 
 ### GET /sites/{id}/pages
 Auth: site owner
@@ -59,7 +59,7 @@ Query: `limit` (1 to 100, default 20), `cursor`.
 
 Request
 ```
-GET /sites/st_8f3k2m9q4x7v1c5b/pages?limit=2
+GET /sites/01a181c9-b7ca-70bc-abf5-a9e81e300af7/pages?limit=2
 ```
 
 Response 200
@@ -67,8 +67,8 @@ Response 200
 {
   "items": [
     {
-      "id": "pg_9d2f6h1j4k8l0m3n",
-      "site_id": "st_8f3k2m9q4x7v1c5b",
+      "id": "01a181cf-2a4a-7cd5-bb2c-5c6582ac33a0",
+      "site_id": "01a181c9-b7ca-70bc-abf5-a9e81e300af7",
       "title": "Home",
       "slug": "home",
       "menu_order": 0,
@@ -76,8 +76,8 @@ Response 200
       "updated_at": "2026-10-28T09:20:00Z"
     },
     {
-      "id": "pg_1q5w9e3r7t2y6u0i",
-      "site_id": "st_8f3k2m9q4x7v1c5b",
+      "id": "01a181d4-5e8b-75fc-bd2f-613219bf3f79",
+      "site_id": "01a181c9-b7ca-70bc-abf5-a9e81e300af7",
       "title": "About",
       "slug": "about",
       "menu_order": 1,
@@ -100,14 +100,14 @@ Auth: site owner
 
 Request
 ```
-GET /pages/pg_4n7c1x9k2m5q8w3e
+GET /pages/01a181d8-810e-7cfa-b14e-65065bb59fa1
 ```
 
 Response 200
 ```json
 {
-  "id": "pg_4n7c1x9k2m5q8w3e",
-  "site_id": "st_8f3k2m9q4x7v1c5b",
+  "id": "01a181d8-810e-7cfa-b14e-65065bb59fa1",
+  "site_id": "01a181c9-b7ca-70bc-abf5-a9e81e300af7",
   "title": "Our work",
   "slug": "our-work",
   "menu_order": 2,
@@ -136,8 +136,8 @@ Request
 Response 200
 ```json
 {
-  "id": "pg_4n7c1x9k2m5q8w3e",
-  "site_id": "st_8f3k2m9q4x7v1c5b",
+  "id": "01a181d8-810e-7cfa-b14e-65065bb59fa1",
+  "site_id": "01a181c9-b7ca-70bc-abf5-a9e81e300af7",
   "title": "Selected work",
   "slug": "selected-work",
   "menu_order": 2,
@@ -148,16 +148,16 @@ Response 200
 
 Errors
 - 400 `invalid_request`: as for POST, or the body contains `menu_order`, `id`, `site_id` or a timestamp.
+- 400 `slug_taken`
 - 401 `unauthenticated`
 - 404 `page_not_found`
-- 409 `slug_taken`
 
 ### DELETE /pages/{id}
 Auth: site owner
 
 Request
 ```
-DELETE /pages/pg_4n7c1x9k2m5q8w3e
+DELETE /pages/01a181d8-810e-7cfa-b14e-65065bb59fa1
 ```
 
 Response 204
@@ -177,9 +177,9 @@ Request
 ```json
 {
   "page_ids": [
-    "pg_9d2f6h1j4k8l0m3n",
-    "pg_4n7c1x9k2m5q8w3e",
-    "pg_1q5w9e3r7t2y6u0i"
+    "01a181cf-2a4a-7cd5-bb2c-5c6582ac33a0",
+    "01a181d8-810e-7cfa-b14e-65065bb59fa1",
+    "01a181d4-5e8b-75fc-bd2f-613219bf3f79"
   ]
 }
 ```
@@ -187,25 +187,25 @@ Request
 Response 200
 ```json
 {
-  "site_id": "st_8f3k2m9q4x7v1c5b",
+  "site_id": "01a181c9-b7ca-70bc-abf5-a9e81e300af7",
   "page_ids": [
-    "pg_9d2f6h1j4k8l0m3n",
-    "pg_4n7c1x9k2m5q8w3e",
-    "pg_1q5w9e3r7t2y6u0i"
+    "01a181cf-2a4a-7cd5-bb2c-5c6582ac33a0",
+    "01a181d8-810e-7cfa-b14e-65065bb59fa1",
+    "01a181d4-5e8b-75fc-bd2f-613219bf3f79"
   ]
 }
 ```
 
 Errors
 - 400 `invalid_request`: body is not JSON, `page_ids` is missing or not an array of strings, an unknown field is present, or an id appears more than once.
+- 400 `menu_mismatch`: `page_ids` is not exactly the set of the site's current pages (an id is unknown, belongs to another site, or a page is left out). Nothing changes. The client reloads the pages and tries again.
 - 401 `unauthenticated`
 - 404 `site_not_found`
-- 409 `menu_mismatch`: `page_ids` is not exactly the set of the site's current pages (an id is unknown, belongs to another site, or a page is left out). Nothing changes. The client reloads the pages and tries again.
 
 ## Rules
 
 ### Page fields
-- `id`: `pg_` plus 16 characters, as API-001 Ids. Never changes.
+- `id`: a UUIDv7, as API-001 Ids. Set by the server, never changes.
 - `site_id`: the site the page belongs to. Never changes; pages cannot move between sites.
 - `title`: 1 to 80 characters after trimming. Required on create. Used in the menu and as the page's HTML title.
 - `slug`: 1 to 60 characters, slug pattern from API-001. Required on create. Unique within its site; two sites may each have a page `about`. The page is published at `/s/{site_slug}/{page_slug}`.
@@ -220,14 +220,14 @@ Errors
 - `PUT /sites/{id}/menu` is idempotent: sending the same list twice gives the same result.
 
 ### Limits
-- Max 50 pages per site. Creating the 51st returns 422 `too_many_pages`.
+- Max 50 pages per site. Creating the 51st returns 400 `too_many_pages`.
 - `page_ids` in a menu request: max 50 entries, the same as the page limit.
 
 ### Ordering
 - `GET /sites/{id}/pages` returns pages by `menu_order` ascending.
 
 ### Deleting
-- `DELETE` is permanent. The page's blocks are deleted with it. Releases already published by Publishing keep their copy of the page.
+- `DELETE` is permanent. The page's blocks (API-004) are deleted with it. Releases already published by Publishing keep their copy of the page.
 - The last remaining page of a site can be deleted; the site then has no home page.
 
 ### Side effects
