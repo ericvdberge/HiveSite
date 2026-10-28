@@ -39,7 +39,7 @@ Expertise comes from existing plugins enabled in `.claude/settings.json`: `pr-re
 ## Rules
 - Build exactly what the approved spec says. Gaps go back to the spec, not into the code.
 - Rendering is pure: content + theme → HTML, no database. Renderers use design tokens only.
-- Errors use the shape in `specs/STYLE.md`. Ids are prefixed strings.
+- Errors use the shape in `specs/STYLE.md`. Ids are UUIDv7 strings.
 - Every acceptance criterion has a test. Rendered HTML has snapshot tests.
 
 ## Brand
