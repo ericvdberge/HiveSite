@@ -2,7 +2,7 @@
 id: API-002
 title: Pages and menu order
 domain: content
-status: in review
+status: approved
 owner: api-architect
 stories: [13]
 depends_on: [API-001]
@@ -47,6 +47,7 @@ Headers: `Location: /pages/01a181d8-810e-7cfa-b14e-65065bb59fa1`
 Errors
 - 400 `invalid_request`: body is not JSON, `title` or `slug` is missing, a field has the wrong type, an unknown field is present, or a value breaks a limit in Rules. The message names the field.
 - 400 `slug_taken`: another page of this site already uses this slug.
+- 400 `slug_reserved`: the slug is one of the reserved page slugs in Rules.
 - 400 `idempotency_key_reused`
 - 400 `too_many_pages`: the site already has 50 pages.
 - 401 `unauthenticated`
@@ -149,6 +150,7 @@ Response 200
 Errors
 - 400 `invalid_request`: as for POST, or the body contains `menu_order`, `id`, `site_id` or a timestamp.
 - 400 `slug_taken`
+- 400 `slug_reserved`
 - 401 `unauthenticated`
 - 404 `page_not_found`
 
@@ -208,7 +210,7 @@ Errors
 - `id`: a UUIDv7, as API-001 Ids. Set by the server, never changes.
 - `site_id`: the site the page belongs to. Never changes; pages cannot move between sites.
 - `title`: 1 to 80 characters after trimming. Required on create. Used in the menu and as the page's HTML title.
-- `slug`: 1 to 60 characters, slug pattern from API-001. Required on create. Unique within its site; two sites may each have a page `about`. The page is published at `/s/{site_slug}/{page_slug}`.
+- `slug`: 1 to 60 characters, slug pattern from API-001. Required on create. Unique within its site; two sites may each have a page `about`. The page is published at `/s/{site_slug}/{page_slug}`. The slug `assets` is reserved for Publishing and returns 400 `slug_reserved`.
 - `menu_order`: integer from 0, read-only. The pages of a site always have the orders 0, 1, 2, … with no gaps and no duplicates.
 - `created_at`, `updated_at`: as API-001. A menu change does not change `updated_at` of the pages.
 
@@ -235,7 +237,10 @@ Raised through `Hivesite.Content.Contracts` after the change is saved:
 - `PageChanged { page_id, site_id, change: "created" | "updated" | "deleted" }` on POST, on a PATCH that changes a value, and on DELETE. A no-op PATCH raises nothing.
 - `MenuChanged { site_id, page_ids }` on a PUT that changes the order, and after a DELETE or POST changes the menu.
 
+## Decisions
+- **Every page is in the menu** in this version. Pages hidden from the menu (an `in_menu` flag) come with their own story.
+- **The first page in the menu is the home page.** The site does not name its home page.
+- **The page slug `assets` is reserved** for files Publishing serves under `/s/{site_slug}/`. Reserving it now means no stored page needs renaming later.
+
 ## Open questions
-- Should a page be able to stay out of the menu (for example a thank-you page reached only by a link)? This spec puts every page in the menu. Allowing it would add a boolean `in_menu` and make the home page rule depend on it.
-- Is "the first page in the menu is the home page" the rule you want, or should the site name its home page explicitly (for example `home_page_id` on the site, a change to API-001)?
-- Should page slugs reserve any names that Publishing may need under `/s/{site_slug}/` (for example `assets`)? Publishing has no spec yet; this spec reserves none.
+- none

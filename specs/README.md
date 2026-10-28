@@ -6,28 +6,18 @@
 
 | Spec | Title | Status | Stories | Depends on |
 |---|---|---|---|---|
-| [API-001](content/API-001-sites.md) | Sites | in review | #12 | — |
-| [API-002](content/API-002-pages-and-menu.md) | Pages and menu order | in review | #13 | API-001 |
-| [API-003](content/API-003-block-types.md) | Block type registry | in review | #14 | API-001 |
-| [API-004](content/API-004-page-blocks.md) | Page blocks | in review | #15 | API-001, API-002, API-003 |
+| [API-001](content/API-001-sites.md) | Sites | approved | #12 | — |
+| [API-002](content/API-002-pages-and-menu.md) | Pages and menu order | approved | #13 | API-001 |
+| [API-003](content/API-003-block-types.md) | Block type registry | approved | #14 | API-001 |
+| [API-004](content/API-004-page-blocks.md) | Page blocks | approved | #15 | API-001, API-002, API-003 |
 
 ## By status
 
 - **draft** (0): —
-- **in review** (4): API-001, API-002, API-003, API-004
-- **approved** (0): —
+- **in review** (0): —
+- **approved** (4): API-001, API-002, API-003, API-004
 - **built** (0): —
 
 ## Open questions
 
-- API-001: How do owners authenticate (API key, bearer token from an identity provider, or cookie session for the admin), and which spec owns sign-up and sign-in? This spec only assumes the Host resolves an owner id or returns 401.
-- API-001: Can an owner change a site's slug after it has been published? If yes, the old `/s/{slug}` stops working at once (no redirect). If no, PATCH should return 400 `slug_locked` once the site has a release.
-- API-001: Should the error shape gain an optional `error.field` (for example `"settings.description"` or `"/content/2/attrs/title"`) so clients can point at the failing input? Today the field is only named in `message`.
-- API-001: Are `language` and `description` the right site settings for the MVP, or are more needed now (for example favicon, social links, footer text)?
-- API-002: Should a page be able to stay out of the menu (for example a thank-you page reached only by a link)? This spec puts every page in the menu. Allowing it would add a boolean `in_menu` and make the home page rule depend on it.
-- API-002: Is "the first page in the menu is the home page" the rule you want, or should the site name its home page explicitly (for example `home_page_id` on the site, a change to API-001)?
-- API-002: Should page slugs reserve any names that Publishing may need under `/s/{site_slug}/` (for example `assets`)? Publishing has no spec yet; this spec reserves none.
-- API-003: Images are external `https://` URLs because the MVP has no asset upload. Is that acceptable, or does the MVP need an upload endpoint (and a story) before `hero`, `image`, `gallery` and `card_list` are useful?
-- API-003: Contact form submissions go to an external `action_url` (for example a form service), because published sites are static and Hivesite stores no submissions. Is that the intended design, or should Hivesite receive submissions (a new endpoint and story)?
-- API-003: Is the embed allowlist (YouTube, Vimeo, Google Maps) right for the MVP?
-- API-004: `GET /pages/{id}/blocks` is not in the plan's endpoint list, but without it an owner cannot read back the blocks they set. Keep it, or return the document from `GET /pages/{id}` instead (a change to API-002)?
+None.
