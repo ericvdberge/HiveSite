@@ -2,7 +2,7 @@
 id: API-001
 title: Sites
 domain: content
-status: in review
+status: approved
 owner: api-architect
 stories: [12]
 depends_on: []
@@ -191,7 +191,7 @@ Errors
 ### Shared conventions (API-002 to API-004 reuse these)
 - **Auth.** Every endpoint needs an authenticated owner. `Auth: owner` means any authenticated owner; `Auth: site owner` means the owner of the site the resource belongs to. Missing or invalid credentials return 401 `unauthenticated`. A resource owned by someone else returns the same 404 as a missing one, never 403, so ids do not leak.
 - **Ids.** Every id is a UUIDv7 in lowercase canonical form (8-4-4-4-12 hex digits), for example `01a181c9-b7ca-70bc-abf5-a9e81e300af7`, as in `specs/STYLE.md`. UUIDv7 is time-ordered, so new rows append to the end of the primary key index, which keeps inserts and index scans fast. The server generates ids; clients treat them as opaque. Ids in paths and bodies are accepted in any letter case and always returned lowercase. A value that is not a UUID returns the resource's 404.
-- **Errors.** Always `{ "error": { "code": "…", "message": "…" } }` as in `specs/STYLE.md`. `message` is for humans and may change; clients branch on `code` only.
+- **Errors.** Always `{ "error": { "code": "…", "message": "…" } }` as in `specs/STYLE.md`. `message` is for humans and may change; clients branch on `code` only. When an error is caused by one input, `error.field` holds a JSON Pointer (RFC 6901) to it in the request body, for example `"/settings/description"` or `"/content/2/attrs/title"`, or the name of the query parameter or header, for example `"limit"` or `"If-Match"`. `field` is left out when no single input is to blame (401, 404, `too_many_sites`).
 - **Validation.** Request bodies are strict: unknown fields, wrong types and `null` values return 400 `invalid_request`. The one exception is Tiptap documents (API-003, API-004), where `null` marks an unset attribute. String lengths count Unicode code points after trimming leading and trailing whitespace; the trimmed value is stored.
 - **Status codes.** 400 for every request the client can fix by changing it: malformed or invalid values, and checks against stored state such as a taken slug, a reused idempotency key or a count limit. 404 for a missing resource. 412 and 428 only for `If-Match` (API-004), 413 for a body over its size limit, 415 for an unsupported `Content-Type`. Clients branch on `code`, not on the status.
 - **Lists.** `?limit=` 1 to 100, default 20; `?cursor=` opaque. Responses are `{ "items": [...], "next_cursor": "…" }`; `next_cursor` is `null` on the last page. An unknown or tampered cursor returns 400 `invalid_cursor`.
@@ -199,8 +199,11 @@ Errors
 - **Slugs.** Slug fields use the pattern `^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$`. Each spec sets the length and the scope of uniqueness. A taken slug returns 400 `slug_taken`.
 - **Timestamps.** RFC 3339, UTC, second precision, `Z` suffix.
 
+## Decisions
+- **Authentication is out of scope.** The Host resolves an owner id from the request or returns 401 `unauthenticated`. How owners sign up and sign in belongs to a later spec.
+- **A site's slug can change at any time**, also after the site is published. Content does not track releases. How a new slug reaches the live site, and whether the old path redirects, belongs to the Publishing specs (API-020, API-021).
+- **Errors name the failing input in `field`.** See Errors in Shared conventions.
+- **`language` and `description` are the only site settings** in this version. More (favicon, social links, footer text) come with their own stories.
+
 ## Open questions
-- How do owners authenticate (API key, bearer token from an identity provider, or cookie session for the admin), and which spec owns sign-up and sign-in? This spec only assumes the Host resolves an owner id or returns 401.
-- Can an owner change a site's slug after it has been published? If yes, the old `/s/{slug}` stops working at once (no redirect). If no, PATCH should return 400 `slug_locked` once the site has a release.
-- Should the error shape gain an optional `error.field` (for example `"settings.description"` or `"/content/2/attrs/title"`) so clients can point at the failing input? Today the field is only named in `message`.
-- Are `language` and `description` the right site settings for the MVP, or are more needed now (for example favicon, social links, footer text)?
+- none

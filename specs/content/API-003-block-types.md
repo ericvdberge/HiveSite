@@ -2,7 +2,7 @@
 id: API-003
 title: Block type registry
 domain: content
-status: in review
+status: approved
 owner: api-architect
 stories: [14]
 depends_on: [API-001]
@@ -542,7 +542,10 @@ API-004 also checks these, with the same error as a schema failure:
 - Rich text is never HTML. A `text` node's `text` is literal: `<b>` is shown as the characters `<b>`. Rendering escapes it.
 - Of the `link` mark's attributes, only `href` is used. `target`, `rel` and `class` are accepted because Tiptap's Link extension emits them, stored as sent and ignored by Rendering, which sets its own. The same holds for `orderedList`'s `type`.
 
+## Decisions
+- **Images are external `https://` URLs.** The MVP has no asset upload. Uploads come with their own story and endpoint.
+- **Contact forms post to an external `action_url`**, for example a form service. Published sites stay static and Hivesite stores no submissions.
+- **The embed allowlist is YouTube, Vimeo and Google Maps** for the MVP. Adding a provider raises `embed`'s `version`.
+
 ## Open questions
-- Images are external `https://` URLs because the MVP has no asset upload. Is that acceptable, or does the MVP need an upload endpoint (and a story) before `hero`, `image`, `gallery` and `card_list` are useful?
-- Contact form submissions go to an external `action_url` (for example a form service), because published sites are static and Hivesite stores no submissions. Is that the intended design, or should Hivesite receive submissions (a new endpoint and story)?
-- Is the embed allowlist (YouTube, Vimeo, Google Maps) right for the MVP?
+- none

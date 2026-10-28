@@ -2,7 +2,7 @@
 id: API-004
 title: Page blocks
 domain: content
-status: in review
+status: approved
 owner: api-architect
 stories: [15]
 depends_on: [API-001, API-002, API-003]
@@ -125,8 +125,8 @@ The stored document, with defaults filled in (`hero.attrs.subtitle` and `hero.at
 
 Errors
 - 400 `invalid_request`: body is not JSON, the top level is not an object with `type` `"doc"` and an array `content`, a block is not an object or lacks `type`, an unknown field is present at the top level, or `If-Match` is `*` or holds more than one value.
-- 400 `unknown_block_type`: a block's `type` is not one of the API-003 types. The message names the block by JSON Pointer, for example `/content/3/type`.
-- 400 `invalid_block`: a block fails its schema or a check from API-003 "Rules beyond the schemas". The message names the JSON Pointer and the problem, for example `/content/0/attrs/title: must be at most 80 characters`.
+- 400 `unknown_block_type`: a block's `type` is not one of the API-003 types. `field` is its JSON Pointer, for example `/content/3/type`.
+- 400 `invalid_block`: a block fails its schema or a check from API-003 "Rules beyond the schemas". `field` is the JSON Pointer of the failing value and the message names the problem, for example `/content/0/attrs/title: must be at most 80 characters`.
 - 400 `too_many_blocks`: more than 40 blocks.
 - 401 `unauthenticated`
 - 404 `page_not_found`
@@ -264,5 +264,8 @@ Errors
 ### Side effects
 - A PUT or PATCH that changes the stored document raises `PageChanged { page_id, site_id, change: "blocks" }` through `Hivesite.Content.Contracts`, adding the value `"blocks"` to the `change` field defined in API-002. One that changes nothing raises nothing.
 
+## Decisions
+- **`GET /pages/{id}/blocks` stays.** It is how an owner reads back the blocks they set, and it keeps `GET /pages/{id}` small. The plan's endpoint list now includes GET and PATCH on this path.
+
 ## Open questions
-- `GET /pages/{id}/blocks` is not in the plan's endpoint list, but without it an owner cannot read back the blocks they set. Keep it, or return the document from `GET /pages/{id}` instead (a change to API-002)?
+- none
