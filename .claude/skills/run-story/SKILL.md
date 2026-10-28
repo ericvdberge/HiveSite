@@ -23,14 +23,16 @@ Backlog ─(human)→ Ready → Spec review ─(human merges spec PR)→ Buildin
 ## Before you start
 
 1. Read `CLAUDE.md`. Its **Factory** section names the teams (`team:*` label → dev agent), the build and test commands, and the board.
-2. Find the story: the issue number you were given, or the top item in **Ready**: `node scripts/board.mjs list Ready`.
-3. Read the issue, its comments and its linked spec. Work out which step it is in from its column and the last manager comment.
+2. Catch the board up with what humans did since the last run: `node scripts/board.mjs sync`. It moves closed issues to **Done** and stories with an open spec PR to **Spec review**. GitHub does not move cards on its own, so never skip this.
+3. Find the story: the issue number you were given, or the top item in **Ready**: `node scripts/board.mjs list Ready`.
+4. Read the issue, its comments and its linked spec. Work out which step it is in from its column and the last manager comment.
 
 ## Steps
 
 ### 1. Spec
 - If the story links specs that are all `approved` or `built`, or says `Spec: none`, skip to step 2.
 - Otherwise start `api-architect` with the story number. It opens a spec PR.
+- When you come back after the human merged the spec PR, the story is still in **Spec review**. Move it on yourself as step 2 starts.
 - Move the story to **Spec review**, comment with the PR link, and **stop**. Tell the human: "Review and merge spec PR #N to continue."
 
 ### 2. Plan
@@ -50,14 +52,27 @@ Backlog ─(human)→ Ready → Spec review ─(human merges spec PR)→ Buildin
 
 ### 5. Hand over
 - When review and tests pass: `gh pr ready <pr>`, move the story to **Ready to merge**, comment a summary with links, and **stop**.
-- The human merges. GitHub closes the issue and the board moves it to **Done**.
+- The human merges and GitHub closes the issue. The card stays in **Ready to merge** until the next run's `sync` moves it to **Done**.
+
+## Send back a PR with human review comments
+
+A human who reviewed a PR that waits on them (spec, design or build) and left comments can send it back to its team. The Factory Floor's *Send back* button asks for this.
+
+1. Read every human comment on the PR: `gh pr view <pr> --comments`, `gh api repos/<repo>/pulls/<pr>/reviews` and `gh api repos/<repo>/pulls/<pr>/comments` (line comments, with path and line). Ignore comments by agents. No human comments? Say so and stop.
+2. Pick the team from the branch: `spec/` → `api-architect`, `design/` → `designer`, `story/` → the dev agent for the story's `team:*` label. A `factory/` or `chore/` PR has no agent team: fix it in this session yourself.
+3. Start that agent on the same branch (dev agents with `isolation: worktree`) with the PR number, the story, and each comment quoted with its file and line. It fixes every comment or answers why not, pushes, and replies on the PR with one line per comment.
+4. Move the card: a spec or design PR stays in **Spec review**; a build PR goes to **Building**, then through step 4 again. Rounds a human asked for do not count toward the three.
+5. Comment on the story issue and **stop** at the same gate as before: `**Send back** — <team> fixed N comments on PR #N. Next: review again and merge.`
 
 ## Board commands
 
 ```bash
 node scripts/board.mjs list [Column]
 node scripts/board.mjs move <issue> "<Column>"
+node scripts/board.mjs sync   # closed → Done, open spec PR → Spec review
 ```
+
+Move the card in the same step as the work it reports, before the issue comment. A step is not done while its card is in the wrong column.
 
 ## Guardrails
 

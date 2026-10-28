@@ -4,7 +4,7 @@ A mod for the Claude desktop app (Code tab) that runs the Hivesite agent factory
 
 On desktop it is drawn in the look of the Agent Factory Floor page: a masthead with four figures, the organisation (the four teams as cards; each person lights up while they run and shows the story they are on, and clicking one opens their file with what they are doing, what they said last, *Watch live* / *Open transcript* and *Ask…*), story cards with a Ready → Spec → Build → Review → Merge track and their issue and PR links, and an activity feed. It redraws every 5 seconds. A terminal gets the same content as plain rows.
 
-- **Waiting on me**: spec and design PRs to review and merge, build PRs ready to merge, `needs-human` issues and unapproved cases, each linked.
+- **Waiting on me**: spec and design PRs to review and merge, build PRs ready to merge, `needs-human` issues and unapproved cases, each linked. Each PR has *Send back*: after you leave review comments on GitHub, it asks the manager (`run-story`) to hand the PR back to its team, which fixes the comments on the same branch and replies on the PR.
 - **Agents now**: which subagent (`.claude/agents/*`) runs on which story, fed by the `agent.spawn`, `SubagentStart` and `SubagentStop` hooks.
 - **Board**: the columns of the project named in `.github/factory.json`, with story cards.
 - **Actions**: *Run next story* and *Run* on a Ready card send a `run-story` prompt to this session; *→ Ready* on a Backlog card runs `node scripts/board.mjs move <issue> Ready`.
