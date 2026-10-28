@@ -275,3 +275,22 @@ test('a low budget waits calmly until it resets', async ($, on) => {
   expect(await drawings(ui)).not.toContain('Rate limited')
   await ui.unmount()
 })
+
+test('Send back on a waiting PR sends it to its team with my comments', async ($, on) => {
+  const submitted: string[] = []
+  await start($, on, [], submitted)
+  for (const surface of ['desktop', 'terminal'] as const) {
+    const ui = await $.ui.mount({ ...PANE, surface })
+    await ui.press({ key: 'refresh' })
+    // PRs only: spec PR #9 and build PR #1 have it, needs-human issue #12 does not.
+    expect(await ui.find({ key: 'send-back-9' })).toBeDefined()
+    expect(await ui.find({ key: 'send-back-1' })).toBeDefined()
+    expect(await ui.find({ key: 'send-back-12' })).toBeUndefined()
+    await ui.press({ key: 'send-back-9' })
+    await ui.unmount()
+  }
+  expect(submitted).toEqual([
+    'Use the run-story skill to send PR #9 back to its team with my review comments.',
+    'Use the run-story skill to send PR #9 back to its team with my review comments.',
+  ])
+})

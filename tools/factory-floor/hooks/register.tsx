@@ -274,6 +274,17 @@ async function runStory($: EngineInterface, issue?: number) {
   await update($, status, () => ({ note: issue === undefined ? 'Sent: run the next story' : `Sent: run #${issue}` }))
 }
 
+// A PR the human reviewed goes back to its team with their comments.
+async function sendBack($: EngineInterface, pr: number) {
+  await $.prompt.submit({
+    text: `Use the run-story skill to send PR #${pr} back to its team with my review comments.`,
+    asUser: true,
+  })
+  await update($, status, () => ({ note: `Sent back: PR #${pr}` }))
+}
+
+const isPr = (item: WaitItem) => item.kind === 'approve' || item.kind === 'merge'
+
 async function openTranscript($: EngineInterface, agentId: string, agent: string) {
   const shown = await $.ui.view({ agentId })
   if (shown.deny) await update($, status, () => ({ note: `Cannot open ${agent}'s transcript: ${shown.deny}`, isError: true }))
@@ -533,7 +544,7 @@ export const register: Register = on => {
           {isError && <Text color="red">{note}</Text>}
 
           <Box flexDirection="column" gap={1}>
-            {heading('Waiting on you', 'Only you can move these')}
+            {heading('Waiting on you', 'Merge, or send back with your comments')}
             {items.length === 0 && <Text dimColor>Nothing waits on you.</Text>}
             {items.map(item => (
               <Box flexDirection="row" gap={1}>
@@ -542,6 +553,7 @@ export const register: Register = on => {
                 <Box flexGrow={1} flexShrink={1}>
                   <Text wrap="truncate">{item.title}</Text>
                 </Box>
+                {isPr(item) && <Button key={`send-back-${item.number}`} label="Send back" onPress={() => sendBack($, item.number)} />}
               </Box>
             ))}
           </Box>
@@ -662,6 +674,7 @@ export const register: Register = on => {
               <Box flexGrow={1} flexShrink={1}>
                 <Text wrap="truncate">{item.title}</Text>
               </Box>
+              {isPr(item) && <Button key={`send-back-${item.number}`} label="Send back" onPress={() => sendBack($, item.number)} />}
             </Box>
           ))}
         </Box>

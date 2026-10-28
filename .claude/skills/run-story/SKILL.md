@@ -54,6 +54,16 @@ Backlog ─(human)→ Ready → Spec review ─(human merges spec PR)→ Buildin
 - When review and tests pass: `gh pr ready <pr>`, move the story to **Ready to merge**, comment a summary with links, and **stop**.
 - The human merges and GitHub closes the issue. The card stays in **Ready to merge** until the next run's `sync` moves it to **Done**.
 
+## Send back a PR with human review comments
+
+A human who reviewed a PR that waits on them (spec, design or build) and left comments can send it back to its team. The Factory Floor's *Send back* button asks for this.
+
+1. Read every human comment on the PR: `gh pr view <pr> --comments`, `gh api repos/<repo>/pulls/<pr>/reviews` and `gh api repos/<repo>/pulls/<pr>/comments` (line comments, with path and line). Ignore comments by agents. No human comments? Say so and stop.
+2. Pick the team from the branch: `spec/` → `api-architect`, `design/` → `designer`, `story/` → the dev agent for the story's `team:*` label. A `factory/` or `chore/` PR has no agent team: fix it in this session yourself.
+3. Start that agent on the same branch (dev agents with `isolation: worktree`) with the PR number, the story, and each comment quoted with its file and line. It fixes every comment or answers why not, pushes, and replies on the PR with one line per comment.
+4. Move the card: a spec or design PR stays in **Spec review**; a build PR goes to **Building**, then through step 4 again. Rounds a human asked for do not count toward the three.
+5. Comment on the story issue and **stop** at the same gate as before: `**Send back** — <team> fixed N comments on PR #N. Next: review again and merge.`
+
 ## Board commands
 
 ```bash
