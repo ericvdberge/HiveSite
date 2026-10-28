@@ -10,8 +10,18 @@ import { activity, ago, GOLD, IN_FLIGHT, masthead, ROSTER, seatOf, storyCard, UN
 const PANE = 'factory-floor'
 const TITLE = 'Factory Floor'
 const COLUMNS = ['Backlog', 'Ready', 'Spec review', 'Building', 'Agent review', 'Ready to merge', 'Done']
-const REFRESH_MS = 30_000
 const TICK_MS = 5_000
+// GitHub's GraphQL budget is 5,000 points an hour, shared with gh and the
+// agents. A shown pane re-reads the board every few minutes, never while it
+// is hidden or the session is idle, and backs off when the budget runs low.
+const POLL_MS = 5 * 60_000
+const CHECK_MS = 60_000
+const SOFT_MS = 60_000
+const IDLE_MS = 30 * 60_000
+const RESERVE = 500
+// Kept across sessions, so a second session reuses a fresh read.
+const CACHE = 'board-cache'
+const LIMITED = 'limited-until'
 
 // Change a tag when that value's fields change: an older stored value is
 // then read as the initial one instead of in the wrong shape.
@@ -20,7 +30,7 @@ const board = atom({ plugin: 'factory-floor', key: 'board' } as const, { cards: 
 })
 const waiting = atom({ plugin: 'factory-floor', key: 'waiting' } as const, [] as WaitItem[], { shape: 'waiting-1' })
 const agents = atom({ plugin: 'factory-floor', key: 'agents' } as const, [] as AgentRun[], { shape: 'agents-1' })
-const status = atom({ plugin: 'factory-floor', key: 'status' } as const, {} as Status, { shape: 'status-1' })
+const status = atom({ plugin: 'factory-floor', key: 'status' } as const, {} as Status, { shape: 'status-2' })
 const tick = atom({ plugin: 'factory-floor', key: 'tick' } as const, 0, { shape: 'tick-1' })
 const selected = atom({ plugin: 'factory-floor', key: 'selected' } as const, {} as { agent?: string }, { shape: 'selected-1' })
 
@@ -47,44 +57,92 @@ async function gh($: EngineInterface, args: string[]): Promise<unknown> {
   return JSON.parse(stdout)
 }
 
-type ProjectItem = {
-  status?: string
-  labels?: string[]
-  title?: string
-  'linked pull requests'?: string[]
-  content?: { number?: number; title?: string; url?: string; type?: string }
-}
-type Pr = { number: number; title: string; url: string; headRefName: string; isDraft: boolean; labels: { name: string }[] }
-type Issue = { number: number; title: string; url: string; labels?: { name: string }[] }
+// The whole floor in one GraphQL query of a few points. `gh project
+// item-list` asks for every field of every item, about 400 points a page.
+const QUERY = `query($login: String!, $number: Int!, $owner: String!, $name: String!, $after: String) {
+  repositoryOwner(login: $login) {
+    ... on ProjectV2Owner {
+      projectV2(number: $number) {
+        items(first: 100, after: $after) {
+          pageInfo { hasNextPage endCursor }
+          nodes {
+            status: fieldValueByName(name: "Status") { ... on ProjectV2ItemFieldSingleSelectValue { name } }
+            linked: fieldValueByName(name: "Linked pull requests") {
+              ... on ProjectV2ItemFieldPullRequestValue { pullRequests(first: 10) { nodes { url } } }
+            }
+            content {
+              ... on Issue { number title url labels(first: 20) { nodes { name } } }
+              ... on PullRequest { number title url labels(first: 20) { nodes { name } } }
+            }
+          }
+        }
+      }
+    }
+  }
+  repository(owner: $owner, name: $name) {
+    prs: pullRequests(states: OPEN, first: 100) {
+      nodes { number title url headRefName isDraft labels(first: 20) { nodes { name } } }
+    }
+    blocked: issues(states: OPEN, labels: ["needs-human"], first: 100) { nodes { number title url } }
+    cases: issues(states: OPEN, labels: ["type:case"], first: 100) {
+      nodes { number title url labels(first: 20) { nodes { name } } }
+    }
+  }
+}`
 
-async function fetchBoard($: EngineInterface): Promise<Card[]> {
-  const data = (await gh($, [
-    'project', 'item-list', String(config.project), '--owner', config.owner, '--format', 'json', '--limit', '500',
-  ])) as { items: ProjectItem[] }
-  return data.items
+type Names = { nodes: { name: string }[] }
+type ProjectItem = {
+  status?: { name?: string } | null
+  linked?: { pullRequests?: { nodes: { url: string }[] } } | null
+  content?: { number?: number; title?: string; url?: string; labels?: Names } | null
+}
+type Pr = { number: number; title: string; url: string; headRefName: string; isDraft: boolean; labels: Names }
+type Issue = { number: number; title: string; url: string; labels?: Names }
+type Floor = {
+  data: {
+    repositoryOwner?: {
+      projectV2?: { items: { pageInfo: { hasNextPage: boolean; endCursor: string }; nodes: ProjectItem[] } } | null
+    } | null
+    repository: { prs: { nodes: Pr[] }; blocked: { nodes: Issue[] }; cases: { nodes: Issue[] } }
+  }
+}
+
+async function fetchFloor($: EngineInterface): Promise<{ cards: Card[]; items: WaitItem[] }> {
+  const [owner, name] = config.repo.split('/')
+  const nodes: ProjectItem[] = []
+  let first: Floor | undefined
+  let after: string | undefined
+  // A board over 100 cards takes a page more; the rest of the query is cheap.
+  for (let page = 0; page < 10; page++) {
+    const vars = ['-f', `login=${config.owner}`, '-F', `number=${config.project}`, '-f', `owner=${owner}`, '-f', `name=${name}`]
+    if (after) vars.push('-f', `after=${after}`)
+    const floor = (await gh($, ['api', 'graphql', '-f', `query=${QUERY}`, ...vars])) as Floor
+    first ??= floor
+    const items = floor.data.repositoryOwner?.projectV2?.items
+    if (!items) throw new Error(`Project ${config.project} of ${config.owner} not found`)
+    nodes.push(...items.nodes)
+    if (!items.pageInfo.hasNextPage) break
+    after = items.pageInfo.endCursor
+  }
+  const cards = nodes
     .filter(item => item.content?.number !== undefined)
     .map(item => ({
       number: item.content!.number!,
-      title: item.content!.title ?? item.title ?? '',
+      title: item.content!.title ?? '',
       url: item.content!.url ?? '',
-      status: item.status ?? 'Backlog',
-      labels: item.labels ?? [],
-      prs: item['linked pull requests'] ?? [],
+      status: item.status?.name ?? 'Backlog',
+      labels: item.content!.labels?.nodes.map(l => l.name) ?? [],
+      prs: item.linked?.pullRequests?.nodes.map(pr => pr.url) ?? [],
     }))
+  const repo = first!.data.repository
+  return { cards, items: waitingOf(cards, repo.prs.nodes, repo.blocked.nodes, repo.cases.nodes) }
 }
 
-async function fetchWaiting($: EngineInterface, cards: Card[]): Promise<WaitItem[]> {
-  const repo = ['--repo', config.repo, '--state', 'open', '--limit', '100']
-  const [prs, blocked, cases] = (await Promise.all([
-    gh($, ['pr', 'list', ...repo, '--json', 'number,title,url,headRefName,isDraft,labels']),
-    gh($, ['issue', 'list', ...repo, '--label', 'needs-human', '--json', 'number,title,url']),
-    gh($, ['issue', 'list', ...repo, '--label', 'type:case', '--json', 'number,title,url,labels']),
-  ])) as [Pr[], Issue[], Issue[]]
-
+function waitingOf(cards: Card[], prs: Pr[], blocked: Issue[], cases: Issue[]): WaitItem[] {
   const readyToMerge = new Set(cards.filter(c => c.status === 'Ready to merge').flatMap(c => c.prs))
   const items: WaitItem[] = []
   for (const pr of prs) {
-    const labels = pr.labels.map(l => l.name)
+    const labels = pr.labels.nodes.map(l => l.name)
     const branch = pr.headRefName
     if (branch.startsWith('spec/') || branch.startsWith('design/') || labels.includes('type:spec')) {
       items.push({ kind: 'approve', number: pr.number, title: pr.title, url: pr.url })
@@ -94,34 +152,103 @@ async function fetchWaiting($: EngineInterface, cards: Card[]): Promise<WaitItem
   }
   for (const issue of blocked) items.push({ kind: 'needs-human', number: issue.number, title: issue.title, url: issue.url })
   for (const issue of cases) {
-    if (!issue.labels?.some(l => l.name === 'approved')) {
+    if (!issue.labels?.nodes.some(l => l.name === 'approved')) {
       items.push({ kind: 'case', number: issue.number, title: issue.title, url: issue.url })
     }
   }
   return items
 }
 
-let refreshing: Promise<void> | undefined
+// The GraphQL budget left, read over REST, which costs no GraphQL points.
+async function graphqlLeft($: EngineInterface): Promise<{ remaining: number; resetMs: number } | undefined> {
+  try {
+    const left = (await gh($, ['api', 'rate_limit', '--jq', '.resources.graphql'])) as { remaining: number; reset: number }
+    return { remaining: left.remaining, resetMs: left.reset * 1000 }
+  } catch {
+    return undefined
+  }
+}
 
-function refresh($: EngineInterface): Promise<void> {
+type Cache = { at: number; cards: Card[]; items: WaitItem[] }
+// Why a refresh was asked: the timer, a turn or agent that ended, the pane
+// opening, or the person's own press. Each takes a cached read this young.
+type Why = 'poll' | 'event' | 'open' | 'press'
+const MAX_AGE: Record<Why, number> = { poll: POLL_MS, open: POLL_MS, event: SOFT_MS, press: 0 }
+
+let refreshing: Promise<void> | undefined
+let lastActivity = 0
+let lastAttempt = 0
+
+async function isShown($: EngineInterface): Promise<boolean> {
+  try {
+    return (await $.ui.panes()).some(pane => pane.id === PANE && pane.isShown)
+  } catch {
+    return false
+  }
+}
+
+async function active($: EngineInterface) {
+  lastActivity = await $.clock.now()
+}
+
+function refresh($: EngineInterface, why: Why = 'press'): Promise<void> {
   // One refresh at a time; a second ask while one runs shares it.
-  refreshing ??= (async () => {
-    await update($, status, s => ({ ...s, busy: 'Refreshing…' }))
-    try {
-      const cards = await fetchBoard($)
-      await update($, board, () => ({ cards, fetchedAt: Date.now() }))
-      const items = await fetchWaiting($, cards)
-      await update($, waiting, () => items)
-      await update($, status, s => ({ ...s, busy: undefined }))
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error)
-      await update($, board, b => ({ ...b, error: message }))
-      await update($, status, () => ({ note: `Refresh failed: ${message}`, isError: true }))
-    }
-  })().finally(() => {
+  refreshing ??= reread($, why).finally(() => {
     refreshing = undefined
   })
   return refreshing
+}
+
+async function reread($: EngineInterface, why: Why) {
+  const now = await $.clock.now()
+  if (why === 'press') lastActivity = now
+  // Nobody looks at a hidden pane, and an idle session moves nothing.
+  if ((why === 'poll' || why === 'event') && !(await isShown($))) return
+  if (why === 'poll' && now - lastActivity > IDLE_MS) return
+
+  const cached = (await $.store.get(CACHE)) as Cache | undefined
+  if (cached) {
+    if (cached.at > (await read($, board)).fetchedAt) {
+      await update($, board, () => ({ cards: cached.cards, fetchedAt: cached.at }))
+      await update($, waiting, () => cached.items)
+    }
+    if (now - cached.at < MAX_AGE[why]) return
+  }
+  // A read that failed is not tried again by itself within the minute.
+  if (why !== 'press' && now - lastAttempt < SOFT_MS) return
+
+  const until = Number((await $.store.get(LIMITED)) ?? 0)
+  if (until > now) return limited($, until)
+  const left = await graphqlLeft($)
+  if (left && left.remaining < RESERVE) return limited($, left.resetMs)
+
+  lastAttempt = now
+  await update($, status, s => ({ ...s, busy: 'Refreshing…' }))
+  try {
+    const { cards, items } = await fetchFloor($)
+    const at = await $.clock.now()
+    await $.store.set(CACHE, { at, cards, items } satisfies Cache)
+    await update($, board, () => ({ cards, fetchedAt: at }))
+    await update($, waiting, () => items)
+    await update($, status, s => ({ ...s, busy: undefined, limitedUntil: undefined }))
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    if (/rate limit/i.test(message)) return limited($, (await graphqlLeft($))?.resetMs ?? now + POLL_MS)
+    await update($, board, b => ({ ...b, error: message }))
+    await update($, status, () => ({ note: `Refresh failed: ${message}`, isError: true }))
+  }
+}
+
+// Waits out the budget calmly: the pane says when it reads again, and every
+// session waits for the same time.
+async function limited($: EngineInterface, until: number) {
+  await $.store.set(LIMITED, until)
+  await update($, status, s => ({ ...s, busy: undefined, limitedUntil: until }))
+}
+
+function clockTime(ms: number): string {
+  const d = new Date(ms)
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
 }
 
 async function moveToReady($: EngineInterface, issue: number) {
@@ -175,28 +302,32 @@ export const register: Register = on => {
     const found = await readConfig($)
     config = found ?? DEFAULTS
     await $.command.register({ name: 'factory-floor', description: 'Open the Factory Floor pane for the Hivesite board' })
+    await active($)
     // Open by itself only in a checkout that has the factory.
     if (found) {
       void $.ui.open({ id: PANE, title: TITLE })
-      void refresh($)
+      void refresh($, 'open')
     }
-    // A tick redraws the ages and live marks; the board itself is re-read
-    // less often, and after every turn of this session.
+    // A tick redraws the ages and live marks. Each minute the board is re-read
+    // if it is older than POLL_MS, the pane is shown and the session not idle;
+    // a turn or an agent that ends re-reads one older than a minute.
     $.clock.every(TICK_MS, () => void update($, tick, n => (n + 1) % 1_000_000))
-    $.clock.every(REFRESH_MS, () => void refresh($))
+    $.clock.every(CHECK_MS, () => void refresh($, 'poll'))
     return started
   })
 
   on('turn.complete', async ($, e, next) => {
     const done = await next(e)
+    await active($)
     // Subagents' turns end too; SubagentStop already refreshes for those.
-    if (!e.agentId) void refresh($)
+    if (!e.agentId) void refresh($, 'event')
     return done
   })
 
   on('command.run', { command: 'factory-floor' }, async $ => {
     await $.ui.open({ id: PANE, title: TITLE })
-    void refresh($)
+    await active($)
+    void refresh($, 'open')
     return { text: 'Factory Floor opened.' }
   })
 
@@ -204,6 +335,7 @@ export const register: Register = on => {
   // SubagentStart/Stop say when that agent really runs and ends.
   on('agent.spawn', async ($, e, next) => {
     if (e.fork && !e.subagentType) return next(e)
+    await active($)
     const run: AgentRun = {
       id: e.tool_use_id,
       agent: e.subagentType,
@@ -224,6 +356,7 @@ export const register: Register = on => {
   })
 
   on('classic.SubagentStart', async ($, e, next) => {
+    await active($)
     await update($, agents, list => {
       if (list.some(one => one.agentId === e.agent_id)) return list
       const index = list.findLastIndex(one => one.agent === e.agent_type && !one.agentId && !one.endedAt)
@@ -243,7 +376,8 @@ export const register: Register = on => {
       ),
     )
     // An agent that ends has usually moved a card or opened a PR.
-    void refresh($)
+    await active($)
+    void refresh($, 'event')
     return next(e)
   })
 
@@ -251,14 +385,16 @@ export const register: Register = on => {
     const { cards, fetchedAt, error } = await read($, board)
     const items = await read($, waiting)
     const runs = await read($, agents)
-    const { busy, note, isError } = await read($, status)
+    const { busy, note, isError, limitedUntil } = await read($, status)
     // Read so the pane redraws on every tick: ages and live marks move.
     await read($, tick)
 
     const running = runs.filter(r => !r.endedAt)
     const backlog = cards.filter(c => c.status === 'Backlog')
     const ready = cards.filter(c => c.status === 'Ready')
-    const line = busy ?? note ?? (fetchedAt ? `Updated ${ago(fetchedAt)} ago · every ${REFRESH_MS / 1000}s` : 'Loading the board…')
+    const wait = limitedUntil && limitedUntil > Date.now() ? `Rate limited · retrying at ${clockTime(limitedUntil)}` : undefined
+    const line =
+      busy ?? wait ?? note ?? (fetchedAt ? `Updated ${ago(fetchedAt)} ago · every ${POLL_MS / 60_000} min while shown` : 'Loading the board…')
 
     // Desktop, VS Code and mobile: the Factory Floor look. Pictures are SVG;
     // everything that takes a click is a native element.

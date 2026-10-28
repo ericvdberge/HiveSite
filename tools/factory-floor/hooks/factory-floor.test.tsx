@@ -14,48 +14,62 @@ const PANE = {
   },
 } as const
 
-const ITEMS = {
-  items: [
-    { status: 'Backlog', labels: ['type:story'], content: { number: 7, title: 'Pages API', url: 'https://github.com/o/r/issues/7' } },
-    { status: 'Ready', labels: [], content: { number: 25, title: 'Factory Floor', url: 'https://github.com/o/r/issues/25' } },
-    {
-      status: 'Ready to merge',
-      labels: [],
-      'linked pull requests': ['https://github.com/o/r/pull/1'],
-      content: { number: 2, title: 'Agent factory', url: 'https://github.com/o/r/issues/2' },
-    },
-  ],
-}
+const names = (...list: string[]) => ({ nodes: list.map(name => ({ name })) })
+const ITEMS = [
+  { status: { name: 'Backlog' }, linked: null, content: { number: 7, title: 'Pages API', url: 'https://github.com/o/r/issues/7', labels: names('type:story') } },
+  { status: { name: 'Ready' }, linked: null, content: { number: 25, title: 'Factory Floor', url: 'https://github.com/o/r/issues/25', labels: names() } },
+  {
+    status: { name: 'Ready to merge' },
+    linked: { pullRequests: { nodes: [{ url: 'https://github.com/o/r/pull/1' }] } },
+    content: { number: 2, title: 'Agent factory', url: 'https://github.com/o/r/issues/2', labels: names() },
+  },
+]
 const PRS = [
-  { number: 1, title: 'chore(factory): add the agent factory', url: 'https://github.com/o/r/pull/1', headRefName: 'factory/bootstrap', isDraft: false, labels: [] },
-  { number: 9, title: 'docs(spec): API-001 pages', url: 'https://github.com/o/r/pull/9', headRefName: 'spec/api-001', isDraft: false, labels: [] },
-  { number: 10, title: 'feat(content): pages', url: 'https://github.com/o/r/pull/10', headRefName: 'story/7-pages', isDraft: true, labels: [] },
+  { number: 1, title: 'chore(factory): add the agent factory', url: 'https://github.com/o/r/pull/1', headRefName: 'factory/bootstrap', isDraft: false, labels: names() },
+  { number: 9, title: 'docs(spec): API-001 pages', url: 'https://github.com/o/r/pull/9', headRefName: 'spec/api-001', isDraft: false, labels: names() },
+  { number: 10, title: 'feat(content): pages', url: 'https://github.com/o/r/pull/10', headRefName: 'story/7-pages', isDraft: true, labels: names() },
 ]
 const BLOCKED = [{ number: 12, title: 'Stuck after three rounds', url: 'https://github.com/o/r/issues/12' }]
+const FLOOR = {
+  data: {
+    repositoryOwner: { projectV2: { items: { pageInfo: { hasNextPage: false, endCursor: 'x' }, nodes: ITEMS } } },
+    repository: { prs: { nodes: PRS }, blocked: { nodes: BLOCKED }, cases: { nodes: [] } },
+  },
+}
+// 10:00 local, so a reset reads as a time of day.
+const NOW = new Date(2026, 9, 28, 10, 0).getTime()
 
 type Argv = readonly string[]
 const viewed: unknown[] = []
 
+// What the host says about GitHub and the pane; a test changes it as it goes.
+type World = { remaining: number; resetMs: number; isShown: boolean }
+const open = (): World => ({ remaining: 5000, resetMs: NOW + 3_600_000, isShown: true })
+
 // Stands for the host: gh answers from the fixtures above, node moves a card.
-function host(ran: Argv[]) {
+function host(ran: Argv[], world: World) {
   return (argv: Argv) => {
     ran.push(argv)
     const out = (value: unknown) => ({ exitCode: 0, stdout: JSON.stringify(value), stderr: '', isStdoutTruncated: false, isStderrTruncated: false })
     if (argv[0] === 'git') return { ...out(''), stdout: '/repo\n' }
     if (argv[0] === 'node') return { ...out(''), stdout: `#${argv[3]} → Ready\n` }
-    if (argv[1] === 'project') return out(ITEMS)
-    if (argv[1] === 'pr') return out(PRS)
-    if (argv.includes('needs-human')) return out(BLOCKED)
-    return out([])
+    if (argv[2] === 'rate_limit') return out({ limit: 5000, remaining: world.remaining, reset: Math.floor(world.resetMs / 1000) })
+    if (argv[2] === 'graphql') return out(FLOOR)
+    return { ...out(''), exitCode: 1, stderr: `unexpected: ${argv.join(' ')}` }
   }
 }
 
-async function start($: any, on: any, ran: Argv[], submitted: string[]) {
+// The GraphQL reads among the commands run; rate_limit is REST.
+const graphql = (ran: Argv[]) => ran.filter(a => a[0] === 'gh' && a[2] === 'graphql').length
+
+async function start($: any, on: any, ran: Argv[], submitted: string[], world: World = open()) {
   on('command.register', () => ({ value: { command: 'factory-floor' } }))
   on('ui.open', () => ({ value: { isPlaced: true } }))
-  const clock = mock.clock(on)
+  on('ui.panes', () => ({ value: [{ id: 'factory-floor', title: 'Factory Floor', isShown: world.isShown, isFocused: false, isPlaced: true }] }))
+  const clock = mock.clock(on, { now: NOW })
+  mock.store(on)
   on('fs.read', () => ({ value: JSON.stringify({ owner: 'o', repo: 'o/r', project: 8 }) }))
-  on('process.run', (_: unknown, e: { argv: Argv }) => ({ value: host(ran)(e.argv) }))
+  on('process.run', (_: unknown, e: { argv: Argv }) => ({ value: host(ran, world)(e.argv) }))
   on('prompt.submit', (_: unknown, e: { text: string }) => {
     submitted.push(e.text)
     return { text: e.text }
@@ -70,6 +84,7 @@ async function start($: any, on: any, ran: Argv[], submitted: string[]) {
   on('agent.spawn', () => ({ model: 'opus', agentId: 'a1' }))
   on('session.start', (_: unknown, e: { cwd: string }) => ({ cwd: e.cwd }))
   await $.session.start({ cwd: '/repo', surface: 'desktop', isInteractive: true })
+  await clock.settle()
   return clock
 }
 
@@ -78,6 +93,8 @@ async function drawings(ui: any): Promise<string> {
   const found = await ui.findAll({ type: 'Svg' })
   return found.map((one: any) => String(one.props.source)).join(' ')
 }
+
+const turn = ($: any) => $.turn.complete({ turnId: 't', answer: 'done', durationMs: 1, isAborted: false, reason: 'answer' })
 
 test('the terminal pane lists the board and what waits on me', async ($, on) => {
   const ran: Argv[] = []
@@ -156,21 +173,105 @@ test('the organisation follows spawns and SubagentStop, and a person opens their
   await ui.unmount()
 })
 
-test('the board refreshes by itself on a timer and after a turn', async ($, on) => {
+test('a refresh is one GraphQL read, after a free REST look at the budget', async ($, on) => {
+  const ran: Argv[] = []
+  await start($, on, ran, [])
+  const ui = await $.ui.mount({ ...PANE, surface: 'desktop' })
+  ran.length = 0
+  await ui.press({ key: 'refresh' })
+  expect(ran.map(a => a.slice(0, 3).join(' '))).toEqual(['gh api rate_limit', 'gh api graphql'])
+  await ui.unmount()
+})
+
+test('the board refreshes by itself every few minutes and after a turn, not more', async ($, on) => {
   const ran: Argv[] = []
   const clock = await start($, on, ran, [])
-  const reads = () => ran.filter(a => a[1] === 'project').length
   const ui = await $.ui.mount({ ...PANE, surface: 'desktop' })
+  expect(graphql(ran)).toBe(1)
+
+  // A turn right after a read reuses it; one a minute later reads again.
+  await turn($)
+  await clock.settle()
+  expect(graphql(ran)).toBe(1)
+  await clock.advance(61_000)
+  await turn($)
+  await clock.settle()
+  expect(graphql(ran)).toBe(2)
+
+  // Quiet minutes: the timer reads once the read is five minutes old.
+  await clock.advance(6 * 60_000)
+  expect(graphql(ran)).toBe(3)
+  await ui.unmount()
+})
+
+test('a busy hour stays far below the GraphQL budget', async ($, on) => {
+  const ran: Argv[] = []
+  const clock = await start($, on, ran, [])
+  ran.length = 0
+  // An hour with a turn and an agent ending every minute.
+  for (let m = 0; m < 60; m++) {
+    await turn($)
+    await $.classic.SubagentStop({ agent_id: `a${m}`, agent_type: 'tester', agent_transcript_path: '', stop_hook_active: false })
+    await clock.advance(60_000)
+  }
+  console.log(`busy hour: ${graphql(ran)} GraphQL reads, ${ran.length} gh calls in all`)
+  expect(graphql(ran)).toBeLessThanOrEqual(60)
+})
+
+test('a hidden pane and an idle session read nothing', async ($, on) => {
+  const ran: Argv[] = []
+  const world: World = { ...open(), isShown: false }
+  const clock = await start($, on, ran, [], world)
+  const opened = graphql(ran)
+  await clock.advance(60 * 60_000)
+  await turn($)
+  await clock.settle()
+  expect(graphql(ran)).toBe(opened)
+
+  // Shown again, the timer reads; with no turn for half an hour it stops.
+  world.isShown = true
+  await turn($)
+  await clock.advance(5 * 60_000)
+  expect(graphql(ran)).toBeGreaterThan(opened)
+  await clock.advance(40 * 60_000)
+  const idle = graphql(ran)
+  await clock.advance(60 * 60_000)
+  expect(graphql(ran)).toBe(idle)
+})
+
+test('overlapping refreshes share one read', async ($, on) => {
+  const ran: Argv[] = []
+  await start($, on, ran, [])
+  const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
+  ran.length = 0
+  await Promise.all([ui.press({ key: 'refresh' }), ui.press({ key: 'refresh' })])
+  expect(graphql(ran)).toBe(1)
+  await ui.unmount()
+})
+
+test('a low budget waits calmly until it resets', async ($, on) => {
+  const ran: Argv[] = []
+  const world: World = { remaining: 72, resetMs: NOW + 41 * 60_000, isShown: true }
+  const clock = await start($, on, ran, [], world)
+  const tty = await $.ui.mount({ ...PANE, surface: 'terminal' })
+  expect(await tty.find({ type: 'Text', text: /Rate limited · retrying at 10:41/ })).toBeDefined()
+  expect(await tty.find({ type: 'Text', text: /failed/ })).toBeUndefined()
+  await tty.unmount()
+  const ui = await $.ui.mount({ ...PANE, surface: 'desktop' })
+  expect(await drawings(ui)).toContain('Rate limited · retrying at 10:41')
+  expect(graphql(ran)).toBe(0)
+
+  // Before the reset, turns, timers and presses do not even ask the budget.
+  ran.length = 0
+  await turn($)
+  await clock.advance(20 * 60_000)
   await ui.press({ key: 'refresh' })
-  const before = reads()
+  expect(ran.length).toBe(0)
 
-  await clock.advance(30_000)
-  await clock.settle()
-  expect(reads()).toBeGreaterThan(before)
-
-  const afterTimer = reads()
-  await $.turn.complete({ turnId: 't1', answer: 'done', durationMs: 1, isAborted: false, reason: 'answer' })
-  await clock.settle()
-  expect(reads()).toBeGreaterThan(afterTimer)
+  // Past the reset the budget is back, and the board is read once.
+  world.remaining = 5000
+  await clock.advance(22 * 60_000)
+  expect(graphql(ran)).toBe(1)
+  expect(await drawings(ui)).not.toContain('Rate limited')
   await ui.unmount()
 })
