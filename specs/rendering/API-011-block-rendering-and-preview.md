@@ -2,12 +2,14 @@
 id: API-011
 title: Block rendering and draft preview
 domain: rendering
-status: in review
+status: draft
 owner: api-architect
 stories: [17, 18]
 depends_on: [API-001, API-002, API-003, API-004, API-010]
 version: 1
 ---
+
+> **Held.** This spec is on hold until ADR 3 (sandboxed Vue/Nuxt templates instead of the C# block renderer) is decided. It is kept as written for reference and is not up for approval. Its `brand_styling` references point to an API-001 v3 that was withdrawn; brand styling now comes from the `brand_styling` entity (API-005).
 
 ## Purpose
 Rendering turns a site's content and brand styling into static HTML, the same way every time. A site owner can see any draft page as HTML before it is published.

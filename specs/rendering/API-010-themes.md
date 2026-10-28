@@ -10,7 +10,7 @@ version: 1
 ---
 
 ## Purpose
-An owner can list the three themes with their design tokens, and anyone can load a theme's stylesheet and fonts. A site's chosen theme and style choices are its brand styling, stored by Content (API-001); this spec defines what they mean in tokens.
+An owner can list the three themes with their design tokens, and anyone can load a theme's stylesheet and fonts. A site's chosen theme and style choices are its brand styling. Brand styling comes from the `brand_styling` entity (API-005, in review on `spec/API-005-entities`); this spec defines what its values mean in tokens.
 
 Auth, ids, errors, validation, lists and timestamps follow the shared conventions in API-001.
 
@@ -197,7 +197,7 @@ Errors
 Token values for all three are the ones in `design/tokens.json` (#9). The file is the source; when it changes, the theme's `version` goes up and this example follows in the next version of this spec.
 
 ## Brand styling
-A site's brand styling (API-001, `brand_styling`) picks a theme and may change two things on top of it. Each choice names tokens that already exist in `design/tokens.json`; none adds a color or a size.
+Brand styling comes from the `brand_styling` entity (API-005). It picks a theme and may change two things on top of it. The field names below are the ones this spec needs; API-005 defines the entity type and owns them (see Open questions). Each choice names tokens that already exist in `design/tokens.json`; none adds a color or a size.
 
 | Field | Value | Tokens used |
 |---|---|---|
@@ -212,7 +212,7 @@ A site's brand styling (API-001, `brand_styling`) picks a theme and may change t
 
 - Only the tokens named in the table change. All other tokens, including font sizes, letter spacing and every color, stay the theme's.
 - No choice touches a color, so every contrast rule in Tokens holds for every combination.
-- The registry's themes match the `ThemeKey` values of `Hivesite.Content.Contracts` one to one. A test checks it.
+- The registry's themes match the allowed values of the `theme` field of the `brand_styling` entity type (API-005) one to one. A test checks it.
 - In HTML, a choice other than `from_theme` becomes an attribute on `<html>`: `data-display-font="serif"`, `data-corners="round"` (API-011). `from_theme` adds no attribute.
 
 ## Rules
@@ -222,7 +222,7 @@ A site's brand styling (API-001, `brand_styling`) picks a theme and may change t
 - `key` is the stable name a site refers to. It is `snake_case`, pattern `^[a-z][a-z0-9_]{1,29}$`, and never changes.
 - `version` is an integer, 1 for every theme in this spec. A change to a theme's tokens or stylesheet raises its `version`. Published releases keep the theme as it was when they were published.
 - The response is the same for every owner and changes only when the code is deployed.
-- Rendering stores nothing. It has no database and no site state; a site's brand styling comes from Content (API-001).
+- Rendering stores nothing. It has no database and no site state; brand styling comes from the `brand_styling` entity (API-005).
 
 ### Tokens
 - `tokens` is an object of groups. Each group is an object of token name → value. Every value is a string that is valid CSS as written: colors as uppercase `#RRGGBB` or `rgba()`, font stacks, lengths, `clamp()` and `min()` expressions, unitless numbers, ratios such as `3 / 2`, durations in `ms` and easing functions.
@@ -243,15 +243,17 @@ A site's brand styling (API-001, `brand_styling`) picks a theme and may change t
 
 ### Contracts
 - `Hivesite.Rendering.Contracts` offers the theme registry (keys, names, `color_scheme`, `version`, tokens and asset files), so Publishing (API-020) can render and store a release without calling HTTP.
-- This spec raises no events. Brand styling changes raise `SiteChanged { change: "brand_styling" }` in Content (API-001).
+- This spec raises no events. A change to brand styling is a change to the `brand_styling` entity and raises that entity's event (API-005).
 
 ## Decisions
 - **Themes are a fixed registry with a `key`, like block types (API-003).** They are not stored resources, so they have no UUID.
-- **Content stores a site's theme, as part of its brand styling (API-001).** The owner chose this: one brand styling section on the site, easy to fetch. Rendering keeps no table and stays pure; it reads brand styling through `Hivesite.Content.Contracts`. The plan's `PUT /sites/{id}/theme` is replaced by `GET` and `PATCH /sites/{id}/brand-styling` in Content.
+- **A site's theme is part of its brand styling, and brand styling comes from the `brand_styling` entity (API-005).** The owner chose this: brand styling is a built-in entity with default values, so it uses the same architecture as the rest of the content. Rendering keeps no table and stays pure; it reads brand styling through `Hivesite.Content.Contracts`. The plan's `PUT /sites/{id}/theme` is dropped; the owner sets the theme through the entity endpoints of API-005.
 - **`GET /themes/{key}/assets/{file}` is added** for the preview's stylesheet and fonts. It is public: theme files hold no owner data.
 - **Theme keys and token names are those of `design/tokens.json` (#9):** `atelier`, `ivory` and `studio`, and the file's groups and names. The theme metadata field is `color_scheme`, as in the file.
 - **Brand styling choices are attribute selectors in the theme stylesheet,** not inline styles. The page's CSP allows no inline style (API-011), and HTML carries no values.
 - **The draft uses new brand styling at once; the live site at the next publish.** Rollback (API-020) brings back the styling a release was published with.
 
 ## Open questions
-- none
+- Which fields does the `brand_styling` entity type have (API-005)? This spec assumes `theme`, `display_font` and `corners` with the values in the Brand styling table, each with a default (`atelier`, `from_theme`, `from_theme`). If API-005 names or shapes them differently, the table follows API-005.
+- Does the `brand_styling` entity get color fields (the owner's color picker field type)? Today no choice touches a color, so the contrast rules in Tokens hold for every combination. If owners can pick colors, this spec must say which tokens a color may set and how contrast is checked or rejected.
+- ADR 3 (sandboxed Vue/Nuxt templates) may change how the stylesheet reaches the page. The `data-display-font` and `data-corners` attributes on `<html>` and the "no inline style" reason refer to the C# renderer in API-011, which is held. Keep the attribute selectors, or let templates read tokens another way?

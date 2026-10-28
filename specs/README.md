@@ -16,23 +16,30 @@
 | Spec | Title | Status | Stories | Depends on |
 |---|---|---|---|---|
 | [API-020](publishing/API-020-releases-and-rollback.md) | Releases and rollback | in review | #19, #20 | API-001, API-002, API-004, API-010, API-011 |
-| [API-021](publishing/API-021-serving.md) | Serving the live site | in review | #21 | API-001, API-002, API-011, API-020 |
+| [API-021](publishing/API-021-serving.md) | Serving the live site | draft | #21 | API-001, API-002, API-011, API-020 |
 
 ## rendering
 
 | Spec | Title | Status | Stories | Depends on |
 |---|---|---|---|---|
 | [API-010](rendering/API-010-themes.md) | Themes | in review | #16 | API-001 |
-| [API-011](rendering/API-011-block-rendering-and-preview.md) | Block rendering and draft preview | in review | #17, #18 | API-001, API-002, API-003, API-004, API-010 |
-| [API-012](rendering/API-012-intro-and-loader.md) | Intro and loader on published sites | in review | #22 | API-010, API-011, API-021 |
+| [API-011](rendering/API-011-block-rendering-and-preview.md) | Block rendering and draft preview | draft | #17, #18 | API-001, API-002, API-003, API-004, API-010 |
+| [API-012](rendering/API-012-intro-and-loader.md) | Intro and loader on published sites | draft | #22 | API-010, API-011, API-021 |
 
 ## By status
 
-- **draft** (0): —
-- **in review** (5): API-010, API-011, API-012, API-020, API-021
+- **draft** (3): API-011, API-012, API-021
+- **in review** (2): API-010, API-020
 - **approved** (4): API-001, API-002, API-003, API-004
 - **built** (0): —
 
 ## Open questions
 
-None.
+- API-010: Which fields does the `brand_styling` entity type have (API-005)? This spec assumes `theme`, `display_font` and `corners` with the values in the Brand styling table, each with a default (`atelier`, `from_theme`, `from_theme`). If API-005 names or shapes them differently, the table follows API-005.
+- API-010: Does the `brand_styling` entity get color fields (the owner's color picker field type)? Today no choice touches a color, so the contrast rules in Tokens hold for every combination. If owners can pick colors, this spec must say which tokens a color may set and how contrast is checked or rejected.
+- API-010: ADR 3 (sandboxed Vue/Nuxt templates) may change how the stylesheet reaches the page. The `data-display-font` and `data-corners` attributes on `<html>` and the "no inline style" reason refer to the C# renderer in API-011, which is held. Keep the attribute selectors, or let templates read tokens another way?
+- API-020: ADR 3: how is a release built? This spec calls the C# `RenderSite` (API-011), which is held. Under ADR 3 a release is a static build of Vue/Nuxt templates in a sandbox. Which contract does Publishing call, and what does it get back: files with paths and content types, as now?
+- API-020: ADR 3: is publish still synchronous? A sandboxed build may take longer than the Host's request timeout. If not, publish returns 202 with a release in a `building` state, and this spec needs that state, a failure state and a way to poll.
+- API-020: ADR 3: do the limits hold for a static build (max 3,000 files and 50 MB per release)? A Nuxt build adds framework files per release.
+- API-020: ADR 3: `theme` and `theme_version` on a release. If templates replace the theme registry (API-010), what identifies the look a release was built with: theme key and version, a template version, or both?
+- API-020: ADR 3: Site slug changes and the home page slug. Both exist for path-based `/s/{site_slug}/` serving (API-021, held). With a per-site origin, does a slug change still reach the live site without a republish, and does a release still record its home page slug?

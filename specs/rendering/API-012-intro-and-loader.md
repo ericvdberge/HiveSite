@@ -2,12 +2,14 @@
 id: API-012
 title: Intro and loader on published sites
 domain: rendering
-status: in review
+status: draft
 owner: api-architect
 stories: [22]
 depends_on: [API-010, API-011, API-021]
 version: 1
 ---
+
+> **Held.** This spec is on hold until ADR 3 (sandboxed Vue/Nuxt templates instead of the C# block renderer) is decided. It is kept as written for reference and is not up for approval.
 
 ## Purpose
 A visitor of a published site sees the Hivesite intro, the golden thread, once per visit, with the loader while the page gets ready. Nobody gets motion who asked for less.

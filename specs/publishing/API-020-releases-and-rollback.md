@@ -21,7 +21,7 @@ Auth: site owner
 
 Headers: `Idempotency-Key` (optional, see API-001 Idempotency)
 
-Renders the site as it is now (API-011 `RenderSite`, `mode` `release`, with the site's current brand styling from API-001), stores the files as a new release and makes it live. The call returns when the release is live.
+Renders the site as it is now (API-011 `RenderSite`, `mode` `release`, with the site's current brand styling; brand styling comes from the `brand_styling` entity, API-005), stores the files as a new release and makes it live. The call returns when the release is live.
 
 Request
 ```json
@@ -195,14 +195,14 @@ Errors
 - `number`: 1, 2, 3, … per site, in the order releases are created. Never reused, also after pruning. Owners speak of "release 3".
 - `note`: 0 to 200 characters after trimming, default `""`. Set on publish, never changed.
 - `is_live`: `true` for exactly one release of a site once it has published, `false` for all others.
-- `theme`, `theme_version`: the theme key (`brand_styling.theme`, API-001) and theme version (API-010) the release was rendered with.
+- `theme`, `theme_version`: the theme key (the `theme` field of the `brand_styling` entity, API-005) and theme version (API-010) the release was rendered with.
 - `site_slug`: the site slug when the release was created. For information only; the live site is always served under the current slug (API-021).
 - `page_count`: the number of pages in the release. `file_count` and `size_bytes`: the stored files and their total size in bytes.
 - `created_at`: when the release was created. `live_since`: when it last became live, or `null` when it is not live.
 - Every field is always present. Only `live_since` can be `null`.
 
 ### Publishing
-- Publish reads the site with its brand styling, its pages in `menu_order` and their blocks in one consistent read through `Hivesite.Content.Contracts`. It then calls `RenderSite` (API-011), and takes `theme_version` from the theme registry in `Hivesite.Rendering.Contracts` (API-010).
+- Publish reads the site, its `brand_styling` entity (API-005), its pages in `menu_order` and their blocks in one consistent read through `Hivesite.Content.Contracts`. It then calls `RenderSite` (API-011), and takes `theme_version` from the theme registry in `Hivesite.Rendering.Contracts` (API-010).
 - The release holds exactly the files `RenderSite` returned, under their paths. They are written to file storage (a local folder now, blob storage later) before the release is made live. If storing fails, no release is created and the live release does not change.
 - The release also records, internally, the slug of its home page (`menu_order` 0), so API-021 can redirect `/s/{site_slug}/{home_slug}` to the site root.
 - A release never changes after it is created. Its files are never rewritten.
@@ -252,4 +252,8 @@ Errors
 - **Retention is 20 releases** so storage per site stays bounded (at most 21 × 50 MB).
 
 ## Open questions
-- none
+- ADR 3: how is a release built? This spec calls the C# `RenderSite` (API-011), which is held. Under ADR 3 a release is a static build of Vue/Nuxt templates in a sandbox. Which contract does Publishing call, and what does it get back: files with paths and content types, as now?
+- ADR 3: is publish still synchronous? A sandboxed build may take longer than the Host's request timeout. If not, publish returns 202 with a release in a `building` state, and this spec needs that state, a failure state and a way to poll.
+- ADR 3: do the limits hold for a static build (max 3,000 files and 50 MB per release)? A Nuxt build adds framework files per release.
+- ADR 3: `theme` and `theme_version` on a release. If templates replace the theme registry (API-010), what identifies the look a release was built with: theme key and version, a template version, or both?
+- ADR 3: Site slug changes and the home page slug. Both exist for path-based `/s/{site_slug}/` serving (API-021, held). With a per-site origin, does a slug change still reach the live site without a republish, and does a release still record its home page slug?

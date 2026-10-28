@@ -2,12 +2,14 @@
 id: API-021
 title: Serving the live site
 domain: publishing
-status: in review
+status: draft
 owner: api-architect
 stories: [21]
 depends_on: [API-001, API-002, API-011, API-020]
 version: 1
 ---
+
+> **Held.** This spec is on hold until ADR 3 (sandboxed Vue/Nuxt templates instead of the C# block renderer) is decided. Under ADR 3 each site is built statically in a sandbox and served from its own origin, so the shared path-based `/s/{site_slug}/` serving below will change. It is kept as written for reference and is not up for approval.
 
 ## Purpose
 Anyone can visit a published site at `/s/{site_slug}/` and gets the files of its live release.
