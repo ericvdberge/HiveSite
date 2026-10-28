@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "extraKnownMarketplaces": {
+    "claude-code-workflows": {
+      "source": { "source": "github", "repo": "wshobson/agents" }
+    }
+  },
+  "enabledPlugins": {
+    "pr-review-toolkit@claude-plugins-official": true,
+    "commit-commands@claude-plugins-official": true,
+    "csharp-lsp@claude-plugins-official": true,
+    "dotnet-contribution@claude-code-workflows": true,
+    "backend-development@claude-code-workflows": true,
+    "ui-design@claude-code-workflows": true,
+    "startup-business-analyst@claude-code-workflows": true
+  },
+  "permissions": {
+    "allow": [
+      "Bash(gh issue view:*)",
+      "Bash(gh issue list:*)",
+      "Bash(gh pr view:*)",
+      "Bash(gh pr diff:*)",
+      "Bash(gh pr list:*)",
+      "Bash(node scripts/spec-index.mjs:*)",
+      "Bash(node scripts/board.mjs list:*)",
+      "Bash(dotnet build:*)",
+      "Bash(dotnet test:*)"
+    ],
+    "deny": [
+      "Bash(gh pr merge:*)",
+      "Bash(git push origin main:*)",
+      "Bash(git push --force:*)"
+    ]
+  }
+}
