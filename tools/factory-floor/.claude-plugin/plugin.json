@@ -1,0 +1,7 @@
+{
+  "name": "factory-floor",
+  "version": "0.1.0",
+  "description": "Run the Hivesite agent factory from a pane beside the chat: board, waiting-on-me, agents now, and actions.",
+  "author": { "name": "Hivesite" },
+  "types": "./types/index.d.ts"
+}

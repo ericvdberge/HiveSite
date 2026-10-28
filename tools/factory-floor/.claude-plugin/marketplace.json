@@ -1,0 +1,6 @@
+{
+  "name": "hivesite",
+  "description": "Hivesite tools for Claude Code",
+  "owner": { "name": "Hivesite" },
+  "plugins": [{ "name": "factory-floor", "source": "./" }]
+}
