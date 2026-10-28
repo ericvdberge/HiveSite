@@ -2,6 +2,7 @@ import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register } from 'claude-code'
 
 import type { AgentRun, Board, Card, Status, WaitItem } from '../types'
+import { activity, ago, masthead, orgWeb, ROSTER, stories } from './svg'
 
 // The Factory Floor: the Hivesite board, what waits on the human, which
 // factory agent runs on which story, and buttons that drive the factory.
@@ -148,13 +149,6 @@ function storyOf(text: string): number | undefined {
   return match ? Number(match[1]) : undefined
 }
 
-function ago(ms: number): string {
-  const s = Math.max(0, Math.round((Date.now() - ms) / 1000))
-  if (s < 60) return `${s}s`
-  if (s < 3600) return `${Math.round(s / 60)}m`
-  return `${Math.round(s / 3600)}h`
-}
-
 const WAIT_LABEL: Record<WaitItem['kind'], string> = {
   approve: 'Review & merge',
   merge: 'Merge',
@@ -228,13 +222,97 @@ export const register: Register = on => {
   })
 
   on('ui.render', { component: 'Pane', requestId: PANE }, async ($, e) => {
-    const { Box, Text, Button, Link } = $.ui.resolve(e)
     const { cards, fetchedAt, error } = await read($, board)
     const items = await read($, waiting)
     const runs = await read($, agents)
     const { busy, note, isError } = await read($, status)
 
     const running = runs.filter(r => !r.endedAt)
+    const backlog = cards.filter(c => c.status === 'Backlog')
+    const ready = cards.filter(c => c.status === 'Ready')
+    const line = busy ?? note ?? (fetchedAt ? `Updated ${ago(fetchedAt)} ago` : 'Loading the board…')
+
+    // Desktop, VS Code and mobile draw SVG: the Factory Floor look.
+    if (e.surface !== 'terminal') {
+      const { Box, Text, Button, Link, Svg } = $.ui.resolve(e)
+      const w = Math.max(320, Math.min(760, Math.round((e.props.bodyColumns ?? 60) * 7.5)))
+      const figures = {
+        waiting: items.length,
+        atWork: running.length,
+        agents: ROSTER.length,
+        inFlight: cards.filter(c => ['Ready', 'Spec review', 'Building', 'Agent review', 'Ready to merge'].includes(c.status)).length,
+        shipped: cards.filter(c => c.status === 'Done').length,
+      }
+      const heading = (title: string, hint: string) => (
+        <Box flexDirection="row" justifyContent="space-between">
+          <Text size="heading" weight="medium">
+            {title}
+          </Text>
+          <Text size="footnote" dimColor>
+            {hint}
+          </Text>
+        </Box>
+      )
+      const pick = (card: Card, action: 'ready' | 'run') => (
+        <Box flexDirection="row" gap={1}>
+          <Link href={card.url} label={`#${card.number}`} />
+          <Box flexGrow={1} flexShrink={1}>
+            <Text wrap="truncate">{card.title}</Text>
+          </Box>
+          {action === 'ready' ? (
+            <Button key={`ready-${card.number}`} label="→ Ready" onPress={() => moveToReady($, card.number)} />
+          ) : (
+            <Button key={`run-${card.number}`} label="Run" variant="primary" onPress={() => runStory($, card.number)} />
+          )}
+        </Box>
+      )
+
+      return (
+        <Box flexDirection="column" gap={2}>
+          <Svg
+            alt={`The Agent Factory: ${figures.waiting} waiting on you, ${figures.atWork} agents at work`}
+            source={masthead(w, figures, isError ? line : line, Boolean(busy))}
+          />
+          <Box flexDirection="row" gap={1}>
+            <Button key="run-next" label="Run next story" variant="primary" onPress={() => runStory($)} />
+            <Button key="refresh" label="Refresh" onPress={() => refresh($)} />
+          </Box>
+          {isError && <Text color="red">{line}</Text>}
+
+          <Box flexDirection="column" gap={1}>
+            {heading('Waiting on you', 'Only you can move these')}
+            {items.length === 0 && <Text dimColor>Nothing waits on you.</Text>}
+            {items.map(item => (
+              <Box flexDirection="row" gap={1}>
+                <Link href={item.url} label={`#${item.number}`} />
+                <Text color="yellow">{WAIT_LABEL[item.kind]}</Text>
+                <Box flexGrow={1} flexShrink={1}>
+                  <Text wrap="truncate">{item.title}</Text>
+                </Box>
+              </Box>
+            ))}
+          </Box>
+
+          <Svg alt={`Organisation: ${running.map(r => r.agent).join(', ') || 'all agents idle'}`} source={orgWeb(w, runs)} isInteractive />
+          <Svg alt="Stories in flight and their stage" source={stories(w, cards, runs, items)} isInteractive />
+
+          <Box flexDirection="column" gap={1}>
+            {heading(`Ready (${ready.length})`, 'Run one, or the next')}
+            {ready.length === 0 && <Text dimColor>Nothing is Ready. Move a Backlog story up.</Text>}
+            {ready.map(card => pick(card, 'run'))}
+          </Box>
+          <Box flexDirection="column" gap={1}>
+            {heading(`Backlog (${backlog.length})`, 'Top goes first')}
+            {error && cards.length === 0 && <Text color="red">{error}</Text>}
+            {backlog.map(card => pick(card, 'ready'))}
+          </Box>
+
+          <Svg alt="Agent activity, newest first" source={activity(w, runs)} />
+        </Box>
+      )
+    }
+
+    const { Box, Text, Button, Link } = $.ui.resolve(e)
     const finished = runs.filter(r => r.endedAt).slice(-5).reverse()
 
     const section = (title: string) => (
@@ -264,7 +342,7 @@ export const register: Register = on => {
           <Button key="refresh" label="Refresh" onPress={() => refresh($)} />
         </Box>
         <Text dimColor color={isError ? 'red' : undefined} wrap="wrap">
-          {busy ?? note ?? (fetchedAt ? `Updated ${ago(fetchedAt)} ago` : 'Loading the board…')}
+          {line}
         </Text>
 
         <Box flexDirection="column">

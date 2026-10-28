@@ -65,16 +65,34 @@ async function start($: any, on: any, ran: Argv[], submitted: string[]) {
   await $.session.start({ cwd: '/repo', surface: 'desktop', isInteractive: true })
 }
 
-test('the pane shows the board and what waits on me, on every surface', async ($, on) => {
+// The SVG drawings of the desktop layout, joined, to search their text.
+async function drawings(ui: any): Promise<string> {
+  const found = await ui.findAll({ type: 'Svg' })
+  return found.map((one: any) => String(one.props.source)).join(' ')
+}
+
+test('the terminal pane lists the board and what waits on me', async ($, on) => {
   const ran: Argv[] = []
   await start($, on, ran, [])
-  for (const surface of ['terminal', 'desktop', 'vscode', 'mobile'] as const) {
+  const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
+  await ui.press({ key: 'refresh' })
+  expect(await ui.find({ type: 'Text', text: /Waiting on me \(3\)/ })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /Review & merge/ })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /Backlog \(1\)/ })).toBeDefined()
+  await ui.unmount()
+})
+
+test('desktop, vscode and mobile draw the Factory Floor look', async ($, on) => {
+  await start($, on, [], [])
+  for (const surface of ['desktop', 'vscode', 'mobile'] as const) {
     const ui = await $.ui.mount({ ...PANE, surface })
     await ui.press({ key: 'refresh' })
-    expect(await ui.find({ type: 'Text', text: /Waiting on me \(3\)/ })).toBeDefined()
-    expect(await ui.find({ type: 'Text', text: /Review & merge/ })).toBeDefined()
+    const svg = await drawings(ui)
+    expect(svg).toContain('Organisation')
+    expect(svg).toContain('Waiting on you')
+    expect(svg).toContain('Factory Floor')
+    expect(svg).toContain('#25')
     expect(await ui.find({ type: 'Text', text: /Needs you/ })).toBeDefined()
-    expect(await ui.find({ type: 'Text', text: /Backlog \(1\)/ })).toBeDefined()
     expect(await ui.find({ type: 'Text', text: /Pages API/ })).toBeDefined()
     await ui.unmount()
   }
@@ -84,11 +102,12 @@ test('Move to Ready runs board.mjs and Run sends the run-story prompt', async ($
   const ran: Argv[] = []
   const submitted: string[] = []
   await start($, on, ran, submitted)
+
   const ui = await $.ui.mount({ ...PANE, surface: 'desktop' })
   await ui.press({ key: 'refresh' })
   await ui.press({ key: 'ready-7' })
   expect(ran.some(a => a.join(' ') === 'node scripts/board.mjs move 7 Ready')).toBe(true)
-  expect(await ui.find({ type: 'Text', text: /#7 → Ready/ })).toBeDefined()
+  expect(await drawings(ui)).toContain('#7 → Ready')
 
   await ui.press({ key: 'run-next' })
   await ui.press({ key: 'run-25' })
@@ -99,17 +118,21 @@ test('Move to Ready runs board.mjs and Run sends the run-story prompt', async ($
   await ui.unmount()
 })
 
-test('agents now follows spawns and SubagentStop', async ($, on) => {
+test('the organisation web follows spawns and SubagentStop', async ($, on) => {
   await start($, on, [], [])
   await $.agent.spawn({ subagentType: 'api-architect', description: 'Spec for story #7', prompt: 'Draft the spec for #7' })
 
   const ui = await $.ui.mount({ ...PANE, surface: 'desktop' })
   await ui.press({ key: 'refresh' })
-  expect((await ui.find({ type: 'Text', text: /api-architect/ }))?.text).toMatch(/api-architect on #7/)
-  expect(await ui.find({ type: 'Text', text: /Agents now \(1\)/ })).toBeDefined()
+  expect(await drawings(ui)).toContain('ON #7')
+  expect(await drawings(ui)).toContain('1 at work')
 
   await $.classic.SubagentStop({ agent_id: 'a1', agent_type: 'api-architect', agent_transcript_path: '', stop_hook_active: false })
-  expect(await ui.find({ type: 'Text', text: /Agents now \(0\)/ })).toBeDefined()
-  expect(await ui.find({ type: 'Text', text: /done api-architect #7/ })).toBeDefined()
+  expect(await drawings(ui)).not.toContain('ON #7')
+  expect(await drawings(ui)).toContain('api-architect finished on #7')
+
+  const tty = await $.ui.mount({ ...PANE, surface: 'terminal' })
+  expect(await tty.find({ type: 'Text', text: /done api-architect #7/ })).toBeDefined()
+  await tty.unmount()
   await ui.unmount()
 })
