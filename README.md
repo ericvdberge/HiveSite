@@ -32,3 +32,21 @@ claude --agent manager                         # "run the next story"
 ```
 
 Open Claude Code in this folder and accept the plugin prompts from `.claude/settings.json`.
+
+## Factory Floor (Claude desktop app)
+
+[`tools/factory-floor/`](tools/factory-floor/README.md) is a mod for the Claude desktop app's Code tab: a pane beside the chat with the board, what waits on you, which agent runs on which story, and buttons for *Run next story*, *Run #N* and *→ Ready*. It needs `gh` with the `project` scope (see above).
+
+Install it once, from a shell in this folder:
+
+```bash
+claude plugin marketplace add ./tools/factory-floor
+```
+
+```bash
+claude plugin install factory-floor@hivesite
+```
+
+The marketplace is a folder, so the installed mod is read from `tools/factory-floor/` itself: pull or edit it, then start a new session (or run `/reload-plugins` in a terminal session) to pick up the change. To load it straight from the folder instead, add `"CLAUDE_CODE_PLUGIN_DIRS": "<path to this repo>/tools/factory-floor"` under `env` in `~/.claude/settings.json`.
+
+In a session opened on this repo the pane opens by itself; anywhere else type `/factory-floor`. Test it with `claude plugin test tools/factory-floor`.

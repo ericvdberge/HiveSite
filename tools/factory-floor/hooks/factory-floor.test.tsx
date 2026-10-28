@@ -1,0 +1,115 @@
+import { expect, test } from 'claude-code/testing'
+
+const PANE = {
+  plugin: 'factory-floor',
+  component: 'Pane',
+  requestId: 'factory-floor',
+  props: {
+    title: 'Factory Floor',
+    isFocused: false,
+    bodyColumns: 50,
+    placement: 'dock',
+    scroll: { offset: 0, bodyRows: 40 },
+    view: {},
+  },
+} as const
+
+const ITEMS = {
+  items: [
+    { status: 'Backlog', labels: ['type:story'], content: { number: 7, title: 'Pages API', url: 'https://github.com/o/r/issues/7' } },
+    { status: 'Ready', labels: [], content: { number: 25, title: 'Factory Floor', url: 'https://github.com/o/r/issues/25' } },
+    {
+      status: 'Ready to merge',
+      labels: [],
+      'linked pull requests': ['https://github.com/o/r/pull/1'],
+      content: { number: 2, title: 'Agent factory', url: 'https://github.com/o/r/issues/2' },
+    },
+  ],
+}
+const PRS = [
+  { number: 1, title: 'chore(factory): add the agent factory', url: 'https://github.com/o/r/pull/1', headRefName: 'factory/bootstrap', isDraft: false, labels: [] },
+  { number: 9, title: 'docs(spec): API-001 pages', url: 'https://github.com/o/r/pull/9', headRefName: 'spec/api-001', isDraft: false, labels: [] },
+  { number: 10, title: 'feat(content): pages', url: 'https://github.com/o/r/pull/10', headRefName: 'story/7-pages', isDraft: true, labels: [] },
+]
+const BLOCKED = [{ number: 12, title: 'Stuck after three rounds', url: 'https://github.com/o/r/issues/12' }]
+
+type Argv = readonly string[]
+
+// Stands for the host: gh answers from the fixtures above, node moves a card.
+function host(ran: Argv[]) {
+  return (argv: Argv) => {
+    ran.push(argv)
+    const out = (value: unknown) => ({ exitCode: 0, stdout: JSON.stringify(value), stderr: '', isStdoutTruncated: false, isStderrTruncated: false })
+    if (argv[0] === 'git') return { ...out(''), stdout: '/repo\n' }
+    if (argv[0] === 'node') return { ...out(''), stdout: `#${argv[3]} → Ready\n` }
+    if (argv[1] === 'project') return out(ITEMS)
+    if (argv[1] === 'pr') return out(PRS)
+    if (argv.includes('needs-human')) return out(BLOCKED)
+    return out([])
+  }
+}
+
+async function start($: any, on: any, ran: Argv[], submitted: string[]) {
+  on('command.register', () => ({ value: { command: 'factory-floor' } }))
+  on('ui.open', () => ({ value: { isPlaced: true } }))
+  on('clock.every', () => ({ value: undefined }))
+  on('fs.read', () => ({ value: JSON.stringify({ owner: 'o', repo: 'o/r', project: 8 }) }))
+  on('process.run', (_: unknown, e: { argv: Argv }) => ({ value: host(ran)(e.argv) }))
+  on('prompt.submit', (_: unknown, e: { text: string }) => {
+    submitted.push(e.text)
+    return { text: e.text }
+  })
+  on('classic.SubagentStop', () => ({}))
+  on('agent.spawn', () => ({ model: 'opus', agentId: 'a1' }))
+  on('session.start', (_: unknown, e: { cwd: string }) => ({ cwd: e.cwd }))
+  await $.session.start({ cwd: '/repo', surface: 'desktop', isInteractive: true })
+}
+
+test('the pane shows the board and what waits on me, on every surface', async ($, on) => {
+  const ran: Argv[] = []
+  await start($, on, ran, [])
+  for (const surface of ['terminal', 'desktop', 'vscode', 'mobile'] as const) {
+    const ui = await $.ui.mount({ ...PANE, surface })
+    await ui.press({ key: 'refresh' })
+    expect(await ui.find({ type: 'Text', text: /Waiting on me \(3\)/ })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: /Review & merge/ })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: /Needs you/ })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: /Backlog \(1\)/ })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: /Pages API/ })).toBeDefined()
+    await ui.unmount()
+  }
+})
+
+test('Move to Ready runs board.mjs and Run sends the run-story prompt', async ($, on) => {
+  const ran: Argv[] = []
+  const submitted: string[] = []
+  await start($, on, ran, submitted)
+  const ui = await $.ui.mount({ ...PANE, surface: 'desktop' })
+  await ui.press({ key: 'refresh' })
+  await ui.press({ key: 'ready-7' })
+  expect(ran.some(a => a.join(' ') === 'node scripts/board.mjs move 7 Ready')).toBe(true)
+  expect(await ui.find({ type: 'Text', text: /#7 → Ready/ })).toBeDefined()
+
+  await ui.press({ key: 'run-next' })
+  await ui.press({ key: 'run-25' })
+  expect(submitted).toEqual([
+    'Use the run-story skill to run the next story on the board.',
+    'Use the run-story skill to run story #25.',
+  ])
+  await ui.unmount()
+})
+
+test('agents now follows spawns and SubagentStop', async ($, on) => {
+  await start($, on, [], [])
+  await $.agent.spawn({ subagentType: 'api-architect', description: 'Spec for story #7', prompt: 'Draft the spec for #7' })
+
+  const ui = await $.ui.mount({ ...PANE, surface: 'desktop' })
+  await ui.press({ key: 'refresh' })
+  expect((await ui.find({ type: 'Text', text: /api-architect/ }))?.text).toMatch(/api-architect on #7/)
+  expect(await ui.find({ type: 'Text', text: /Agents now \(1\)/ })).toBeDefined()
+
+  await $.classic.SubagentStop({ agent_id: 'a1', agent_type: 'api-architect', agent_transcript_path: '', stop_hook_active: false })
+  expect(await ui.find({ type: 'Text', text: /Agents now \(0\)/ })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /done api-architect #7/ })).toBeDefined()
+  await ui.unmount()
+})
