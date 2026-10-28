@@ -2,7 +2,7 @@
 
 A mod for the Claude desktop app (Code tab) that runs the Hivesite agent factory from a pane beside the chat.
 
-On desktop it is drawn in the look of the Agent Factory Floor page: a masthead with four figures, the organisation web (manager, then the four teams with each agent lit up while it runs and the story it is on), story cards with a Ready → Spec → Build → Review → Merge track, and an activity feed. A terminal gets the same content as plain rows.
+On desktop it is drawn in the look of the Agent Factory Floor page: a masthead with four figures, the organisation (the four teams as cards; each person lights up while they run and shows the story they are on, and clicking one opens their file with what they are doing, what they said last, *Watch live* / *Open transcript* and *Ask…*), story cards with a Ready → Spec → Build → Review → Merge track and their issue and PR links, and an activity feed. It redraws every 5 seconds, re-reads the board every 30 seconds and after each turn. A terminal gets the same content as plain rows.
 
 - **Waiting on me**: spec and design PRs to review and merge, build PRs ready to merge, `needs-human` issues and unapproved cases, each linked.
 - **Agents now**: which subagent (`.claude/agents/*`) runs on which story, fed by the `agent.spawn`, `SubagentStart` and `SubagentStop` hooks.

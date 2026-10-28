@@ -1,4 +1,4 @@
-import { expect, test } from 'claude-code/testing'
+import { expect, mock, test } from 'claude-code/testing'
 
 const PANE = {
   plugin: 'factory-floor',
@@ -34,6 +34,7 @@ const PRS = [
 const BLOCKED = [{ number: 12, title: 'Stuck after three rounds', url: 'https://github.com/o/r/issues/12' }]
 
 type Argv = readonly string[]
+const viewed: unknown[] = []
 
 // Stands for the host: gh answers from the fixtures above, node moves a card.
 function host(ran: Argv[]) {
@@ -52,7 +53,7 @@ function host(ran: Argv[]) {
 async function start($: any, on: any, ran: Argv[], submitted: string[]) {
   on('command.register', () => ({ value: { command: 'factory-floor' } }))
   on('ui.open', () => ({ value: { isPlaced: true } }))
-  on('clock.every', () => ({ value: undefined }))
+  const clock = mock.clock(on)
   on('fs.read', () => ({ value: JSON.stringify({ owner: 'o', repo: 'o/r', project: 8 }) }))
   on('process.run', (_: unknown, e: { argv: Argv }) => ({ value: host(ran)(e.argv) }))
   on('prompt.submit', (_: unknown, e: { text: string }) => {
@@ -60,9 +61,16 @@ async function start($: any, on: any, ran: Argv[], submitted: string[]) {
     return { text: e.text }
   })
   on('classic.SubagentStop', () => ({}))
+  on('turn.complete', (_: unknown, e: { answer: string }) => ({ text: e.answer }))
+  on('ui.view', (_: unknown, e: unknown) => {
+    viewed.push(e)
+    return { value: {} }
+  })
+  on('prompt.fill', (_: unknown, e: { text: string }) => ({ value: { text: e.text, cursor: e.text.length } }))
   on('agent.spawn', () => ({ model: 'opus', agentId: 'a1' }))
   on('session.start', (_: unknown, e: { cwd: string }) => ({ cwd: e.cwd }))
   await $.session.start({ cwd: '/repo', surface: 'desktop', isInteractive: true })
+  return clock
 }
 
 // The SVG drawings of the desktop layout, joined, to search their text.
@@ -88,7 +96,6 @@ test('desktop, vscode and mobile draw the Factory Floor look', async ($, on) => 
     const ui = await $.ui.mount({ ...PANE, surface })
     await ui.press({ key: 'refresh' })
     const svg = await drawings(ui)
-    expect(svg).toContain('Organisation')
     expect(svg).toContain('Waiting on you')
     expect(svg).toContain('Factory Floor')
     expect(svg).toContain('#25')
@@ -118,21 +125,52 @@ test('Move to Ready runs board.mjs and Run sends the run-story prompt', async ($
   await ui.unmount()
 })
 
-test('the organisation web follows spawns and SubagentStop', async ($, on) => {
+test('the organisation follows spawns and SubagentStop, and a person opens their file', async ($, on) => {
+  viewed.length = 0
   await start($, on, [], [])
   await $.agent.spawn({ subagentType: 'api-architect', description: 'Spec for story #7', prompt: 'Draft the spec for #7' })
 
   const ui = await $.ui.mount({ ...PANE, surface: 'desktop' })
   await ui.press({ key: 'refresh' })
-  expect(await drawings(ui)).toContain('ON #7')
-  expect(await drawings(ui)).toContain('1 at work')
+  expect((await ui.find({ key: 'agent-api-architect' }))?.text).toMatch(/on #7/)
 
-  await $.classic.SubagentStop({ agent_id: 'a1', agent_type: 'api-architect', agent_transcript_path: '', stop_hook_active: false })
-  expect(await drawings(ui)).not.toContain('ON #7')
+  await ui.press({ key: 'agent-api-architect' })
+  expect(await ui.find({ type: 'Text', text: /At work/ })).toBeDefined()
+  await ui.press({ key: 'file-transcript' })
+  expect(viewed).toEqual([{ agentId: 'a1' }])
+
+  await $.classic.SubagentStop({
+    agent_id: 'a1',
+    agent_type: 'api-architect',
+    agent_transcript_path: '',
+    stop_hook_active: false,
+    last_assistant_message: 'Opened spec PR #30.',
+  })
+  expect((await ui.find({ key: 'agent-api-architect' }))?.text).toMatch(/done/)
+  expect(await ui.find({ type: 'Text', text: /Opened spec PR #30/ })).toBeDefined()
   expect(await drawings(ui)).toContain('api-architect finished on #7')
 
   const tty = await $.ui.mount({ ...PANE, surface: 'terminal' })
   expect(await tty.find({ type: 'Text', text: /done api-architect #7/ })).toBeDefined()
   await tty.unmount()
+  await ui.unmount()
+})
+
+test('the board refreshes by itself on a timer and after a turn', async ($, on) => {
+  const ran: Argv[] = []
+  const clock = await start($, on, ran, [])
+  const reads = () => ran.filter(a => a[1] === 'project').length
+  const ui = await $.ui.mount({ ...PANE, surface: 'desktop' })
+  await ui.press({ key: 'refresh' })
+  const before = reads()
+
+  await clock.advance(30_000)
+  await clock.settle()
+  expect(reads()).toBeGreaterThan(before)
+
+  const afterTimer = reads()
+  await $.turn.complete({ turnId: 't1', answer: 'done', durationMs: 1, isAborted: false, reason: 'answer' })
+  await clock.settle()
+  expect(reads()).toBeGreaterThan(afterTimer)
   await ui.unmount()
 })

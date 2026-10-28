@@ -28,6 +28,8 @@ export type AgentRun = {
   description: string
   startedAt: number
   endedAt?: number
+  // What the agent said last, from SubagentStop.
+  lastMessage?: string
 }
 
 // What the pane says it is doing or last did.
@@ -40,6 +42,10 @@ declare module 'claude-code' {
       waiting: Shaped<WaitItem[]>
       agents: Shaped<AgentRun[]>
       status: Shaped<Status>
+      // Bumped every few seconds so ages and the live dot redraw.
+      tick: Shaped<number>
+      // The agent whose file is open in the pane.
+      selected: Shaped<{ agent?: string }>
     }
   }
 }

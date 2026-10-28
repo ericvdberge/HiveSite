@@ -2,7 +2,7 @@ import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register } from 'claude-code'
 
 import type { AgentRun, Board, Card, Status, WaitItem } from '../types'
-import { activity, ago, masthead, orgWeb, ROSTER, stories } from './svg'
+import { activity, ago, GOLD, IN_FLIGHT, masthead, ROSTER, seatOf, storyCard, UNITS } from './svg'
 
 // The Factory Floor: the Hivesite board, what waits on the human, which
 // factory agent runs on which story, and buttons that drive the factory.
@@ -10,7 +10,8 @@ import { activity, ago, masthead, orgWeb, ROSTER, stories } from './svg'
 const PANE = 'factory-floor'
 const TITLE = 'Factory Floor'
 const COLUMNS = ['Backlog', 'Ready', 'Spec review', 'Building', 'Agent review', 'Ready to merge', 'Done']
-const REFRESH_MS = 60_000
+const REFRESH_MS = 30_000
+const TICK_MS = 5_000
 
 // Change a tag when that value's fields change: an older stored value is
 // then read as the initial one instead of in the wrong shape.
@@ -20,6 +21,8 @@ const board = atom({ plugin: 'factory-floor', key: 'board' } as const, { cards: 
 const waiting = atom({ plugin: 'factory-floor', key: 'waiting' } as const, [] as WaitItem[], { shape: 'waiting-1' })
 const agents = atom({ plugin: 'factory-floor', key: 'agents' } as const, [] as AgentRun[], { shape: 'agents-1' })
 const status = atom({ plugin: 'factory-floor', key: 'status' } as const, {} as Status, { shape: 'status-1' })
+const tick = atom({ plugin: 'factory-floor', key: 'tick' } as const, 0, { shape: 'tick-1' })
+const selected = atom({ plugin: 'factory-floor', key: 'selected' } as const, {} as { agent?: string }, { shape: 'selected-1' })
 
 type Config = { owner: string; repo: string; project: number }
 const DEFAULTS: Config = { owner: 'ericvdberge', repo: 'ericvdberge/HiveSite', project: 8 }
@@ -144,6 +147,15 @@ async function runStory($: EngineInterface, issue?: number) {
   await update($, status, () => ({ note: issue === undefined ? 'Sent: run the next story' : `Sent: run #${issue}` }))
 }
 
+async function openTranscript($: EngineInterface, agentId: string, agent: string) {
+  const shown = await $.ui.view({ agentId })
+  if (shown.deny) await update($, status, () => ({ note: `Cannot open ${agent}'s transcript: ${shown.deny}`, isError: true }))
+}
+
+async function askAgent($: EngineInterface, agent: string) {
+  await $.prompt.fill({ text: `Use the ${agent} agent to `, mode: 'replace' })
+}
+
 function storyOf(text: string): number | undefined {
   const match = /(?:#|\bstory\s+|\bissue\s+)(\d+)/i.exec(text)
   return match ? Number(match[1]) : undefined
@@ -168,8 +180,18 @@ export const register: Register = on => {
       void $.ui.open({ id: PANE, title: TITLE })
       void refresh($)
     }
+    // A tick redraws the ages and live marks; the board itself is re-read
+    // less often, and after every turn of this session.
+    $.clock.every(TICK_MS, () => void update($, tick, n => (n + 1) % 1_000_000))
     $.clock.every(REFRESH_MS, () => void refresh($))
     return started
+  })
+
+  on('turn.complete', async ($, e, next) => {
+    const done = await next(e)
+    // Subagents' turns end too; SubagentStop already refreshes for those.
+    if (!e.agentId) void refresh($)
+    return done
   })
 
   on('command.run', { command: 'factory-floor' }, async $ => {
@@ -214,7 +236,11 @@ export const register: Register = on => {
 
   on('classic.SubagentStop', async ($, e, next) => {
     await update($, agents, list =>
-      list.map(one => (one.agentId === e.agent_id && !one.endedAt ? { ...one, endedAt: Date.now() } : one)),
+      list.map(one =>
+        one.agentId === e.agent_id && !one.endedAt
+          ? { ...one, endedAt: Date.now(), lastMessage: e.last_assistant_message?.slice(0, 2000) }
+          : one,
+      ),
     )
     // An agent that ends has usually moved a card or opened a PR.
     void refresh($)
@@ -226,23 +252,28 @@ export const register: Register = on => {
     const items = await read($, waiting)
     const runs = await read($, agents)
     const { busy, note, isError } = await read($, status)
+    // Read so the pane redraws on every tick: ages and live marks move.
+    await read($, tick)
 
     const running = runs.filter(r => !r.endedAt)
     const backlog = cards.filter(c => c.status === 'Backlog')
     const ready = cards.filter(c => c.status === 'Ready')
-    const line = busy ?? note ?? (fetchedAt ? `Updated ${ago(fetchedAt)} ago` : 'Loading the board…')
+    const line = busy ?? note ?? (fetchedAt ? `Updated ${ago(fetchedAt)} ago · every ${REFRESH_MS / 1000}s` : 'Loading the board…')
 
-    // Desktop, VS Code and mobile draw SVG: the Factory Floor look.
+    // Desktop, VS Code and mobile: the Factory Floor look. Pictures are SVG;
+    // everything that takes a click is a native element.
     if (e.surface !== 'terminal') {
       const { Box, Text, Button, Link, Svg } = $.ui.resolve(e)
+      const { agent: open } = await read($, selected)
       const w = Math.max(320, Math.min(760, Math.round((e.props.bodyColumns ?? 60) * 7.5)))
       const figures = {
         waiting: items.length,
         atWork: running.length,
         agents: ROSTER.length,
-        inFlight: cards.filter(c => ['Ready', 'Spec review', 'Building', 'Agent review', 'Ready to merge'].includes(c.status)).length,
+        inFlight: cards.filter(c => IN_FLIGHT.includes(c.status)).length,
         shipped: cards.filter(c => c.status === 'Done').length,
       }
+      const select = (agent: string | undefined) => update($, selected, () => ({ agent }))
       const heading = (title: string, hint: string) => (
         <Box flexDirection="row" justifyContent="space-between">
           <Text size="heading" weight="medium">
@@ -253,7 +284,7 @@ export const register: Register = on => {
           </Text>
         </Box>
       )
-      const pick = (card: Card, action: 'ready' | 'run') => (
+      const row = (card: Card, action: 'ready' | 'run') => (
         <Box flexDirection="row" gap={1}>
           <Link href={card.url} label={`#${card.number}`} />
           <Box flexGrow={1} flexShrink={1}>
@@ -267,17 +298,103 @@ export const register: Register = on => {
         </Box>
       )
 
+      // One person on the floor: a dot that is green while they work, their
+      // name, and what they are on. Pressing opens their file.
+      const person = (agent: string, label: string, color: string) => {
+        const atWork = running.filter(r => r.agent === agent)
+        const last = runs.filter(r => r.agent === agent).at(-1)
+        const story = atWork.find(r => r.story)?.story
+        const state = atWork.length ? (story ? `on #${story} · ${ago(atWork[0]!.startedAt)}` : `at work · ${ago(atWork[0]!.startedAt)}`) : last?.endedAt ? `done ${ago(last.endedAt)} ago` : 'idle'
+        return (
+          <Button key={`agent-${agent}`} variant={open === agent ? 'primary' : 'secondary'} onPress={() => select(open === agent ? undefined : agent)}>
+            <Text color={atWork.length ? '#3fa384' : color} bold>
+              {atWork.length ? '●' : '○'}
+            </Text>{' '}
+            {label} <Text dimColor>{state}</Text>
+          </Button>
+        )
+      }
+
+      // The open file: who they are, what they do now, what they said last.
+      const file = (agent: string) => {
+        const seat = seatOf(agent)
+        const mine = runs.filter(r => r.agent === agent)
+        const now = mine.filter(r => !r.endedAt)
+        const latest = mine.at(-1)
+        const said = [...mine].reverse().find(r => r.lastMessage)?.lastMessage
+        return (
+          <Box flexDirection="column" gap={1} borderStyle="round" borderColor={GOLD} paddingX={2} paddingY={1}>
+            <Box flexDirection="row" justifyContent="space-between">
+              <Text size="title" weight="medium">
+                {seat?.label ?? agent}
+              </Text>
+              <Button key="file-close" label="Close" role="dismiss" onPress={() => select(undefined)} />
+            </Box>
+            <Text dimColor>
+              {agent}
+              {seat ? ` · ${seat.role}` : ''}
+            </Text>
+            {now.length > 0 ? (
+              now.map(run => (
+                <Text>
+                  <Text color="#3fa384">● At work</Text>
+                  {run.story ? ` on #${run.story}` : ''} for {ago(run.startedAt)}
+                  {run.description ? ` · ${run.description}` : ''}
+                </Text>
+              ))
+            ) : (
+              <Text dimColor>{latest?.endedAt ? `Idle · last finished ${ago(latest.endedAt)} ago` : 'Idle · not started in this session'}</Text>
+            )}
+            {said && (
+              <Box flexDirection="column">
+                <Text size="footnote" dimColor>
+                  LAST SAID
+                </Text>
+                <Text wrap="wrap">{said.length > 600 ? `${said.slice(0, 599)}…` : said}</Text>
+              </Box>
+            )}
+            {mine.length > 1 && (
+              <Box flexDirection="column">
+                <Text size="footnote" dimColor>
+                  RECENT RUNS
+                </Text>
+                {[...mine].reverse().slice(0, 4).map(run => (
+                  <Text dimColor wrap="truncate">
+                    {ago(run.startedAt)} ago{run.story ? ` · #${run.story}` : ''} · {run.description || run.agent}
+                    {run.endedAt ? '' : ' · running'}
+                  </Text>
+                ))}
+              </Box>
+            )}
+            <Box flexDirection="row" gap={1} flexWrap="wrap">
+              {latest?.agentId && (
+                <Button
+                  key="file-transcript"
+                  label={now.length ? 'Watch live' : 'Open transcript'}
+                  variant="primary"
+                  onPress={() => openTranscript($, latest.agentId!, agent)}
+                />
+              )}
+              <Button key="file-ask" label={`Ask ${seat?.label ?? agent}…`} onPress={() => askAgent($, agent)} />
+            </Box>
+          </Box>
+        )
+      }
+
+      const extra = running.filter(r => !ROSTER.includes(r.agent))
+
       return (
         <Box flexDirection="column" gap={2}>
           <Svg
             alt={`The Agent Factory: ${figures.waiting} waiting on you, ${figures.atWork} agents at work`}
-            source={masthead(w, figures, isError ? line : line, Boolean(busy))}
+            source={masthead(w, figures, line, Boolean(busy))}
+            isInteractive
           />
           <Box flexDirection="row" gap={1}>
             <Button key="run-next" label="Run next story" variant="primary" onPress={() => runStory($)} />
             <Button key="refresh" label="Refresh" onPress={() => refresh($)} />
           </Box>
-          {isError && <Text color="red">{line}</Text>}
+          {isError && <Text color="red">{note}</Text>}
 
           <Box flexDirection="column" gap={1}>
             {heading('Waiting on you', 'Only you can move these')}
@@ -285,7 +402,7 @@ export const register: Register = on => {
             {items.map(item => (
               <Box flexDirection="row" gap={1}>
                 <Link href={item.url} label={`#${item.number}`} />
-                <Text color="yellow">{WAIT_LABEL[item.kind]}</Text>
+                <Text color={GOLD}>{WAIT_LABEL[item.kind]}</Text>
                 <Box flexGrow={1} flexShrink={1}>
                   <Text wrap="truncate">{item.title}</Text>
                 </Box>
@@ -293,18 +410,72 @@ export const register: Register = on => {
             ))}
           </Box>
 
-          <Svg alt={`Organisation: ${running.map(r => r.agent).join(', ') || 'all agents idle'}`} source={orgWeb(w, runs)} isInteractive />
-          <Svg alt="Stories in flight and their stage" source={stories(w, cards, runs, items)} isInteractive />
+          <Box flexDirection="column" gap={1}>
+            {heading('Organisation', running.length ? `${running.length} at work` : 'Click someone to open their file')}
+            <Text>
+              <Text color={running.length ? '#3fa384' : GOLD} bold>
+                {running.length ? '●' : '○'}
+              </Text>{' '}
+              <Text weight="semibold">Manager</Text>
+              <Text dimColor> · run-story in this chat · {running.length ? 'directing' : 'waiting for Run next story'}</Text>
+            </Text>
+            {UNITS.map(unit => (
+              <Box key={`unit-${unit.id}`} flexDirection="column" gap={1} borderStyle="round" borderColor={unit.color} paddingX={1}>
+                <Text color={unit.color} size="caption" weight="semibold">
+                  {unit.name.toUpperCase()}
+                </Text>
+                <Box flexDirection="row" flexWrap="wrap" gap={1}>
+                  {unit.seats.map(seat => person(seat.agent, seat.label, unit.color))}
+                </Box>
+              </Box>
+            ))}
+            {extra.length > 0 && (
+              <Box flexDirection="row" flexWrap="wrap" gap={1}>
+                {[...new Set(extra.map(r => r.agent))].map(agent => person(agent, agent, GOLD))}
+              </Box>
+            )}
+            {open && file(open)}
+          </Box>
+
+          <Box flexDirection="column" gap={1}>
+            {heading('Stories', 'Where each story stands')}
+            {cards.filter(c => IN_FLIGHT.includes(c.status)).length === 0 && (
+              <Text dimColor>Nothing in flight. Move a Backlog story to Ready, then run it.</Text>
+            )}
+            {cards
+              .filter(c => IN_FLIGHT.includes(c.status))
+              .sort((a, b) => IN_FLIGHT.indexOf(b.status) - IN_FLIGHT.indexOf(a.status))
+              .map(card => {
+                const who = running.find(r => r.story === card.number)
+                return (
+                  <Box flexDirection="column">
+                    <Svg alt={`#${card.number} ${card.title}: ${card.status}`} source={storyCard(w, card, runs, items)} isInteractive />
+                    <Box flexDirection="row" gap={1} paddingX={1}>
+                      <Link href={card.url} label={`Issue #${card.number}`} />
+                      {card.prs.map(url => (
+                        <Link href={url} label={`PR #${url.split('/').pop()}`} />
+                      ))}
+                      {who && (
+                        <Button key={`story-agent-${card.number}`} label={`Open ${who.agent}`} onPress={() => select(who.agent)} />
+                      )}
+                      {card.status === 'Ready' && (
+                        <Button key={`story-run-${card.number}`} label="Run" variant="primary" onPress={() => runStory($, card.number)} />
+                      )}
+                    </Box>
+                  </Box>
+                )
+              })}
+          </Box>
 
           <Box flexDirection="column" gap={1}>
             {heading(`Ready (${ready.length})`, 'Run one, or the next')}
             {ready.length === 0 && <Text dimColor>Nothing is Ready. Move a Backlog story up.</Text>}
-            {ready.map(card => pick(card, 'run'))}
+            {ready.map(card => row(card, 'run'))}
           </Box>
           <Box flexDirection="column" gap={1}>
             {heading(`Backlog (${backlog.length})`, 'Top goes first')}
             {error && cards.length === 0 && <Text color="red">{error}</Text>}
-            {backlog.map(card => pick(card, 'ready'))}
+            {backlog.map(card => row(card, 'ready'))}
           </Box>
 
           <Svg alt="Agent activity, newest first" source={activity(w, runs)} />
