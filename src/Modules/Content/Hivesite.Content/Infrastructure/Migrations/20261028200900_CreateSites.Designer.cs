@@ -12,7 +12,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Hivesite.Content.Infrastructure.Migrations
 {
     [DbContext(typeof(ContentDbContext))]
-    [Migration("20261028133915_CreateSites")]
+    [Migration("20261028200900_CreateSites")]
     partial class CreateSites
     {
         /// <inheritdoc />
@@ -26,7 +26,7 @@ namespace Hivesite.Content.Infrastructure.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
-            modelBuilder.Entity("Hivesite.Content.Domain.Site", b =>
+            modelBuilder.Entity("Hivesite.Content.Infrastructure.SiteDao", b =>
                 {
                     b.Property<Guid>("Id")
                         .HasColumnType("uuid")
@@ -77,41 +77,6 @@ namespace Hivesite.Content.Infrastructure.Migrations
                         .HasDatabaseName("ix_sites_owner_created_at_id");
 
                     b.ToTable("sites", "content");
-                });
-
-            modelBuilder.Entity("Hivesite.Content.Infrastructure.IdempotencyRecord", b =>
-                {
-                    b.Property<string>("OwnerId")
-                        .HasColumnType("text")
-                        .HasColumnName("owner_id");
-
-                    b.Property<string>("Key")
-                        .HasMaxLength(255)
-                        .HasColumnType("character varying(255)")
-                        .HasColumnName("key");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_at");
-
-                    b.Property<string>("Location")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("location");
-
-                    b.Property<string>("RequestHash")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("request_hash");
-
-                    b.Property<string>("ResponseBody")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("response_body");
-
-                    b.HasKey("OwnerId", "Key");
-
-                    b.ToTable("idempotency_keys", "content");
                 });
 #pragma warning restore 612, 618
         }

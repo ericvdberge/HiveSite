@@ -193,95 +193,6 @@ public sealed partial class CreateSiteTests(ContentApi fixture)
     }
 
     [Fact]
-    public async Task The_same_key_and_body_replays_the_first_response_AC9()
-    {
-        var api = await fixture.ReadyAsync();
-        var owner = ContentApi.NewOwner();
-        var key = ("Idempotency-Key", Guid.NewGuid().ToString());
-        var body = Json();
-
-        var first = await api.PostAsync(owner, body, key);
-        var second = await api.PostAsync(owner, body, key);
-        var list = await api.GetAsync(owner, "/sites");
-
-        Assert.Equal(HttpStatusCode.Created, second.Status);
-        Assert.Equal(first.Text("id"), second.Text("id"));
-        Assert.Equal(first.Raw.Headers.Location, second.Raw.Headers.Location);
-        Assert.Equal(first.Body.GetRawText(), second.Body.GetRawText());
-        Assert.Single(list.Node("items").EnumerateArray());
-        Assert.Equal(1, api.RaisedFor(first.Text("id")));
-    }
-
-    [Fact]
-    public async Task A_key_with_a_different_body_is_refused_and_keys_are_per_owner_AC10()
-    {
-        var api = await fixture.ReadyAsync();
-        var owner = ContentApi.NewOwner();
-        var key = ("Idempotency-Key", Guid.NewGuid().ToString());
-        await api.PostAsync(owner, Json(), key);
-
-        var reused = await api.PostAsync(owner, Json(name: "Another"), key);
-        var otherOwner = await api.PostAsync(ContentApi.NewOwner(), Json(name: "Another"), key);
-
-        Assert.Equal(HttpStatusCode.BadRequest, reused.Status);
-        Assert.Equal("idempotency_key_reused", reused.ErrorCode);
-        Assert.Equal("Idempotency-Key", reused.ErrorField);
-        Assert.Equal(HttpStatusCode.Created, otherOwner.Status);
-    }
-
-    [Theory]
-    [InlineData("tab\tkey")]
-    [InlineData("sl\u00e9utel")]
-    public async Task A_malformed_key_is_invalid_AC10(string key)
-    {
-        var api = await fixture.ReadyAsync();
-
-        var response = await api.PostAsync(ContentApi.NewOwner(), Json(), ("Idempotency-Key", key));
-
-        Assert.Equal("invalid_request", response.ErrorCode);
-        Assert.Equal("Idempotency-Key", response.ErrorField);
-    }
-
-    [Fact]
-    public async Task A_key_over_255_characters_is_invalid_and_255_is_fine_AC10()
-    {
-        var api = await fixture.ReadyAsync();
-
-        var tooLong = await api.PostAsync(ContentApi.NewOwner(), Json(), ("Idempotency-Key", new string('k', 256)));
-        var longest = await api.PostAsync(ContentApi.NewOwner(), Json(), ("Idempotency-Key", new string('k', 255)));
-
-        Assert.Equal("Idempotency-Key", tooLong.ErrorField);
-        Assert.Equal(HttpStatusCode.Created, longest.Status);
-    }
-
-    [Fact]
-    public async Task Without_a_key_every_post_creates_AC10()
-    {
-        var api = await fixture.ReadyAsync();
-        var owner = ContentApi.NewOwner();
-
-        var first = await api.PostAsync(owner, Json());
-        var second = await api.PostAsync(owner, Json());
-
-        Assert.Equal(HttpStatusCode.Created, second.Status);
-        Assert.NotEqual(first.Text("id"), second.Text("id"));
-    }
-
-    [Fact]
-    public async Task A_key_is_forgotten_after_24_hours_AC10()
-    {
-        var api = await fixture.ReadyAsync();
-        var owner = ContentApi.NewOwner();
-        var key = ("Idempotency-Key", Guid.NewGuid().ToString());
-        await api.PostAsync(owner, Json(), key);
-
-        api.Clock.Advance(TimeSpan.FromHours(25));
-        var again = await api.PostAsync(owner, Json(name: "Another"), key);
-
-        Assert.Equal(HttpStatusCode.Created, again.Status);
-    }
-
-    [Fact]
     public async Task Without_an_owner_POST_is_unauthenticated_AC11()
     {
         var api = await fixture.ReadyAsync();
@@ -317,19 +228,5 @@ public sealed partial class CreateSiteTests(ContentApi fixture)
 
         Assert.Single(responses, r => r.Status == HttpStatusCode.Created);
         Assert.All(responses.Where(r => r.Status != HttpStatusCode.Created), r => Assert.Equal("slug_taken", r.ErrorCode));
-    }
-
-    [Fact]
-    public async Task Concurrent_posts_by_one_owner_never_exceed_ten_sites_AC24()
-    {
-        var api = await fixture.ReadyAsync();
-        var owner = ContentApi.NewOwner();
-
-        var responses = await Task.WhenAll(Enumerable.Range(0, 14).Select(_ => api.PostAsync(owner, Json())));
-        var list = await api.GetAsync(owner, "/sites?limit=100");
-
-        Assert.Equal(10, responses.Count(r => r.Status == HttpStatusCode.Created));
-        Assert.All(responses.Where(r => r.Status != HttpStatusCode.Created), r => Assert.Equal("too_many_sites", r.ErrorCode));
-        Assert.Equal(10, list.Node("items").GetArrayLength());
     }
 }

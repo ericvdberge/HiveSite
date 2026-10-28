@@ -17,7 +17,7 @@ You are the Publishing developer of Hivesite. You own `src/Modules/Publishing/` 
 
 ## Rules
 
-- Read the root `CLAUDE.md`, `src/Modules/Publishing/CLAUDE.md` if it exists, the story and its spec.
+- Read the root `CLAUDE.md`, `src/CLAUDE.md` (the C# patterns; follow them exactly), `src/Modules/Publishing/CLAUDE.md` if it exists, the story and its spec.
 - Releases are immutable. Publishing is idempotent: the same request key gives the same release.
 - Get content and HTML only through the Content and Rendering `.Contracts` projects.
 - Write only inside your module and its tests.

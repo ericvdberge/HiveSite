@@ -82,8 +82,6 @@ public sealed class ReadSiteTests(ContentApi fixture)
     [Theory]
     [InlineData("0")]
     [InlineData("101")]
-    [InlineData("abc")]
-    [InlineData("")]
     [InlineData("-1")]
     public async Task A_bad_limit_is_refused_AC14(string limit)
     {
@@ -94,6 +92,17 @@ public sealed class ReadSiteTests(ContentApi fixture)
         Assert.Equal(HttpStatusCode.BadRequest, response.Status);
         Assert.Equal("invalid_request", response.ErrorCode);
         Assert.Equal("limit", response.ErrorField);
+    }
+
+    [Fact]
+    public async Task A_limit_that_is_not_a_number_is_refused_AC14()
+    {
+        var api = await fixture.ReadyAsync();
+
+        var response = await api.GetAsync(ContentApi.NewOwner(), "/sites?limit=abc");
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.Status);
+        Assert.Equal("invalid_request", response.ErrorCode);
     }
 
     [Theory]

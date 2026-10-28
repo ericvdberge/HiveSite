@@ -1,0 +1,31 @@
+using System.Text.Json;
+using Microsoft.AspNetCore.Diagnostics;
+using Microsoft.AspNetCore.Http;
+
+namespace Hivesite.Shared;
+
+/// <summary>Turns every exception into the error body of specs/STYLE.md. Endpoints and services just throw.</summary>
+internal sealed class ApiExceptionHandler : IExceptionHandler
+{
+    public async ValueTask<bool> TryHandleAsync(HttpContext context, Exception exception, CancellationToken cancellationToken)
+    {
+        var (status, error) = exception switch
+        {
+            AppException e => (e.Status, ApiError.Of(e.Code, e.Message, e.Field)),
+            BadHttpRequestException { InnerException: JsonException json } => (400, InvalidJson(json)),
+            BadHttpRequestException e => (e.StatusCode, ApiError.Of("invalid_request", e.Message)),
+            _ => (500, ApiError.Of("internal_error", "Something went wrong on our side.")),
+        };
+        await Results.Json(error, statusCode: status).ExecuteAsync(context);
+        return true;
+    }
+
+    /// <summary>Wrong types, null where it is not allowed and unknown fields all land here, with the JSON path of the culprit.</summary>
+    private static ApiError InvalidJson(JsonException json)
+    {
+        var field = FieldPath.FromJsonPath(json.Path);
+        return field is null
+            ? ApiError.Of("invalid_request", "The body must be a valid JSON object.")
+            : ApiError.Of("invalid_request", $"'{field}' is not allowed or has the wrong type.", field);
+    }
+}

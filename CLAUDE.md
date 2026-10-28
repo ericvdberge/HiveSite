@@ -6,6 +6,7 @@ A block-based website builder, designed and built by a team of AI agents. Owners
 - C# .NET 10, ASP.NET Core minimal APIs, modular monolith ([ADR 1](docs/adr/0001-modular-monolith.md))
 - PostgreSQL with EF Core, one schema per module ([ADR 2](docs/adr/0002-postgresql.md))
 - Modules: Content, Rendering, Publishing. They talk only through `*.Contracts` projects.
+- FluentValidation for requests, Mapperly for all mapping, a generic repository and one service per entity. The C# patterns are in [src/CLAUDE.md](src/CLAUDE.md).
 
 ## Commands
 - Build: `dotnet build -warnaserror`

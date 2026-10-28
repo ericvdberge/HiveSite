@@ -3,7 +3,7 @@ using System.Net;
 using System.Text;
 using System.Text.Json;
 using Hivesite.Content.Contracts;
-using Hivesite.Content.Endpoints;
+using Hivesite.Shared;
 using Hivesite.Testing;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
@@ -12,12 +12,12 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace Hivesite.Content.Tests;
 
-/// <summary>Test-only owner resolver: the owner id is the X-Test-Owner header, no header means no owner.</summary>
-internal sealed class HeaderOwnerResolver : IOwnerResolver
+/// <summary>Test-only owner: the X-Test-Owner header, no header means no owner.</summary>
+internal sealed class HeaderCurrentOwner(IHttpContextAccessor http) : ICurrentOwner
 {
     public const string Header = "X-Test-Owner";
 
-    public string? Resolve(HttpContext context) => context.Request.Headers[Header].FirstOrDefault();
+    public string? Id => http.HttpContext?.Request.Headers[Header].FirstOrDefault();
 }
 
 internal sealed class RecordingHandler : ISiteChangedHandler
@@ -80,7 +80,8 @@ public sealed class ContentApi : IAsyncLifetime
                 builder.UseSetting("ConnectionStrings:Content", _postgres.ConnectionString);
                 builder.ConfigureServices(services =>
                 {
-                    services.AddSingleton<IOwnerResolver, HeaderOwnerResolver>();
+                    services.AddHttpContextAccessor();
+                    services.AddScoped<ICurrentOwner, HeaderCurrentOwner>();
                     services.AddSingleton<ISiteChangedHandler>(Events);
                     services.AddSingleton<TimeProvider>(Clock);
                 });
@@ -103,7 +104,7 @@ public sealed class ContentApi : IAsyncLifetime
         using var request = new HttpRequestMessage(method, path);
         if (owner is not null)
         {
-            request.Headers.Add(HeaderOwnerResolver.Header, owner);
+            request.Headers.Add(HeaderCurrentOwner.Header, owner);
         }
         foreach (var (name, value) in headers)
         {

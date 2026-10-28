@@ -1,6 +1,6 @@
 # Publishing module
 
-Releases, history, rollback and serving the live site. Owned by `dev-publishing`. Specs: API-020 to API-029 in `specs/publishing/`.
+Releases, history, rollback and serving the live site. Owned by `dev-publishing`. Specs: API-020 to API-029 in `specs/publishing/`. Build everything with the patterns in [src/CLAUDE.md](../../CLAUDE.md).
 
 ## Layout
 - `Hivesite.Publishing/`: releases, rollback, serving. `PublishingModule` is the only entry point the Host calls.

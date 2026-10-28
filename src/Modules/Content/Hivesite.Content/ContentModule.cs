@@ -1,12 +1,11 @@
+using FluentValidation;
 using Hivesite.Content.Application;
+using Hivesite.Content.Domain;
 using Hivesite.Content.Endpoints;
 using Hivesite.Content.Infrastructure;
-using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace Hivesite.Content;
 
@@ -17,17 +16,16 @@ public static class ContentModule
     {
         services.AddDbContext<ContentDbContext>((sp, options) =>
             Configure(options, sp.GetRequiredService<IConfiguration>().GetConnectionString("Content")));
-        services.TryAddSingleton(TimeProvider.System);
-        services.TryAddSingleton<IOwnerResolver, NoOwnerResolver>();
-        services.AddDataProtection();
-        services.AddSingleton<CursorProtector>();
+        services.AddValidatorsFromAssemblyContaining<ContentDbContext>(includeInternalTypes: true);
+
+        services.AddEntity<Site, SiteDao, SiteDaoMapper>();
         services.AddScoped<SiteService>();
         return services;
     }
 
     public static IEndpointRouteBuilder MapContentEndpoints(this IEndpointRouteBuilder endpoints)
     {
-        SiteEndpoints.Map(endpoints);
+        endpoints.MapSiteEndpoints();
         return endpoints;
     }
 
@@ -40,4 +38,14 @@ public static class ContentModule
 
     internal static DbContextOptionsBuilder Configure(DbContextOptionsBuilder options, string? connectionString) =>
         options.UseNpgsql(connectionString, npgsql => npgsql.MigrationsHistoryTable("__ef_migrations_history", ContentDbContext.Schema));
+
+    /// <summary>One line per entity: its DAO mapper and the generic repository.</summary>
+    private static void AddEntity<TEntity, TDao, TMapper>(this IServiceCollection services)
+        where TEntity : class, Shared.IEntity
+        where TDao : class, Shared.IEntity
+        where TMapper : class, IDaoMapper<TEntity, TDao>
+    {
+        services.AddSingleton<IDaoMapper<TEntity, TDao>, TMapper>();
+        services.AddScoped<IRepository<TEntity>, Repository<TEntity, TDao>>();
+    }
 }

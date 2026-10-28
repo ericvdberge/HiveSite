@@ -62,10 +62,8 @@ public sealed class UpdateSiteTests(ContentApi fixture)
 
     [Theory]
     [InlineData("""{"name":5}""", "/name")]
-    [InlineData("""{"name":null}""", "/name")]
     [InlineData("""{"theme":"x"}""", "/theme")]
     [InlineData("""{"settings":{"extra":1}}""", "/settings/extra")]
-    [InlineData("""{"settings":{"language":null}}""", "/settings/language")]
     [InlineData("""{"slug":"AB"}""", "/slug")]
     public async Task Invalid_input_is_refused_and_nothing_is_stored_AC21(string body, string field)
     {

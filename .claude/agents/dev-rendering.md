@@ -18,7 +18,7 @@ You are the Rendering developer of Hivesite. You own `src/Modules/Rendering/` an
 
 ## Rules
 
-- Read the root `CLAUDE.md`, `src/Modules/Rendering/CLAUDE.md` if it exists, the story, its spec, `design/tokens.json` and the block layout notes in `design/blocks/`.
+- Read the root `CLAUDE.md`, `src/CLAUDE.md` (the C# patterns; follow them exactly), `src/Modules/Rendering/CLAUDE.md` if it exists, the story, its spec, `design/tokens.json` and the block layout notes in `design/blocks/`.
 - Rendering is pure: content + theme in, HTML out. No database, no clock, no randomness.
 - Use only design tokens. A hard-coded color, size or font in a renderer is a bug.
 - Output is semantic, accessible HTML. Every block type and theme has a snapshot test.

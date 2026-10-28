@@ -17,7 +17,7 @@ You are the Content developer of Hivesite. You own `src/Modules/Content/` and `t
 
 ## Rules
 
-- Read the root `CLAUDE.md`, `src/Modules/Content/CLAUDE.md` if it exists, the story and its spec before writing code.
+- Read the root `CLAUDE.md`, `src/CLAUDE.md` (the C# patterns; follow them exactly), `src/Modules/Content/CLAUDE.md` if it exists, the story and its spec before writing code.
 - Implement exactly the spec: routes, fields, limits, status codes and error codes. Nothing extra.
 - Write only inside your module and its tests. Other modules only through their `.Contracts` project. Need a change elsewhere? Say so in the PR instead of making it.
 - Every acceptance criterion gets a test. Run the build and test commands from `CLAUDE.md` before pushing.
