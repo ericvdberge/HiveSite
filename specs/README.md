@@ -10,14 +10,17 @@
 | [API-002](content/API-002-pages-and-menu.md) | Pages and menu order | approved | #13 | API-001 |
 | [API-003](content/API-003-block-types.md) | Block type registry | approved | #14 | API-001 |
 | [API-004](content/API-004-page-blocks.md) | Page blocks | approved | #15 | API-001, API-002, API-003 |
+| [API-005](content/API-005-entities.md) | Entities | in review | #36 | API-001, API-002, API-003, API-004 |
 
 ## By status
 
 - **draft** (0): —
-- **in review** (0): —
+- **in review** (1): API-005
 - **approved** (4): API-001, API-002, API-003, API-004
 - **built** (0): —
 
 ## Open questions
 
-None.
+- API-005: Should `accent_color` also fill the button fill `color.accent`? Then Content must also pick or check `color.on_accent` on it (4.5:1), for example the theme's `color.text` or `color.background`, whichever passes.
+- API-005: Contrast against `color.background` and `color.surface` (proposed), or `color.background` only, as first described?
+- API-005: The theme table and the `brand_styling` values depend on `design/tokens.json` in #33, which is not merged. Is version 1 of that file final, so this spec can cite it?
