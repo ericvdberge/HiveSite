@@ -1,0 +1,21 @@
+name: Task
+description: Setup work, factory work, or a piece of a story
+labels: ["type:task"]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What
+    validations:
+      required: true
+  - type: textarea
+    id: done
+    attributes:
+      label: Done when
+      value: |
+        - [ ] …
+  - type: input
+    id: parent
+    attributes:
+      label: Part of
+      placeholder: "#12"

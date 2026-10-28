@@ -1,0 +1,25 @@
+name: Business case
+description: An idea worth sizing before anyone builds it
+title: "Case: …"
+labels: ["type:case"]
+body:
+  - type: textarea
+    id: problem
+    attributes: { label: Problem, description: "Who has it, how often, what it costs them today." }
+    validations: { required: true }
+  - type: textarea
+    id: proposal
+    attributes: { label: Proposal, description: "Three sentences or fewer." }
+    validations: { required: true }
+  - type: textarea
+    id: prize
+    attributes: { label: Size of the prize, description: "Reach and value, with sources. Mark estimates." }
+  - type: textarea
+    id: cost
+    attributes: { label: Cost, description: "S/M/L per team, new risks or running costs." }
+  - type: textarea
+    id: whynot
+    attributes: { label: Why not }
+  - type: textarea
+    id: rec
+    attributes: { label: Recommendation, description: "Build / don't / test first, and the smallest first story." }

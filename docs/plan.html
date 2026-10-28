@@ -1,0 +1,526 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Hivesite Plan</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500&family=Hanken+Grotesk:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: an atelier dossier. Hero with the live intro, a sticky chapter index, then chapters as calm editorial sections. */
+:root{
+  --bg:#f5f1e8;--panel:#fbf8f2;--sunk:#ece6da;--line:#ddd4c3;--soft:#e7e0d2;
+  --fg:#1b1813;--muted:#6c6457;--faint:#9a917f;--gold:#94733a;--gold-soft:rgba(148,115,58,.12);
+  --c1:#6e5fb8;--c2:#2f8a71;--c3:#b4673a;--ok:#2f7d55;
+  --display:"Cormorant Garamond","Iowan Old Style",Georgia,serif;
+  --body:"Hanken Grotesk",ui-sans-serif,system-ui,sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+  --ease:cubic-bezier(.22,.8,.24,1);color-scheme:light;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0d0c0a;--panel:#151410;--sunk:#1c1a16;--line:#2c2820;--soft:#221f19;
+  --fg:#f2ece0;--muted:#a69d8c;--faint:#6f685b;--gold:#cdae74;--gold-soft:rgba(205,174,116,.12);
+  --c1:#a597e6;--c2:#6cc1a4;--c3:#dc9a6c;--ok:#7cc79b;color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0d0c0a;--panel:#151410;--sunk:#1c1a16;--line:#2c2820;--soft:#221f19;
+  --fg:#f2ece0;--muted:#a69d8c;--faint:#6f685b;--gold:#cdae74;--gold-soft:rgba(205,174,116,.12);
+  --c1:#a597e6;--c2:#6cc1a4;--c3:#dc9a6c;--ok:#7cc79b;color-scheme:dark}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--body);font-size:16px;line-height:1.65;-webkit-font-smoothing:antialiased;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:0 80px}
+.wrap{max-width:1120px;margin:0 auto}
+a{color:var(--gold)}
+.eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--gold)}
+h1,h2,h3{font-family:var(--display);font-weight:500;line-height:1.08;text-wrap:balance;margin:0}
+h1{font-size:clamp(44px,8vw,84px);letter-spacing:-.01em}
+h1 em,h2 em{font-style:italic;color:var(--gold)}
+h2{font-size:clamp(32px,5vw,46px)}
+h3{font-size:24px;font-weight:600}
+p{margin:0 0 14px;max-width:68ch}
+.lead{font-size:19px;color:var(--muted);max-width:60ch}
+code{font-family:var(--mono);font-size:.86em;background:var(--sunk);padding:1px 6px;border-radius:5px}
+pre{font-family:var(--mono);font-size:12.5px;line-height:1.6;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px 18px;overflow-x:auto;margin:0}
+/* hero */
+.hero{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.05fr);gap:40px;align-items:center;padding:48px 0 40px;border-bottom:1px solid var(--line)}
+.hero .meta{display:flex;flex-wrap:wrap;gap:8px 18px;margin-top:22px;font-size:13px;color:var(--muted)}
+.hero .meta b{color:var(--fg);font-weight:500}
+.stage{background:#100e0b;border-radius:20px;padding:12px;position:relative}
+.stage svg{display:block;width:100%;height:auto}
+.stage button{position:absolute;right:14px;bottom:14px}
+button{font:inherit;font-size:13px;font-weight:500;color:var(--fg);background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:7px 14px;cursor:pointer;transition:border-color .3s var(--ease)}
+button:hover{border-color:var(--gold)}
+.stage button{background:rgba(23,20,15,.8);color:#f2ece0;border-color:#3a3326}
+button:focus-visible,input:focus-visible,a:focus-visible{outline:1px solid var(--gold);outline-offset:3px}
+/* index */
+nav.toc{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:color-mix(in srgb,var(--bg) 88%,transparent);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border-bottom:1px solid var(--line);margin:0 calc(-1 * max(16px,env(safe-area-inset-left,0px)));padding:0 max(16px,env(safe-area-inset-left,0px))}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--bg)}
+nav.toc ol{list-style:none;margin:0 auto;padding:10px 0;display:flex;gap:4px;overflow-x:auto;max-width:1120px;scrollbar-width:none}
+nav.toc a{display:block;white-space:nowrap;text-decoration:none;color:var(--muted);font-size:13px;padding:6px 12px;border-radius:999px}
+nav.toc a:hover{color:var(--fg);background:var(--sunk)}
+nav.toc a span{font-family:var(--mono);font-size:10px;color:var(--faint);margin-right:6px}
+/* sections */
+section{padding:64px 0 8px;scroll-margin-top:60px}
+.sh{display:grid;gap:10px;margin-bottom:28px}
+.grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}
+.grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:20px;min-width:0}
+.card h3{margin-bottom:8px}
+.card p:last-child,.card ul:last-child{margin-bottom:0}
+ul.clean{margin:0;padding:0 0 0 18px}
+ul.clean li{margin:4px 0}
+.tag{display:inline-block;font-family:var(--mono);font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;padding:3px 9px;border-radius:999px;border:1px solid currentColor;margin-bottom:10px}
+.out{color:var(--faint)}
+table{width:100%;border-collapse:collapse;font-size:14px}
+.tbl{overflow-x:auto;border:1px solid var(--line);border-radius:16px;background:var(--panel)}
+th,td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--soft);vertical-align:top}
+th{font-family:var(--mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-weight:500}
+tr:last-child td{border-bottom:0}
+td code{white-space:nowrap}
+.method{font-family:var(--mono);font-size:11.5px;font-weight:500;color:var(--gold)}
+/* brand */
+.swatches{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:12px}
+.sw{border:1px solid var(--line);border-radius:14px;overflow:hidden;background:var(--panel)}
+.sw i{display:block;height:64px}
+.sw div{padding:8px 10px;font-size:12px}.sw b{display:block;font-weight:500}.sw span{font-family:var(--mono);color:var(--muted);font-size:11px}
+.lockups{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);gap:18px}
+.lock-dark{background:#100e0b;border-radius:18px;padding:40px 20px;display:flex;flex-direction:column;align-items:center;gap:14px;color:#f2ece0}
+.lock-light{background:#f5f1e8;border:1px solid #ddd4c3;border-radius:18px;padding:28px 20px;display:flex;align-items:center;justify-content:center;gap:14px;color:#1b1813}
+.wm{font-family:var(--display);font-size:40px;letter-spacing:.32em;padding-left:.32em}
+/* flow */
+.flow{display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-size:14px}
+.flow span{border:1px solid var(--line);background:var(--panel);border-radius:999px;padding:6px 12px}
+.flow span.h{border-color:var(--gold);color:var(--gold)}
+.flow i{color:var(--faint);font-style:normal}
+/* plan */
+.phase{border-top:1px solid var(--line);padding:22px 0;display:grid;grid-template-columns:200px minmax(0,1fr);gap:24px}
+.phase:first-of-type{border-top:0}
+.phase .n{font-family:var(--display);font-size:56px;line-height:.9;color:var(--gold)}
+.phase .when{font-size:13px;color:var(--muted);margin-top:6px}
+.checks{list-style:none;margin:10px 0 0;padding:0;display:grid;gap:4px}
+.checks label{display:grid;grid-template-columns:22px minmax(0,1fr);gap:10px;align-items:start;padding:6px 8px;border-radius:10px;cursor:pointer}
+.checks label:hover{background:var(--sunk)}
+.checks input{appearance:none;width:18px;height:18px;border:1.5px solid var(--faint);border-radius:5px;margin:3px 0 0;display:grid;place-items:center;cursor:pointer;transition:all .25s var(--ease)}
+.checks input:checked{background:var(--gold);border-color:var(--gold)}
+.checks input:checked::after{content:"";width:5px;height:9px;border:solid var(--bg);border-width:0 2px 2px 0;transform:rotate(45deg) translate(-1px,-1px)}
+.checks input:checked+span{color:var(--faint);text-decoration:line-through}
+.progress{display:flex;align-items:center;gap:14px;font-size:13px;color:var(--muted);margin-bottom:10px}
+.bar{flex:1;height:3px;background:var(--sunk);border-radius:2px;overflow:hidden}.bar i{display:block;height:100%;background:var(--gold);width:0;transition:width .6s var(--ease)}
+.note{border-left:2px solid var(--gold);padding:4px 0 4px 16px;color:var(--muted);font-size:15px;margin:16px 0}
+footer{margin-top:72px;padding-top:24px;border-top:1px solid var(--line);font-size:13px;color:var(--faint);display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}
+@media (max-width:860px){.hero,.lockups,.grid2,.grid3{grid-template-columns:minmax(0,1fr)}.phase{grid-template-columns:minmax(0,1fr);gap:6px}.phase .n{font-size:40px}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;scroll-behavior:auto!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="hero">
+  <div>
+    <div class="eyebrow">Project dossier · October 2026</div>
+    <h1>Hive<em>site</em></h1>
+    <p class="lead" style="margin-top:16px">A block-based website builder, designed and built by a team of AI agents. This page holds the whole plan: the brand, the product, the architecture, the agent factory and the steps to start.</p>
+    <div class="meta"><span><b>Stack</b> C# .NET 10, modular monolith</span><span><b>Builders</b> the agent factory</span><span><b>Scope</b> MVP in 4 phases</span></div>
+  </div>
+  <div class="stage" aria-label="Hivesite intro animation">
+    <svg id="intro" viewBox="0 0 360 250" role="img" aria-label="A point of light draws a gold hexagon with an H, which glides into the corner as the logo of a website that fades in around it">
+      <defs><radialGradient id="glow"><stop offset="0" stop-color="#f6e2b3"/><stop offset=".35" stop-color="#cdae74" stop-opacity=".8"/><stop offset="1" stop-color="#cdae74" stop-opacity="0"/></radialGradient></defs>
+      <g class="site" opacity="0">
+        <rect x="34" y="26" width="292" height="196" rx="10" fill="#17140f" stroke="#3a3326"/>
+        <line x1="34" y1="54" x2="326" y2="54" stroke="#3a3326"/>
+        <text x="66" y="44" font-family="Cormorant Garamond, Georgia, serif" font-size="12" letter-spacing="3" fill="#f2ece0">HIVESITE</text>
+        <g class="blocks"><rect x="48" y="66" width="170" height="74" rx="4" fill="#cdae74" fill-opacity=".85"/><rect x="226" y="66" width="88" height="74" rx="4" fill="#cdae74" fill-opacity=".3"/><rect x="48" y="150" width="84" height="58" rx="4" fill="#cdae74" fill-opacity=".18"/><rect x="138" y="150" width="84" height="58" rx="4" fill="#cdae74" fill-opacity=".18"/><rect x="228" y="150" width="86" height="58" rx="4" fill="#cdae74" fill-opacity=".18"/></g>
+      </g>
+      <path class="hex" fill="#cdae74" fill-opacity="0" stroke="#cdae74" stroke-width="1.4" stroke-linejoin="round" pathLength="1" stroke-dasharray="1" stroke-dashoffset="1"/>
+      <text class="H" text-anchor="middle" font-family="Cormorant Garamond, Georgia, serif" font-weight="600" fill="#100e0b" opacity="0">H</text>
+      <circle class="bee" r="8" fill="url(#glow)" opacity="0"/>
+    </svg>
+    <button type="button" id="replay">Play again</button>
+  </div>
+</header>
+
+<nav class="toc" aria-label="Chapters"><ol>
+  <li><a href="#brand"><span>01</span>Brand</a></li>
+  <li><a href="#motion"><span>02</span>Motion</a></li>
+  <li><a href="#product"><span>03</span>Product</a></li>
+  <li><a href="#architecture"><span>04</span>Architecture</a></li>
+  <li><a href="#factory"><span>05</span>Agent factory</a></li>
+  <li><a href="#specs"><span>06</span>Specs &amp; design</a></li>
+  <li><a href="#repo"><span>07</span>Repository</a></li>
+  <li><a href="#backlog"><span>08</span>First stories</a></li>
+  <li><a href="#plan"><span>09</span>Plan</a></li>
+</ol></nav>
+
+<!-- 01 BRAND -->
+<section id="brand">
+  <div class="sh"><div class="eyebrow">01 · Brand</div><h2>Quiet luxury, <em>built by many</em></h2>
+  <p class="lead">The hive stands for precision, craft and many hands working as one. It should feel like an atelier, never like a tech startup.</p></div>
+  <div class="lockups">
+    <div class="lock-dark">
+      <svg width="58" height="64" viewBox="0 0 58 64" aria-hidden="true"><path d="M29 2 L55 17 L55 47 L29 62 L3 47 L3 17 Z" fill="none" stroke="#cdae74" stroke-width="1.5"/><path d="M29 14 L44 22.5 L44 41.5 L29 50 L14 41.5 L14 22.5 Z" fill="none" stroke="#cdae74" stroke-width="1" opacity=".6"/><text x="29" y="38" text-anchor="middle" font-family="Cormorant Garamond, Georgia, serif" font-size="17" font-weight="600" fill="#cdae74">H</text></svg>
+      <div class="wm">HIVESITE</div>
+      <div style="width:40px;height:1px;background:#cdae74"></div>
+      <div style="font-family:var(--display);font-style:italic;font-size:18px;color:#a69d8c">Crafted by many. Made for you.</div>
+    </div>
+    <div style="display:grid;gap:18px">
+      <div class="lock-light">
+        <svg width="34" height="38" viewBox="0 0 58 64" aria-hidden="true"><path d="M29 2 L55 17 L55 47 L29 62 L3 47 L3 17 Z" fill="#94733a"/><text x="29" y="40" text-anchor="middle" font-family="Cormorant Garamond, Georgia, serif" font-size="24" font-weight="600" fill="#f5f1e8">H</text></svg>
+        <div style="font-family:var(--display);font-size:32px;font-weight:600">Hivesite</div>
+      </div>
+      <div class="card">
+        <h3>Voice</h3>
+        <ul class="clean"><li>Calm, precise, warm. Short sentences.</li><li>Speak of craft and care, not of speed and disruption.</li><li>Tagline: <i>Crafted by many. Made for you.</i></li><li>Premium tier: <b>Hivesite Atelier</b>.</li></ul>
+      </div>
+    </div>
+  </div>
+  <div class="swatches" style="margin-top:18px">
+    <div class="sw"><i style="background:#100e0b"></i><div><b>Ink</b><span>#100E0B</span></div></div>
+    <div class="sw"><i style="background:#17140f"></i><div><b>Panel</b><span>#17140F</span></div></div>
+    <div class="sw"><i style="background:#cdae74"></i><div><b>Champagne</b><span>#CDAE74</span></div></div>
+    <div class="sw"><i style="background:#94733a"></i><div><b>Bronze</b><span>#94733A</span></div></div>
+    <div class="sw"><i style="background:#f5f1e8"></i><div><b>Ivory</b><span>#F5F1E8</span></div></div>
+    <div class="sw"><i style="background:#a69d8c"></i><div><b>Stone</b><span>#A69D8C</span></div></div>
+  </div>
+  <p class="note">Type: Cormorant Garamond for display and figures, Hanken Grotesk for text, IBM Plex Mono for labels and data. Before launch, check that the name, domains (hivesite.com, .io, .nl) and trademarks (EUIPO, BOIP) are free.</p>
+</section>
+
+<!-- 02 MOTION -->
+<section id="motion">
+  <div class="sh"><div class="eyebrow">02 · Motion</div><h2>The golden <em>thread</em></h2>
+  <p class="lead">One idea in three beats: the light draws the hexagon, the logo settles into the corner, the site appears around it. The brand builds the site.</p></div>
+  <div class="grid2">
+    <div class="card">
+      <span class="tag" style="color:var(--gold)">Intro · 2.7 s</span>
+      <div class="stage" style="padding:8px"><svg id="intro2" viewBox="0 0 360 250" aria-label="Intro animation, repeated" role="img"></svg><button type="button" id="replay2">Play again</button></div>
+      <ul class="clean" style="margin-top:14px"><li><b>0–0.85 s</b> light traces the hexagon (sine ease)</li><li><b>0.7–1.1 s</b> gold fill and H</li><li><b>1.25–2 s</b> logo glides to the nav, site fades in</li><li><b>1.7–2.7 s</b> blocks settle, 70 ms apart</li></ul>
+    </div>
+    <div class="card">
+      <span class="tag" style="color:var(--gold)">Loader · loop</span>
+      <div class="stage" style="padding:8px"><svg id="loader" viewBox="0 0 360 250" role="img" aria-label="Loader: a gold hexagon is traced by a point of light in a calm loop"></svg></div>
+      <ul class="clean" style="margin-top:14px"><li>Same hexagon and light, drawn and released in a 2 s loop.</li><li>Use while a site renders or publishes.</li><li>Small version (24 px) works as a button spinner.</li><li>Respect reduced motion: show the static logo instead.</li></ul>
+    </div>
+  </div>
+  <p class="note">Rules for all motion: one shape at a time, no flashes, slow in and slow out, nothing faster than 300 ms, and every motion ends where the next one starts.</p>
+</section>
+
+<!-- 03 PRODUCT -->
+<section id="product">
+  <div class="sh"><div class="eyebrow">03 · Product</div><h2>A small builder, <em>finished well</em></h2>
+  <p class="lead">Owners compose pages from a fixed set of blocks, pick a theme and publish a static site with versions they can roll back. Editing happens through the API and a simple form-based admin; a visual editor comes later.</p></div>
+  <div class="grid3">
+    <div class="card"><span class="tag" style="color:var(--c1)">Content</span><h3>Sites, pages, blocks</h3><ul class="clean"><li>Sites with a slug and settings</li><li>Pages with title, slug and menu order</li><li>Blocks as an ordered list per page</li><li>8 block types, each with a JSON schema</li></ul></div>
+    <div class="card"><span class="tag" style="color:var(--c2)">Rendering</span><h3>Themes and HTML</h3><ul class="clean"><li>3 themes from design tokens</li><li>Page rendered to clean, accessible HTML</li><li>Draft preview per page</li><li>Same input, same output (snapshot tested)</li></ul></div>
+    <div class="card"><span class="tag" style="color:var(--c3)">Publishing</span><h3>Releases</h3><ul class="clean"><li>Publish a site as an immutable release</li><li>History of releases</li><li>One-click rollback</li><li>Serve the live release</li></ul></div>
+  </div>
+  <div class="grid2" style="margin-top:18px">
+    <div class="card"><h3>Block types</h3><p>Hero · Text · Image · Gallery · Cards · Blog list · Contact form · Embed. Each has a schema (fields, types, limits) that the API validates strictly and the renderer trusts.</p></div>
+    <div class="card"><h3 class="out">Not in the MVP</h3><p class="out">Drag-and-drop editor, custom domains, multiple users per site, plugins, e-commerce, analytics. Each is a later phase once the core works.</p></div>
+  </div>
+  <h3 style="margin:32px 0 12px">API at a glance (about 20 endpoints)</h3>
+  <div class="tbl"><table>
+    <thead><tr><th>Module</th><th>Endpoint</th><th>Purpose</th></tr></thead>
+    <tbody>
+      <tr><td>Content</td><td><span class="method">POST/GET</span> <code>/sites</code></td><td>Create and list sites</td></tr>
+      <tr><td>Content</td><td><span class="method">GET/PATCH</span> <code>/sites/{id}</code></td><td>Read and update a site</td></tr>
+      <tr><td>Content</td><td><span class="method">POST/GET</span> <code>/sites/{id}/pages</code></td><td>Create and list pages</td></tr>
+      <tr><td>Content</td><td><span class="method">GET/PATCH/DELETE</span> <code>/pages/{id}</code></td><td>Manage one page</td></tr>
+      <tr><td>Content</td><td><span class="method">PUT</span> <code>/pages/{id}/blocks</code></td><td>Replace the ordered blocks of a page</td></tr>
+      <tr><td>Content</td><td><span class="method">PUT</span> <code>/sites/{id}/menu</code></td><td>Set the page order in the menu</td></tr>
+      <tr><td>Content</td><td><span class="method">GET</span> <code>/block-types</code></td><td>Block types with their schemas</td></tr>
+      <tr><td>Rendering</td><td><span class="method">GET</span> <code>/themes</code></td><td>Available themes and tokens</td></tr>
+      <tr><td>Rendering</td><td><span class="method">PUT</span> <code>/sites/{id}/theme</code></td><td>Choose a theme</td></tr>
+      <tr><td>Rendering</td><td><span class="method">GET</span> <code>/pages/{id}/preview</code></td><td>Draft page as HTML</td></tr>
+      <tr><td>Publishing</td><td><span class="method">POST</span> <code>/sites/{id}/publish</code></td><td>Create a release (idempotent)</td></tr>
+      <tr><td>Publishing</td><td><span class="method">GET</span> <code>/sites/{id}/releases</code></td><td>Release history</td></tr>
+      <tr><td>Publishing</td><td><span class="method">POST</span> <code>/sites/{id}/releases/{rid}/rollback</code></td><td>Make an older release live</td></tr>
+      <tr><td>Publishing</td><td><span class="method">GET</span> <code>/s/{site}/{path}</code></td><td>Serve the live site</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<!-- 04 ARCHITECTURE -->
+<section id="architecture">
+  <div class="sh"><div class="eyebrow">04 · Architecture</div><h2>A modular <em>monolith</em></h2>
+  <p class="lead">One deployable, three modules with hard boundaries. Each module is owned by one agent team, which makes the boundaries a real test of whether agents stay in their lane.</p></div>
+  <div class="grid2">
+    <div class="card"><h3>Choices</h3><ul class="clean">
+      <li><b>.NET 10</b> (LTS), ASP.NET Core minimal APIs</li>
+      <li><b>PostgreSQL</b> with EF Core, one schema per module; SQLite allowed for local tests</li>
+      <li>Modules talk only through a <code>.Contracts</code> project: interfaces and events, never each other's internals</li>
+      <li>In-process events for "page changed" and "release published"</li>
+      <li>Rendering is pure: content + theme → HTML, no database access</li>
+      <li>Published releases stored as files (local folder now, blob storage later)</li>
+    </ul></div>
+    <div class="card"><h3>Quality gates</h3><ul class="clean">
+      <li>Architecture tests fail the build if a module references another's internals</li>
+      <li>Integration tests over HTTP with a real database in a container</li>
+      <li>Snapshot tests for rendered HTML per block type and theme</li>
+      <li>Spec index check: specs valid, approved specs only</li>
+      <li><code>dotnet format</code> and analyzers on warnings-as-errors</li>
+    </ul></div>
+  </div>
+  <pre style="margin-top:18px">src/
+  Hivesite.Host/                    Program.cs: wires modules, auth, error handling
+  Hivesite.Shared/                  errors, ids, pagination, idempotency, events
+  Modules/
+    Content/
+      Hivesite.Content/             Domain · Application · Infrastructure · Endpoints
+      Hivesite.Content.Contracts/   what other modules may use
+    Rendering/
+      Hivesite.Rendering/           themes, block renderers (no database)
+      Hivesite.Rendering.Contracts/
+    Publishing/
+      Hivesite.Publishing/          releases, rollback, serving
+      Hivesite.Publishing.Contracts/
+tests/
+  Hivesite.ArchitectureTests/       module boundaries
+  Hivesite.Content.Tests/  Hivesite.Rendering.Tests/  Hivesite.Publishing.Tests/</pre>
+</section>
+
+<!-- 05 FACTORY -->
+<section id="factory">
+  <div class="sh"><div class="eyebrow">05 · Agent factory</div><h2>A studio of <em>agents</em></h2>
+  <p class="lead">The factory is a reusable Claude Code plugin with generic roles. Hivesite adds its own domain experts. Humans approve cases, specs and merges.</p></div>
+  <div class="tbl"><table>
+    <thead><tr><th>Agent</th><th>Job</th><th>Writes</th><th>Lives in</th></tr></thead>
+    <tbody>
+      <tr><td><b>manager</b></td><td>Picks the next story, starts the team in order, reports on the issue</td><td>Issue comments</td><td>factory</td></tr>
+      <tr><td><b>rnd-analyst</b></td><td>Finds and sizes business cases</td><td><code>case</code> issues</td><td>factory</td></tr>
+      <tr><td><b>pm</b></td><td>Acceptance criteria and tasks per story</td><td>Issue comments</td><td>factory</td></tr>
+      <tr><td><b>api-architect</b></td><td>Drafts and changes API specs</td><td><code>specs/</code> only</td><td>factory</td></tr>
+      <tr><td><b>designer</b></td><td>Design tokens, themes and block layouts</td><td><code>design/</code> only</td><td>factory</td></tr>
+      <tr><td><b>reviewer</b></td><td>Checks PRs against spec, rules and boundaries</td><td>PR comments</td><td>factory</td></tr>
+      <tr><td><b>tester</b></td><td>Runs tests and every spec case</td><td>PR comments</td><td>factory</td></tr>
+      <tr><td><b style="color:var(--c1)">dev-content</b></td><td>Builds the Content module</td><td><code>Modules/Content</code></td><td>Hivesite</td></tr>
+      <tr><td><b style="color:var(--c2)">dev-rendering</b></td><td>Builds themes and renderers</td><td><code>Modules/Rendering</code></td><td>Hivesite</td></tr>
+      <tr><td><b style="color:var(--c3)">dev-publishing</b></td><td>Builds releases and serving</td><td><code>Modules/Publishing</code></td><td>Hivesite</td></tr>
+    </tbody>
+  </table></div>
+  <h3 style="margin:32px 0 12px">The flow of one story</h3>
+  <div class="flow"><span>R&amp;D case</span><i>→</i><span class="h">you approve</span><i>→</i><span>manager writes story</span><i>→</i><span>api-architect drafts spec</span><i>→</i><span class="h">you approve spec PR</span><i>→</i><span>pm: tasks</span><i>→</i><span>domain dev builds PR</span><i>→</i><span>reviewer</span><i>→</i><span>tester</span><i>→</i><span class="h">you merge</span></div>
+  <div class="grid3" style="margin-top:24px">
+    <div class="card"><h3>Role</h3><p>How to work: in the agent file (instructions, tools, model). Generic, reused across projects.</p></div>
+    <div class="card"><h3>Domain</h3><p>What's true: in a skill per module (block schemas, rendering rules, release rules), preloaded by its developer.</p></div>
+    <div class="card"><h3>Project</h3><p>House rules: in <code>CLAUDE.md</code> at the root and per module, loaded when an agent works there.</p></div>
+  </div>
+  <p class="note">Guardrails from day one: tools limited per role, each developer in its own worktree, a budget per story, three review rounds at most before a human steps in, and no agent ever merges.</p>
+</section>
+
+<!-- 06 SPECS & DESIGN -->
+<section id="specs">
+  <div class="sh"><div class="eyebrow">06 · Specs &amp; design</div><h2>Written down <em>before</em> it's built</h2>
+  <p class="lead">API designs are markdown pages with a header block, grouped by folder and indexed automatically. Visual design is tokens and block layouts, also in the repo.</p></div>
+  <div class="grid2">
+<pre>---
+id: API-004
+title: Page blocks
+domain: content
+status: approved   # draft · in review · approved · built
+owner: api-architect
+stories: [7]
+depends_on: [API-002, API-003]
+version: 1
+---
+
+## Purpose
+Owners set the ordered blocks of a page.
+
+## Endpoints
+### PUT /pages/{id}/blocks
+Auth: site owner
+
+Request
+{ "blocks": [ { "type": "hero",
+  "data": { "title": "Hello",
+            "subtitle": "Welcome" } } ] }
+
+Response 200 { "page_id": "pg_31", "blocks": [...] }
+
+Errors
+- 400 invalid_block: data fails its schema
+- 404 page_not_found
+- 422 too_many_blocks: more than 40
+
+## Open questions
+- none</pre>
+    <div style="display:grid;gap:18px;align-content:start">
+      <div class="card"><h3>How specs stay organised</h3><ul class="clean"><li>One folder per module: <code>specs/content</code>, <code>rendering</code>, <code>publishing</code></li><li><code>specs/README.md</code> is generated: by module, by status, open questions</li><li>CI fails on bad headers, unknown dependencies, or approved specs with open questions</li><li>Spec PRs and build PRs are always separate</li></ul></div>
+      <div class="card"><h3>Design in the repo</h3><ul class="clean"><li><code>design/tokens.json</code>: colors, type, spacing per theme</li><li><code>design/blocks/*.md</code>: layout, states and limits per block type</li><li><code>design/brand/</code>: logo, lockups and the motion samples from this page</li><li>Renderers only use tokens, never hard-coded values</li></ul></div>
+    </div>
+  </div>
+</section>
+
+<!-- 07 REPO -->
+<section id="repo">
+  <div class="sh"><div class="eyebrow">07 · Repository</div><h2>Two repos, <em>one studio</em></h2>
+  <p class="lead">Roles and ways of working go in the factory. Knowledge, designs and code go in Hivesite.</p></div>
+  <div class="grid2">
+<pre>agent-factory/                  reusable plugin
+  .claude-plugin/plugin.json
+  agents/
+    manager.md  rnd-analyst.md  pm.md
+    api-architect.md  designer.md
+    reviewer.md  tester.md
+  skills/
+    write-api-spec/  write-story/
+    review-pr/  business-case/
+  templates/                    copied into new projects
+  scripts/spec-index.mjs</pre>
+<pre>hivesite/                       the product
+  CLAUDE.md                     product, stack, rules, done
+  .claude/
+    agents/                     dev-content.md
+                                dev-rendering.md
+                                dev-publishing.md
+    skills/                     content-domain/
+                                rendering-domain/
+                                publishing-domain/
+  specs/                        API designs (md)
+  design/                       tokens, blocks, brand
+  docs/adr/                     decisions
+  src/  tests/                  .NET solution
+  .github/                      templates, CI</pre>
+  </div>
+</section>
+
+<!-- 08 BACKLOG -->
+<section id="backlog">
+  <div class="sh"><div class="eyebrow">08 · First stories</div><h2>The first <em>twelve</em></h2>
+  <p class="lead">In build order. Each becomes a GitHub issue with a team label and links to its spec.</p></div>
+  <div class="tbl"><table>
+    <thead><tr><th>#</th><th>Story</th><th>Team</th><th>Spec</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td>Solution skeleton: host, shared kernel, architecture tests, CI</td><td>you + manager</td><td>—</td></tr>
+      <tr><td>2</td><td>Create, list, read and update sites</td><td style="color:var(--c1)">content</td><td>API-001</td></tr>
+      <tr><td>3</td><td>Pages and menu order</td><td style="color:var(--c1)">content</td><td>API-002</td></tr>
+      <tr><td>4</td><td>Block type registry with schemas</td><td style="color:var(--c1)">content</td><td>API-003</td></tr>
+      <tr><td>5</td><td>Set page blocks with validation</td><td style="color:var(--c1)">content</td><td>API-004</td></tr>
+      <tr><td>6</td><td>Design tokens and three themes</td><td style="color:var(--c2)">rendering + designer</td><td>API-010</td></tr>
+      <tr><td>7</td><td>Render each block type to HTML</td><td style="color:var(--c2)">rendering</td><td>API-011</td></tr>
+      <tr><td>8</td><td>Draft page preview</td><td style="color:var(--c2)">rendering</td><td>API-011</td></tr>
+      <tr><td>9</td><td>Publish a site as a release</td><td style="color:var(--c3)">publishing</td><td>API-020</td></tr>
+      <tr><td>10</td><td>Release history and rollback</td><td style="color:var(--c3)">publishing</td><td>API-020</td></tr>
+      <tr><td>11</td><td>Serve the live release</td><td style="color:var(--c3)">publishing</td><td>API-021</td></tr>
+      <tr><td>12</td><td>Hivesite intro and loader on published sites</td><td style="color:var(--c2)">rendering + designer</td><td>API-012</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<!-- 09 PLAN -->
+<section id="plan">
+  <div class="sh"><div class="eyebrow">09 · Plan</div><h2>From here to a <em>live site</em></h2>
+  <p class="lead">Tick things off as you go; your progress is saved in this browser.</p></div>
+  <div class="progress"><span id="pct">0% done</span><div class="bar"><i id="pbar"></i></div><button type="button" id="reset">Reset</button></div>
+
+  <div class="phase"><div><div class="n">0</div><div class="eyebrow">Set up</div><div class="when">An evening</div></div><div>
+    <p>Get the two repos and tools in place.</p>
+    <ul class="checks">
+      <li><label><input type="checkbox" data-k="0a"><span>Check name, domains and trademarks for Hivesite</span></label></li>
+      <li><label><input type="checkbox" data-k="0b"><span>Create GitHub repos <code>agent-factory</code> and <code>hivesite</code></span></label></li>
+      <li><label><input type="checkbox" data-k="0c"><span>Push the factory POC (agents, skills, templates, spec index script)</span></label></li>
+      <li><label><input type="checkbox" data-k="0d"><span>Add the <code>designer</code> agent and the Hivesite domain developers and skills</span></label></li>
+      <li><label><input type="checkbox" data-k="0e"><span>Write Hivesite's <code>CLAUDE.md</code>, <code>specs/STYLE.md</code> and the first ADRs (modular monolith, PostgreSQL)</span></label></li>
+      <li><label><input type="checkbox" data-k="0f"><span>Install Claude Code, open the repo, load the factory plugin</span></label></li>
+    </ul></div></div>
+
+  <div class="phase"><div><div class="n">1</div><div class="eyebrow">Design</div><div class="when">A weekend</div></div><div>
+    <p>Specs and design before code. You approve every one.</p>
+    <ul class="checks">
+      <li><label><input type="checkbox" data-k="1a"><span>api-architect drafts specs API-001 to API-004 (Content); review and approve</span></label></li>
+      <li><label><input type="checkbox" data-k="1b"><span>api-architect drafts Rendering and Publishing specs; review and approve</span></label></li>
+      <li><label><input type="checkbox" data-k="1c"><span>designer writes <code>design/tokens.json</code> for three themes and a layout note per block type</span></label></li>
+      <li><label><input type="checkbox" data-k="1d"><span>Put the brand lockups and motion samples in <code>design/brand/</code></span></label></li>
+      <li><label><input type="checkbox" data-k="1e"><span>Create the twelve story issues with team labels and spec links</span></label></li>
+    </ul></div></div>
+
+  <div class="phase"><div><div class="n">2</div><div class="eyebrow">Build</div><div class="when">1–2 weeks of evenings</div></div><div>
+    <p>Run the factory by hand, one story at a time, and learn where it slips.</p>
+    <ul class="checks">
+      <li><label><input type="checkbox" data-k="2a"><span>Story 1: build the skeleton with Claude, then lock the architecture tests</span></label></li>
+      <li><label><input type="checkbox" data-k="2b"><span>Ask the manager to run stories 2–5 (Content); review and merge each PR</span></label></li>
+      <li><label><input type="checkbox" data-k="2c"><span>Stories 6–8 (Rendering) with snapshot tests</span></label></li>
+      <li><label><input type="checkbox" data-k="2d"><span>Stories 9–11 (Publishing): first site published end to end</span></label></li>
+      <li><label><input type="checkbox" data-k="2e"><span>After each story, tighten the agent files and skills where they went wrong</span></label></li>
+    </ul></div></div>
+
+  <div class="phase"><div><div class="n">3</div><div class="eyebrow">Automate</div><div class="when">A week</div></div><div>
+    <p>Let the factory run without you starting each step.</p>
+    <ul class="checks">
+      <li><label><input type="checkbox" data-k="3a"><span>Trigger the manager when an issue gets <code>status:ready</code> (GitHub Actions or a small Agent SDK service)</span></label></li>
+      <li><label><input type="checkbox" data-k="3b"><span>Budgets per story and a weekly cost report</span></label></li>
+      <li><label><input type="checkbox" data-k="3c"><span>Hooks send agent events to the dashboard (agents, stories, PRs)</span></label></li>
+      <li><label><input type="checkbox" data-k="3d"><span>Turn the Agent Factory Floor page into the live console for Hivesite</span></label></li>
+    </ul></div></div>
+
+  <div class="phase"><div><div class="n">4</div><div class="eyebrow">Grow</div><div class="when">Ongoing</div></div><div>
+    <p>Let R&amp;D find what's worth building next.</p>
+    <ul class="checks">
+      <li><label><input type="checkbox" data-k="4a"><span>Story 12: the intro and loader on published sites</span></label></li>
+      <li><label><input type="checkbox" data-k="4b"><span>Publish your own personal site with Hivesite</span></label></li>
+      <li><label><input type="checkbox" data-k="4c"><span>rnd-analyst proposes business cases (Atelier tier, custom domains, editor)</span></label></li>
+      <li><label><input type="checkbox" data-k="4d"><span>Pick the next phase: visual editor, custom domains or multi-user</span></label></li>
+    </ul></div></div>
+</section>
+
+<footer><span>Hivesite · project dossier</span><span>Crafted by many. Made for you.</span></footer>
+</div>
+
+<script>
+/* ---------- golden thread intro (shared by the hero and the motion chapter) ---------- */
+const clamp=t=>Math.max(0,Math.min(1,t)),lerp=(a,b,t)=>a+(b-a)*t;
+const io=t=>{t=clamp(t);return t<.5?4*t*t*t:1-Math.pow(-2*t+2,3)/2},sine=t=>.5-.5*Math.cos(Math.PI*clamp(t));
+const hexD=(cx,cy,r)=>"M"+[0,1,2,3,4,5].map(k=>{const a=-Math.PI/2+k*Math.PI/3;return(cx+r*Math.cos(a)).toFixed(2)+" "+(cy+r*Math.sin(a)).toFixed(2)}).join(" L")+"Z";
+const reduce=matchMedia("(prefers-reduced-motion: reduce)").matches;
+const src=document.getElementById("intro");
+document.getElementById("intro2").innerHTML=src.innerHTML.replace('id="glow"','id="glow2"').replace("url(#glow)","url(#glow2)");
+function introPlayer(svg){
+  const q=s=>svg.querySelector(s),hex=q(".hex"),H=q(".H"),bee=q(".bee"),site=q(".site"),blocks=[...svg.querySelectorAll(".blocks rect")];
+  const A={x:180,y:122,r:40},B={x:51,y:40,r:9},DONE=2.7;let raf,t0;
+  function frame(t){
+    const m=io((t-1.25)/.75),cx=lerp(A.x,B.x,m),cy=lerp(A.y,B.y,m),r=lerp(A.r,B.r,m),draw=sine(t/.85);
+    hex.setAttribute("d",hexD(cx,cy,r));hex.setAttribute("stroke-dashoffset",1-draw);hex.setAttribute("fill-opacity",io((t-.7)/.35));
+    H.setAttribute("x",cx);H.setAttribute("y",cy+r*.27);H.setAttribute("font-size",r*.78);H.setAttribute("opacity",io((t-.8)/.3));
+    if(t>0&&t<.85){const L=hex.getTotalLength(),p=hex.getPointAtLength(draw*L);bee.setAttribute("cx",p.x);bee.setAttribute("cy",p.y);bee.setAttribute("opacity",1)}
+    else bee.setAttribute("opacity",Math.max(0,1-(t-.85)/.2));
+    site.setAttribute("opacity",io((t-1.45)/.55));
+    blocks.forEach((b,i)=>{const s=io((t-1.7-i*.07)/.45);b.setAttribute("opacity",s);b.setAttribute("transform",`translate(0 ${(1-s)*6})`)});
+    if(t<DONE)raf=requestAnimationFrame(n=>frame((n-t0)/1000))}
+  return()=>{cancelAnimationFrame(raf);t0=performance.now();if(reduce){frame(DONE);return}frame(0)}}
+const play1=introPlayer(src),play2=introPlayer(document.getElementById("intro2"));
+document.getElementById("replay").onclick=play1;document.getElementById("replay2").onclick=play2;
+play1();
+new IntersectionObserver((es,o)=>{es.forEach(e=>{if(e.isIntersecting){play2();o.disconnect()}})},{threshold:.5}).observe(document.getElementById("intro2"));
+
+
+/* ---------- loader ---------- */
+(function(){
+  const NS="http://www.w3.org/2000/svg",svg=document.getElementById("loader");
+  svg.innerHTML=`<defs><radialGradient id="glow3"><stop offset="0" stop-color="#f6e2b3"/><stop offset=".35" stop-color="#cdae74" stop-opacity=".8"/><stop offset="1" stop-color="#cdae74" stop-opacity="0"/></radialGradient></defs>
+  <path class="hx" fill="#cdae74" fill-opacity="0" stroke="#cdae74" stroke-width="1.4" stroke-linejoin="round" pathLength="1" stroke-dasharray="1" stroke-dashoffset="1"/>
+  <text class="H" x="180" y="128" text-anchor="middle" font-family="Cormorant Garamond, Georgia, serif" font-weight="600" font-size="26" fill="#100e0b" opacity="0">H</text>
+  <circle class="bee" r="8" fill="url(#glow3)" opacity="0"/>
+  <text x="180" y="200" text-anchor="middle" font-family="Cormorant Garamond, Georgia, serif" font-style="italic" font-size="15" fill="#a69d8c">Building your site…</text>`;
+  const hx=svg.querySelector(".hx"),H=svg.querySelector(".H"),bee=svg.querySelector(".bee");
+  hx.setAttribute("d",hexD(180,120,34));
+  if(reduce){hx.setAttribute("stroke-dashoffset",0);hx.setAttribute("fill-opacity",1);H.setAttribute("opacity",1);return}
+  const L=hx.getTotalLength(),t0=performance.now(),CYC=2.2;
+  (function loop(n){
+    const u=((n-t0)/1000%CYC)/CYC;
+    const draw=sine(u/.45),fill=u<.45?0:u<.75?io((u-.45)/.15):1-io((u-.75)/.25);
+    const off=u<.75?1-draw:-io((u-.75)/.25);
+    hx.setAttribute("stroke-dashoffset",off);hx.setAttribute("fill-opacity",fill);H.setAttribute("opacity",fill);
+    if(u<.45){const p=hx.getPointAtLength(draw*L);bee.setAttribute("cx",p.x);bee.setAttribute("cy",p.y);bee.setAttribute("opacity",Math.min(1,u*20))}else bee.setAttribute("opacity",Math.max(0,1-(u-.45)*8));
+    requestAnimationFrame(loop)})(t0);
+})();
+
+/* ---------- plan checklist, remembered in this browser ---------- */
+const KEY="hivesite-plan-v1",boxes=[...document.querySelectorAll(".checks input")];
+let saved={};try{saved=JSON.parse(localStorage.getItem(KEY)||"{}")}catch{}
+function update(){const done=boxes.filter(b=>b.checked).length,p=Math.round(done/boxes.length*100);
+  document.getElementById("pct").textContent=`${p}% done · ${done} of ${boxes.length}`;document.getElementById("pbar").style.width=p+"%"}
+boxes.forEach(b=>{b.checked=!!saved[b.dataset.k];b.addEventListener("change",()=>{saved[b.dataset.k]=b.checked;try{localStorage.setItem(KEY,JSON.stringify(saved))}catch{}update()})});
+document.getElementById("reset").onclick=()=>{boxes.forEach(b=>b.checked=false);saved={};try{localStorage.removeItem(KEY)}catch{}update()};
+update();
+</script>
+</body>
+</html>
