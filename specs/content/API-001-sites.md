@@ -91,13 +91,13 @@ Response 200
       "updated_at": "2026-10-28T08:02:17Z"
     }
   ],
-  "next_cursor": "c_eyJjIjoiMjAyNi0xMC0yN1QxNjo0MDo1MVoifQ"
+  "next_cursor": "01a17e3c-6a8f-7613-9c0e-bc10fea61b4a"
 }
 ```
 
 Errors
 - 400 `invalid_request`: `limit` is not an integer from 1 to 100. `field` is `limit` when the number is out of range; a value that is not a number returns the error without `field`.
-- 400 `invalid_cursor`: `cursor` is not one this endpoint issued.
+- 400 `invalid_cursor`: `cursor` is not the id of one of the owner's sites. `field` is `cursor`.
 - 401 `unauthenticated`
 
 ### GET /sites/{id}
@@ -191,7 +191,7 @@ Errors
 - **Errors.** Always `{ "error": { "code": "…", "message": "…" } }` as in `specs/STYLE.md`. `message` is for humans and may change; clients branch on `code` only. When an error is caused by one input, `error.field` holds a JSON Pointer (RFC 6901) to it in the request body, for example `"/settings/description"` or `"/content/2/attrs/title"`, or the name of the query parameter or header, for example `"limit"` or `"If-Match"`. `field` is left out when no single input is to blame (401, 404, `too_many_sites`).
 - **Validation.** Request bodies are strict: unknown fields and wrong types return 400 `invalid_request`. In a POST, a required field sent as `null` counts as missing. In a PATCH, `null` means the field was not sent. The one exception is Tiptap documents (API-003, API-004), where `null` marks an unset attribute. String lengths count Unicode code points after trimming leading and trailing whitespace; the trimmed value is stored.
 - **Status codes.** 400 for every request the client can fix by changing it: malformed or invalid values, and checks against stored state such as a taken slug or a count limit. 404 for a missing resource. 412 and 428 only for `If-Match` (API-004), 413 for a body over its size limit, 415 for an unsupported `Content-Type`. Clients branch on `code`, not on the status.
-- **Lists.** `?limit=` 1 to 100, default 20; `?cursor=` opaque. Responses are `{ "items": [...], "next_cursor": "…" }`; `next_cursor` is `null` on the last page. An unknown or tampered cursor returns 400 `invalid_cursor`.
+- **Lists.** `?limit=` 1 to 100, default 20; `?cursor=` is the `next_cursor` of the previous page. Responses are `{ "items": [...], "next_cursor": "…" }`; `next_cursor` is the id of the last item, or `null` on the last page. Clients treat it as opaque. A cursor that is not the id of an item the caller can list returns 400 `invalid_cursor`. It is not signed: knowing an id of your own gives nothing you could not list anyway.
 - **Idempotency.** Not in this version. Every POST creates, and there is no `Idempotency-Key` header. Keys may come back with their own spec change.
 - **Slugs.** Slug fields use the pattern `^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$`. Each spec sets the length and the scope of uniqueness. A taken slug returns 400 `slug_taken`.
 - **Timestamps.** RFC 3339, UTC, second precision, `Z` suffix.
@@ -202,7 +202,7 @@ Errors
 - **Errors name the failing input in `field`.** See Errors in Shared conventions.
 - **`language` and `description` are the only site settings** in this version. More (favicon, social links, footer text) come with their own stories.
 
-- **The first build is kept simple (v3).** No idempotency keys, `null` in a PATCH means "not sent", and the site limit is not race-safe. Each can return with its own story when it is needed.
+- **The first build is kept simple (v3).** No idempotency keys, `null` in a PATCH means "not sent", the site limit is not race-safe, and the cursor is the last site's id instead of a signed token. Each can return with its own story when it is needed.
 
 ## Open questions
 - none

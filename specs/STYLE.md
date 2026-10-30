@@ -35,9 +35,10 @@ Only a human sets `approved`. A spec moves to `built` in the PR that finishes it
 - Status codes: 400 for any request the client can fix by changing it, including validation against stored state (a taken slug, a count limit). 401 without valid credentials. 404 for a missing resource or one owned by someone else. 412 and 428 only for `If-Match` (see below). 413 for a body over the size limit, 415 for an unsupported `Content-Type`. Branch on `code`, never on status alone.
 - Partial updates: `PATCH` with `application/json` changes only the fields sent. `PATCH` with `application/json-patch+json` is a JSON Patch (RFC 6902) and requires `If-Match` with the resource's `ETag`; a stale one returns 412 `precondition_failed`, a missing one 428 `precondition_required`.
 - Rich content is Tiptap (ProseMirror) JSON, as defined in API-003. Inside a Tiptap document, Tiptap's conventions win: its built-in node and mark names are kept (`bulletList`, `hardBreak`), and an unset attribute is `null`, not absent. Our own node names and attributes stay `snake_case`.
-- Lists: `?limit=` (default 20, max 100) and `?cursor=`; responses have `items` and `next_cursor`.
+- Lists: `?limit=` (default 20, max 100) and `?cursor=`; responses have `items` and `next_cursor`. The cursor is the id of the last item on the page, unsigned; an id the caller cannot list returns 400 `invalid_cursor` with `field` `cursor`.
 - No `Idempotency-Key` header for now: every POST creates.
 - Every limit is a number in the spec.
+- Keep it simple. A rule is in a spec only when the story needs it now. Hardening (signed tokens, idempotency, locks, retries, caching) waits for its own story; write it under Decisions as "not in this version".
 
 ## Index
 
