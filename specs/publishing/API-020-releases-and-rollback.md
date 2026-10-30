@@ -12,14 +12,12 @@ version: 1
 ## Purpose
 A site owner can publish a site as an immutable release, see the release history, and make an older release live again.
 
-Auth, ids, errors, validation, lists, idempotency and timestamps follow the shared conventions in API-001.
+Auth, ids, errors, validation, lists and timestamps follow the shared conventions in API-001.
 
 ## Endpoints
 
 ### POST /sites/{id}/publish
 Auth: site owner
-
-Headers: `Idempotency-Key` (optional, see API-001 Idempotency)
 
 Renders the site as it is now (API-011 `RenderSite`, `mode` `release`, with the site's current brand styling; brand styling comes from the `brand_styling` entity, API-005), stores the files as a new release and makes it live. The call returns when the release is live.
 
@@ -57,7 +55,6 @@ Errors
 - 400 `invalid_request`: body is not JSON, `note` is not a string or is over 200 characters, or an unknown field is present.
 - 400 `site_has_no_pages`: the site has no pages, so there is no home page to publish.
 - 400 `release_too_large`: the rendered site has more than 3,000 files or more than 50 MB in total. Nothing is stored.
-- 400 `idempotency_key_reused`
 - 401 `unauthenticated`
 - 404 `site_not_found`
 - 415 `unsupported_media_type`: a body is sent and `Content-Type` is not `application/json`.
@@ -107,7 +104,7 @@ Response 200
       "live_since": "2026-10-28T14:20:03Z"
     }
   ],
-  "next_cursor": "c_eyJuIjoyfQ"
+  "next_cursor": "01a1823b-7c1e-7d40-9a52-3f0b6c2d8e71"
 }
 ```
 
@@ -115,7 +112,7 @@ Here release 2 was made live again by a rollback after release 3 was published.
 
 Errors
 - 400 `invalid_request`: `limit` is not an integer from 1 to 100.
-- 400 `invalid_cursor`
+- 400 `invalid_cursor`: `cursor` is not the id of a release of this site. `field` is `cursor`.
 - 401 `unauthenticated`
 - 404 `site_not_found`
 
@@ -207,17 +204,15 @@ Errors
 - The release also records, internally, the slug of its home page (`menu_order` 0), so API-021 can redirect `/s/{site_slug}/{home_slug}` to the site root.
 - A release never changes after it is created. Its files are never rewritten.
 - Every publish creates a new release, also when nothing changed since the last one.
-- With an `Idempotency-Key`, a repeat with the same key and body returns the first response (201 and the same release) without rendering again, as API-001 Idempotency says.
 - Publish is synchronous. With the limits below it renders in well under the Host's request timeout.
 
 ### Rollback
 - Rollback moves the live pointer to an existing release. It creates no release and does not change `number`.
 - Rolling back to the release that is already live changes nothing and returns 200 with the release as it is.
 - After a rollback, the next publish renders the current draft as a new release with the next `number` and makes it live.
-- Rollback is idempotent and takes no `Idempotency-Key`.
+- Rolling back twice to the same release gives the same result.
 
 ### Concurrency
-- Publishes and rollbacks of one site run one at a time, in the order they arrive. Each sees the result of the one before. Different sites do not wait for each other.
 - Making a release live is one database write. A visitor gets either the old release or the new one, never a mix (API-021).
 
 ### Ordering
@@ -250,6 +245,7 @@ Errors
 - **There is no preview of an old release** in this version. The owner sees its number, note, theme and dates in the history.
 - **Publish is synchronous.** A job queue with a status to poll is a later story, when a site can be big enough to need it.
 - **Retention is 20 releases** so storage per site stays bounded (at most 21 × 50 MB).
+- **Kept simple for the first build: not in this version.** No `Idempotency-Key` on publish (every publish creates a release, as API-001 v3). Publishes and rollbacks of one site are not serialized: one owner publishes from one admin, so they are not expected to race. `number` is unique per site, so if two publishes do race only one is stored and the other fails. Each can come back with its own story.
 
 ## Open questions
 - ADR 3: how is a release built? This spec calls the C# `RenderSite` (API-011), which is held. Under ADR 3 a release is a static build of Vue/Nuxt templates in a sandbox. Which contract does Publishing call, and what does it get back: files with paths and content types, as now?

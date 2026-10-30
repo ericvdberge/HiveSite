@@ -230,7 +230,7 @@ footer{margin-top:72px;padding-top:24px;border-top:1px solid var(--line);font-si
       <tr><td>Rendering</td><td><span class="method">GET</span> <code>/themes</code></td><td>Available themes and tokens</td></tr>
       <tr><td>Rendering</td><td><span class="method">GET</span> <code>/themes/{key}/assets/{file}</code></td><td>Theme stylesheet and fonts (public)</td></tr>
       <tr><td>Rendering</td><td><span class="method">GET</span> <code>/pages/{id}/preview</code></td><td>Draft page as HTML</td></tr>
-      <tr><td>Publishing</td><td><span class="method">POST</span> <code>/sites/{id}/publish</code></td><td>Create a release (idempotent)</td></tr>
+      <tr><td>Publishing</td><td><span class="method">POST</span> <code>/sites/{id}/publish</code></td><td>Create a release</td></tr>
       <tr><td>Publishing</td><td><span class="method">GET</span> <code>/sites/{id}/releases</code></td><td>Release history</td></tr>
       <tr><td>Publishing</td><td><span class="method">GET</span> <code>/releases/{id}</code></td><td>Read one release</td></tr>
       <tr><td>Publishing</td><td><span class="method">POST</span> <code>/sites/{id}/releases/{rid}/rollback</code></td><td>Make an older release live</td></tr>
@@ -262,7 +262,7 @@ footer{margin-top:72px;padding-top:24px;border-top:1px solid var(--line);font-si
   </div>
   <pre style="margin-top:18px">src/
   Hivesite.Host/                    Program.cs: wires modules, auth, error handling
-  Hivesite.Shared/                  errors, ids, pagination, idempotency, events
+  Hivesite.Shared/                  errors, results, paging, validation, auth
   Modules/
     Content/
       Hivesite.Content/             Domain · Application · Infrastructure · Endpoints
