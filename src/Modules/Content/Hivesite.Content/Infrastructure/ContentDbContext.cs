@@ -3,11 +3,11 @@ using Microsoft.EntityFrameworkCore.Design;
 
 namespace Hivesite.Content.Infrastructure;
 
-/// <summary>The Content module's database, schema <c>content</c> (ADR 2). Tables and columns are snake_case (<see cref="ContentModule.Configure"/>).</summary>
+/// <summary>The Content module's database, schema <c>content</c> (ADR 2). Tables, columns and keys are camelCase (<see cref="ContentModule.Configure"/>).</summary>
 public sealed class ContentDbContext(DbContextOptions<ContentDbContext> options) : DbContext(options)
 {
     public const string Schema = "content";
-    public const string SiteSlugIndex = "ix_sites_slug";
+    public const string SiteSlugIndex = "ixSitesSlug";
 
     public DbSet<SiteDao> Sites => Set<SiteDao>();
 
@@ -18,13 +18,14 @@ public sealed class ContentDbContext(DbContextOptions<ContentDbContext> options)
         modelBuilder.Entity<SiteDao>(site =>
         {
             site.ToTable("sites");
+            site.HasKey(s => s.Id).HasName("pkSites");
             site.Property(s => s.Id).ValueGeneratedNever();
             site.Property(s => s.Slug).HasMaxLength(40);
             site.HasIndex(s => s.Slug).IsUnique().HasDatabaseName(SiteSlugIndex);
             // Serves GET /sites: one owner, newest first, ties by id ascending.
             site.HasIndex(s => new { s.OwnerId, s.CreatedAt, s.Id })
                 .IsDescending(false, true, false)
-                .HasDatabaseName("ix_sites_owner_created_at_id");
+                .HasDatabaseName("ixSitesOwnerIdCreatedAtId");
         });
     }
 }

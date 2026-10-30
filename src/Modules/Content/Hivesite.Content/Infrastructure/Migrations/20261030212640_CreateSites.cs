@@ -20,28 +20,28 @@ namespace Hivesite.Content.Infrastructure.Migrations
                 columns: table => new
                 {
                     id = table.Column<Guid>(type: "uuid", nullable: false),
-                    owner_id = table.Column<string>(type: "text", nullable: false),
+                    ownerId = table.Column<string>(type: "text", nullable: false),
                     name = table.Column<string>(type: "text", nullable: false),
                     slug = table.Column<string>(type: "character varying(40)", maxLength: 40, nullable: false),
                     language = table.Column<string>(type: "text", nullable: false),
                     description = table.Column<string>(type: "text", nullable: false),
-                    created_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
-                    updated_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
+                    createdAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    updatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("pk_sites", x => x.id);
+                    table.PrimaryKey("pkSites", x => x.id);
                 });
 
             migrationBuilder.CreateIndex(
-                name: "ix_sites_owner_created_at_id",
+                name: "ixSitesOwnerIdCreatedAtId",
                 schema: "content",
                 table: "sites",
-                columns: new[] { "owner_id", "created_at", "id" },
+                columns: new[] { "ownerId", "createdAt", "id" },
                 descending: new[] { false, true, false });
 
             migrationBuilder.CreateIndex(
-                name: "ix_sites_slug",
+                name: "ixSitesSlug",
                 schema: "content",
                 table: "sites",
                 column: "slug",

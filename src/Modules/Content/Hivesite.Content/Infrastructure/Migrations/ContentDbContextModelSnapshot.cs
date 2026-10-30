@@ -31,7 +31,7 @@ namespace Hivesite.Content.Infrastructure.Migrations
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_at");
+                        .HasColumnName("createdAt");
 
                     b.Property<string>("Description")
                         .IsRequired()
@@ -51,7 +51,7 @@ namespace Hivesite.Content.Infrastructure.Migrations
                     b.Property<string>("OwnerId")
                         .IsRequired()
                         .HasColumnType("text")
-                        .HasColumnName("owner_id");
+                        .HasColumnName("ownerId");
 
                     b.Property<string>("Slug")
                         .IsRequired()
@@ -61,18 +61,18 @@ namespace Hivesite.Content.Infrastructure.Migrations
 
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("timestamp with time zone")
-                        .HasColumnName("updated_at");
+                        .HasColumnName("updatedAt");
 
                     b.HasKey("Id")
-                        .HasName("pk_sites");
+                        .HasName("pkSites");
 
                     b.HasIndex("Slug")
                         .IsUnique()
-                        .HasDatabaseName("ix_sites_slug");
+                        .HasDatabaseName("ixSitesSlug");
 
                     b.HasIndex("OwnerId", "CreatedAt", "Id")
                         .IsDescending(false, true, false)
-                        .HasDatabaseName("ix_sites_owner_created_at_id");
+                        .HasDatabaseName("ixSitesOwnerIdCreatedAtId");
 
                     b.ToTable("sites", "content");
                 });

@@ -71,7 +71,7 @@ public async Task<Result<Site>> UpdateAsync(Site site, CancellationToken ct)
 - EF Core maps `<Entity>Dao` classes, never entities. The repository maps DAO ↔ entity with Mapperly; an update maps the entity onto the tracked DAO, so only changed columns are written.
 - Always LINQ over the DbSet. No raw SQL, no `FromSql`, no `ExecuteSql`.
 - Unique indexes judge uniqueness; the repository catches the violation and returns `false`. It never throws for a business rule.
-- Configure DAOs in `OnModelCreating`. Names become snake_case through `UseSnakeCaseNamingConvention()`.
+- Configure DAOs in `OnModelCreating`. Database names are camelCase through `UseCamelCaseNamingConvention()` (`ownerId`, `createdAt`); index names too (`ixSitesSlug`). The JSON API stays snake_case (specs/STYLE.md).
 - New migration: `dotnet ef migrations add <Name> --project src/Modules/<Module>/Hivesite.<Module> --output-dir Infrastructure/Migrations`.
 
 ## Keep it simple
