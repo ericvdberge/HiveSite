@@ -32,12 +32,13 @@ Only a human sets `approved`. A spec moves to `built` in the PR that finishes it
 - JSON, `snake_case` fields, resource paths in plural (`/sites`, `/pages`).
 - Ids are UUIDv7 strings in lowercase canonical form, for example `0192f3a4-7b2c-7e11-9a3b-5c6d7e8f9a0b`, for every resource (sites, pages, releases, …). The server sets them. UUIDv7 starts with a millisecond timestamp, so ids are time-ordered: new rows land at the end of a B-tree index instead of at random places, which keeps inserts fast and indexes compact. Clients treat ids as opaque and never read the time out of them.
 - Errors: `{ "error": { "code": "page_not_found", "message": "…" } }`, with `code` in `snake_case`. An error caused by one input adds `field`: a JSON Pointer into the request body (`"/settings/description"`), or the name of the query parameter or header (`"limit"`). Otherwise `field` is left out.
-- Status codes: 400 for any request the client can fix by changing it, including validation against stored state (a taken slug, a reused idempotency key, a count limit). 401 without valid credentials. 404 for a missing resource or one owned by someone else. 412 and 428 only for `If-Match` (see below). 413 for a body over the size limit, 415 for an unsupported `Content-Type`. Branch on `code`, never on status alone.
+- Status codes: 400 for any request the client can fix by changing it, including validation against stored state (a taken slug, a count limit). 401 without valid credentials. 404 for a missing resource or one owned by someone else. 412 and 428 only for `If-Match` (see below). 413 for a body over the size limit, 415 for an unsupported `Content-Type`. Branch on `code`, never on status alone.
 - Partial updates: `PATCH` with `application/json` changes only the fields sent. `PATCH` with `application/json-patch+json` is a JSON Patch (RFC 6902) and requires `If-Match` with the resource's `ETag`; a stale one returns 412 `precondition_failed`, a missing one 428 `precondition_required`.
 - Rich content is Tiptap (ProseMirror) JSON, as defined in API-003. Inside a Tiptap document, Tiptap's conventions win: its built-in node and mark names are kept (`bulletList`, `hardBreak`), and an unset attribute is `null`, not absent. Our own node names and attributes stay `snake_case`.
-- Lists: `?limit=` (default 20, max 100) and `?cursor=`; responses have `items` and `next_cursor`.
-- Writes that create something accept an `Idempotency-Key` header.
+- Lists: `?limit=` (default 20, max 100) and `?cursor=`; responses have `items` and `next_cursor`. The cursor is the id of the last item on the page, unsigned; an id the caller cannot list returns 400 `invalid_cursor` with `field` `cursor`.
+- No `Idempotency-Key` header for now: every POST creates.
 - Every limit is a number in the spec.
+- Keep it simple. A rule is in a spec only when the story needs it now. Hardening (signed tokens, idempotency, locks, retries, caching) waits for its own story; write it under Decisions as "not in this version".
 
 ## Index
 

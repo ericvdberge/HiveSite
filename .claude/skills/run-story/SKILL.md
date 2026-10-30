@@ -43,6 +43,8 @@ Backlog ─(human)→ Ready → Spec review ─(human merges spec PR)→ Buildin
 - Move the story to **Building**.
 - Start the dev agent for the story's `team:*` label with `isolation: worktree`. Give it the issue number, the spec file, the branch name `story/<issue>-<slug>`, and the build and test commands.
 - The dev opens a **draft** PR that follows the PR template and says `Closes #<issue>` and `Spec: API-xxx`.
+- **First story of a module** (its folder has no entity built on the `src/CLAUDE.md` patterns yet): the dev first comments on the story with the files it will add and the public method signatures, and **stops**. Tell the human: "Check the sketch on #N." Build once they reply. It costs one short read and saves review rounds.
+- Before the PR, the dev reads its diff against `src/CLAUDE.md` once more and fixes what drifts.
 
 ### 4. Review (at most three rounds)
 - Move the story to **Agent review**.

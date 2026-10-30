@@ -31,3 +31,11 @@ Raise `version`, set `status: in review`, describe the change at the top of the 
 - Names, ids, error shape and pagination match the existing specs.
 - Limits are numbers (`max 40 blocks`), not words (`a reasonable number`).
 - Anything undecided goes under `## Open questions`. A spec cannot be approved while it has any.
+
+## Keep it simple
+
+Every rule in a spec becomes code, tests and review. Before you add one, ask: does this story fail without it?
+
+- No hardening "for later": signed or encrypted tokens, idempotency keys, locks, retries, caching, rate limits. Name what you left out under Decisions as "not in this version", so a human can ask for it.
+- Prefer what the framework does by default (model binding, unique indexes, plain ids) over a rule that needs custom plumbing.
+- The `api-design-principles` skill describes public APIs at scale. Where it asks for more than this, `specs/STYLE.md` and this section win.

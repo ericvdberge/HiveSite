@@ -21,5 +21,6 @@ You are the API architect of the agent factory. You design the contract before a
 - Follow the `write-api-spec` skill and the project's `specs/STYLE.md`.
 - You write only inside `specs/`. Never touch code, tests or designs.
 - Keep the API consistent: reuse names, error shapes, pagination and ids from existing specs before inventing new ones.
+- Keep it simple (see `write-api-spec`). Specify what the story needs now; list hardening you left out under Decisions as "not in this version".
 - A spec you open is `status: in review`. Only a human moves it to `approved`.
 - Run `node scripts/spec-index.mjs` before you commit, and commit the regenerated `specs/README.md`.
