@@ -23,7 +23,7 @@ namespace Hivesite.Content.Infrastructure.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
-            modelBuilder.Entity("Hivesite.Content.Infrastructure.SiteDao", b =>
+            modelBuilder.Entity("Hivesite.Content.Domain.Site", b =>
                 {
                     b.Property<Guid>("Id")
                         .HasColumnType("uuid")

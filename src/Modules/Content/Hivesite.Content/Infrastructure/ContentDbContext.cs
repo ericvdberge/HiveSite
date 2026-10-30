@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Hivesite.Content.Domain;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
 
@@ -8,13 +9,26 @@ namespace Hivesite.Content.Infrastructure;
 public sealed class ContentDbContext(DbContextOptions<ContentDbContext> options) : DbContext(options)
 {
     public const string Schema = "content";
+    public const string SiteSlugIndex = "ix_sites_slug";
 
-    public DbSet<SiteDao> Sites => Set<SiteDao>();
+    public DbSet<Site> Sites => Set<Site>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.HasDefaultSchema(Schema);
-        modelBuilder.ApplyConfigurationsFromAssembly(typeof(ContentDbContext).Assembly);
+
+        modelBuilder.Entity<Site>(site =>
+        {
+            site.ToTable("sites");
+            site.Property(s => s.Id).ValueGeneratedNever();
+            site.Property(s => s.Slug).HasMaxLength(40);
+            site.HasIndex(s => s.Slug).IsUnique().HasDatabaseName(SiteSlugIndex);
+            // Serves GET /sites: one owner, newest first, ties by id ascending.
+            site.HasIndex(s => new { s.OwnerId, s.CreatedAt, s.Id })
+                .IsDescending(false, true, false)
+                .HasDatabaseName("ix_sites_owner_created_at_id");
+        });
+
         foreach (var property in modelBuilder.Model.GetEntityTypes().SelectMany(e => e.GetProperties()))
         {
             property.SetColumnName(JsonNamingPolicy.SnakeCaseLower.ConvertName(property.Name));

@@ -1,9 +1,7 @@
-using Hivesite.Shared;
-
 namespace Hivesite.Content.Domain;
 
-/// <summary>A site and its settings (API-001).</summary>
-public sealed class Site : IEntity, IAuditable
+/// <summary>A site and its settings (API-001). Stored as <c>content.sites</c>.</summary>
+public sealed class Site
 {
     public Guid Id { get; set; }
 

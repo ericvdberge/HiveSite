@@ -5,19 +5,19 @@ Sites, pages, the menu, block types and block validation. Owned by `dev-content`
 ## Layout
 - `Hivesite.Content/`
   - `Endpoints/`: `SiteEndpoints`, `SiteDtos`, `SiteValidators`, `SiteMapper`.
-  - `Application/`: `EntityService<T>`, `IRepository<T>`, `SiteService`.
+  - `Application/`: `SiteService`.
   - `Domain/`: `Site`.
-  - `Infrastructure/`: `ContentDbContext`, `SiteDao` (+ configuration and `SiteDaoMapper`), `Repository<TEntity, TDao>`, `Migrations/`.
-  - `ContentModule`: the only entry point the Host calls. Register each entity there with `AddEntity<TEntity, TDao, TMapper>()`.
+  - `Infrastructure/`: `ContentDbContext`, `SiteRepository`, `Migrations/`.
+  - `ContentModule`: the only entry point the Host calls.
 - `Hivesite.Content.Contracts/`: what other modules may use. Interfaces, events (`SiteChanged`, `PageChanged`, `MenuChanged`) and their DTOs. Nothing else.
 - Tests: `tests/Hivesite.Content.Tests/`.
 
 ## Adding an entity (pages, menu, …)
-1. `Domain/<Entity>.cs`, implementing `IEntity` (and `IAuditable` if it has timestamps).
-2. `Infrastructure/<Entity>Dao.cs`: the DAO, its `IEntityTypeConfiguration` and its Mapperly `IDaoMapper`. Add a migration.
-3. `Application/<Entity>Service.cs`: `EntityService<<Entity>>`, scoped `Query`, `NotFound()`, the spec's rules.
+1. `Domain/<Entity>.cs`, and its mapping in `ContentDbContext.OnModelCreating`. Add a migration.
+2. `Infrastructure/<Entity>Repository.cs`: the queries and saves it needs.
+3. `Application/<Entity>Service.cs`: the spec's rules, calling the repository.
 4. `Endpoints/`: DTOs, validators, Mapperly mapper, endpoints. Map them in `MapContentEndpoints`.
-5. Register in `AddContentModule`: `AddEntity<…>()` and the service.
+5. Register the repository and service as scoped in `AddContentModule`.
 
 ## Rules
 - Reference only `Hivesite.Shared`, this module's Contracts and other modules' Contracts. `Hivesite.ArchitectureTests` fails the build otherwise.

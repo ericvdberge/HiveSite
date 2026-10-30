@@ -1,6 +1,5 @@
 using FluentValidation;
 using Hivesite.Content.Application;
-using Hivesite.Content.Domain;
 using Hivesite.Content.Endpoints;
 using Hivesite.Content.Infrastructure;
 using Microsoft.EntityFrameworkCore;
@@ -18,7 +17,7 @@ public static class ContentModule
             Configure(options, sp.GetRequiredService<IConfiguration>().GetConnectionString("Content")));
         services.AddValidatorsFromAssemblyContaining<ContentDbContext>(includeInternalTypes: true);
 
-        services.AddEntity<Site, SiteDao, SiteDaoMapper>();
+        services.AddScoped<SiteRepository>();
         services.AddScoped<SiteService>();
         return services;
     }
@@ -38,14 +37,4 @@ public static class ContentModule
 
     internal static DbContextOptionsBuilder Configure(DbContextOptionsBuilder options, string? connectionString) =>
         options.UseNpgsql(connectionString, npgsql => npgsql.MigrationsHistoryTable("__ef_migrations_history", ContentDbContext.Schema));
-
-    /// <summary>One line per entity: its DAO mapper and the generic repository.</summary>
-    private static void AddEntity<TEntity, TDao, TMapper>(this IServiceCollection services)
-        where TEntity : class, Shared.IEntity
-        where TDao : class, Shared.IEntity
-        where TMapper : class, IDaoMapper<TEntity, TDao>
-    {
-        services.AddSingleton<IDaoMapper<TEntity, TDao>, TMapper>();
-        services.AddScoped<IRepository<TEntity>, Repository<TEntity, TDao>>();
-    }
 }

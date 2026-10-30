@@ -5,17 +5,17 @@ How every module is built. Follow these; don't invent new plumbing. The Content 
 ## Layers and flow
 
 ```
-HTTP ─► Endpoint ─► Mapper ─► Service ─► Repository ─► DAO mapper ─► DbContext
-        (DTO +      (DTO →    (entity    (entity)      (entity ↔
-        validator)  entity)   only)                    DAO)
+HTTP ─► Endpoint ─► Mapper ─► Service ─► Repository ─► DbContext
+        (DTO +      (DTO →    (rules,    (one per
+        validator)  entity)   entities)  entity)
 ```
 
 | Folder | Holds | Knows about |
 |---|---|---|
 | `Endpoints/` | `<Entity>Endpoints`, DTOs, FluentValidation validators, the Mapperly DTO mapper | DTOs, entities, services |
-| `Application/` | `<Entity>Service : EntityService<TEntity>`, `IRepository<TEntity>` | entities |
-| `Domain/` | Entities: plain classes, `IEntity` (+ `IAuditable` when timestamped) | nothing |
-| `Infrastructure/` | `DbContext`, DAOs + `IEntityTypeConfiguration`, the DAO mapper, `Repository<TEntity, TDao>`, migrations | DAOs, entities |
+| `Application/` | `<Entity>Service` | entities, its repository |
+| `Domain/` | Entities: plain classes that EF Core maps directly | nothing |
+| `Infrastructure/` | `DbContext`, `<Entity>Repository`, migrations | entities |
 
 Shared building blocks live in `src/Hivesite.Shared` (no database code there: Rendering references it and must stay pure).
 
@@ -40,28 +40,39 @@ private static async Task<Created<SiteDto>> CreateSite(SitePostDto dto, SiteServ
 - Body strictness is global (`AddSharedServices`): unknown fields and wrong types are 400 `invalid_request` with `field` set from the JSON path. Don't parse JSON by hand.
 
 ## Mapping (Mapperly)
-- Never map by hand. One `[Mapper]` for DTO ↔ entity (in `Endpoints/`), one for entity ↔ DAO (next to the DAO).
+- Never map DTOs by hand. One static `[Mapper]` per entity for DTO ↔ entity, in `Endpoints/`.
 - DTO mappers use `AllowNullPropertyAssignment = false`, so a PATCH DTO mapped onto an entity changes only what was sent.
 - Use `RequiredMappingStrategy.Target` and list skipped targets with `[MapperIgnoreTarget]`, so a new field can't be forgotten silently.
 
 ## Services
-- One `<Entity>Service : EntityService<TEntity>` per entity. Its public methods take and return entities only, never DTOs or `IResult`.
-- Override `Query` to scope reads (for example to the current owner) and `NotFound()` for the spec's 404 code.
+- One `<Entity>Service` per entity, a plain class. It holds the spec's rules and calls its repository; no base class, no generic service.
+- Public methods take and return entities, never DTOs or `IResult`.
+- Set ids (`Guid.CreateVersion7()`) and timestamps (`ITimeService`, never `DateTime.UtcNow`) in the service.
 - Business rules throw `BusinessRuleException(code, message, field?)` (400) or `NotFoundException` (404). `ApiExceptionHandler` turns them into the error body of `specs/STYLE.md`.
-- Time comes from `ITimeService` (UTC, whole seconds). Never `DateTime.UtcNow`.
 - Raise `*.Contracts` events from the service, after the write succeeded.
 
+```csharp
+public async Task<Site> UpdateAsync(Site site, CancellationToken ct)
+{
+    if (!sites.HasChanges()) return site;   // a no-op PATCH writes nothing
+    site.UpdatedAt = time.UtcNow;
+    await sites.SaveAsync(ct);
+    await RaiseAsync(site, SiteChanged.Updated, ct);
+    return site;
+}
+```
+
 ## Data access
-- Services use `IRepository<TEntity>`: `Query` (LINQ over the DbSet), `AddAsync`, `UpdateAsync`. Register an entity with one line: `services.AddEntity<Site, SiteDao, SiteDaoMapper>()`.
-- The repository sets UUIDv7 ids and `IAuditable` timestamps, and writes only when the change tracker sees a real change.
-- DAOs are the table rows (`<Entity>Dao`), configured with `IEntityTypeConfiguration`. Columns become snake_case automatically.
+- One `<Entity>Repository` per entity, injecting the module's `DbContext`. Small methods named after what they do: `GetAsync`, `ListAsync`, `CountAsync`, `Add`, `SaveAsync`. No generic repository.
+- Scope reads in the repository method (`s.OwnerId == ownerId`). `GetAsync` returns a tracked entity, so an update is: get, map the PATCH DTO onto it, save.
 - Always LINQ over the DbSet. No raw SQL, no `FromSql`, no `ExecuteSql`.
-- Let unique indexes judge uniqueness; catch `DbUpdateException` with `IsUniqueViolation(index)` in the service.
+- Unique indexes judge uniqueness; `SaveAsync` turns the violation into the spec's error.
+- Configure entities in `OnModelCreating`. Columns become snake_case automatically.
 - New migration: `dotnet ef migrations add <Name> --project src/Modules/<Module>/Hivesite.<Module> --output-dir Infrastructure/Migrations`.
 
 ## Keep it simple
 - Build the spec, nothing more. No idempotency keys, caching, locking or retries until a human asks for them.
-- No new abstraction until a second entity needs it. Prefer framework features (FluentValidation, Mapperly, EF Core, `TypedResults`) over helpers.
+- No base classes or generics "for later". Write the specific class; extract only when a second entity really repeats it. Prefer framework features (FluentValidation, Mapperly, EF Core, `TypedResults`) over helpers.
 
 ## Tests
 - Integration tests run over HTTP through `WebApplicationFactory<Program>` against Postgres (`Hivesite.Testing.PostgresFixture`); call `SkipIfUnavailable()` first.

@@ -12,7 +12,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Hivesite.Content.Infrastructure.Migrations
 {
     [DbContext(typeof(ContentDbContext))]
-    [Migration("20261028200900_CreateSites")]
+    [Migration("20261030095702_CreateSites")]
     partial class CreateSites
     {
         /// <inheritdoc />
@@ -26,7 +26,7 @@ namespace Hivesite.Content.Infrastructure.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
-            modelBuilder.Entity("Hivesite.Content.Infrastructure.SiteDao", b =>
+            modelBuilder.Entity("Hivesite.Content.Domain.Site", b =>
                 {
                     b.Property<Guid>("Id")
                         .HasColumnType("uuid")

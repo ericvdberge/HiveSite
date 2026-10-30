@@ -1,4 +1,5 @@
 using Hivesite.Content.Application;
+using Hivesite.Content.Infrastructure;
 using Hivesite.Shared;
 using Microsoft.AspNetCore.Http.HttpResults;
 
