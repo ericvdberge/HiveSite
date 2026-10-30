@@ -111,7 +111,7 @@ Both built-in types, in the order of Built-in entity types below. `page` is show
 
 Errors
 - 400 `invalid_request`: `limit` is not an integer from 1 to 100. `field` is `limit`.
-- 400 `invalid_cursor`: `field` is `cursor`.
+- 400 `invalid_cursor`: `cursor` is not the id of an item in this list. `field` is `cursor`.
 - 401 `unauthenticated`
 - 404 `site_not_found`: as in API-001.
 
@@ -265,7 +265,7 @@ Response 200 (collection)
       "updated_at": "2026-10-28T09:25:41Z"
     }
   ],
-  "next_cursor": "c_eyJvIjoxfQ"
+  "next_cursor": "01a181d4-5e8b-75fc-bd2f-613219bf3f79"
 }
 ```
 
@@ -296,7 +296,7 @@ Headers: `ETag: "1"`
 
 Errors
 - 400 `invalid_request`: for a collection, `limit` is not an integer from 1 to 100 (`field` `limit`); for a singleton, `limit` or `cursor` is present (`field` names it).
-- 400 `invalid_cursor`: `field` is `cursor`.
+- 400 `invalid_cursor`: `cursor` is not the id of an item in this list. `field` is `cursor`.
 - 401 `unauthenticated`
 - 404 `site_not_found`
 - 404 `entity_type_not_found`
