@@ -6,6 +6,7 @@ A block-based website builder, designed and built by a team of AI agents. Owners
 - C# .NET 10, ASP.NET Core minimal APIs, modular monolith ([ADR 1](docs/adr/0001-modular-monolith.md))
 - PostgreSQL with EF Core, one schema per module ([ADR 2](docs/adr/0002-postgresql.md))
 - Modules: Content, Rendering, Publishing. They talk only through `*.Contracts` projects.
+- FluentValidation for requests, Mapperly for DTO mapping, and one repository and one service per entity. The C# patterns are in [src/CLAUDE.md](src/CLAUDE.md).
 
 ## Commands
 - Build: `dotnet build -warnaserror`
@@ -40,6 +41,7 @@ Expertise comes from existing plugins enabled in `.claude/settings.json`: `pr-re
 - Build exactly what the approved spec says. Gaps go back to the spec, not into the code.
 - Rendering is pure: content + theme → HTML, no database. Renderers use design tokens only.
 - Errors use the shape in `specs/STYLE.md`. Ids are UUIDv7 strings.
+- No exceptions for business logic: not found returns `null`, a broken rule returns a `Result<T>` with an `Error`. C# patterns are in [src/CLAUDE.md](src/CLAUDE.md).
 - Every acceptance criterion has a test. Rendered HTML has snapshot tests.
 
 ## Cross-module data access

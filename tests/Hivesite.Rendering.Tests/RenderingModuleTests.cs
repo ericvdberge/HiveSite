@@ -2,9 +2,10 @@ using Microsoft.AspNetCore.Builder;
 
 namespace Hivesite.Rendering.Tests;
 
+[TestClass]
 public sealed class RenderingModuleTests
 {
-    [Fact]
+    [TestMethod]
     public async Task The_module_wires_into_a_host()
     {
         var builder = WebApplication.CreateSlimBuilder();
@@ -13,6 +14,6 @@ public sealed class RenderingModuleTests
 
         app.MapRenderingEndpoints();
 
-        Assert.NotNull(app);
+        Assert.IsNotNull(app);
     }
 }
