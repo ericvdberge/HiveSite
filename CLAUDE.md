@@ -41,6 +41,7 @@ Expertise comes from existing plugins enabled in `.claude/settings.json`: `pr-re
 - Build exactly what the approved spec says. Gaps go back to the spec, not into the code.
 - Rendering is pure: content + theme → HTML, no database. Renderers use design tokens only.
 - Errors use the shape in `specs/STYLE.md`. Ids are UUIDv7 strings.
+- No exceptions for business logic: not found returns `null`, a broken rule returns a `Result<T>` with an `Error`. C# patterns are in [src/CLAUDE.md](src/CLAUDE.md).
 - Every acceptance criterion has a test. Rendered HTML has snapshot tests.
 
 ## Brand

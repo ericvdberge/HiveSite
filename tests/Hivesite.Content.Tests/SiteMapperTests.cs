@@ -3,6 +3,7 @@ using Hivesite.Content.Endpoints;
 
 namespace Hivesite.Content.Tests;
 
+[TestClass]
 public sealed class SiteMapperTests
 {
     private static Site Stored() => new()
@@ -15,37 +16,37 @@ public sealed class SiteMapperTests
         Description = "Ceramics.",
     };
 
-    [Fact]
+    [TestMethod]
     public void A_post_without_settings_gets_the_defaults_AC2()
     {
         var site = SiteMapper.ToEntity(new SitePostDto { Name = "A", Slug = "abc" });
 
-        Assert.Equal("en", site.Language);
-        Assert.Equal("", site.Description);
+        Assert.AreEqual("en", site.Language);
+        Assert.AreEqual("", site.Description);
     }
 
-    [Fact]
+    [TestMethod]
     public void A_patch_changes_only_the_fields_sent_AC18_AC19()
     {
         var site = Stored();
 
         SiteMapper.Apply(new SitePatchDto { Name = "New", Settings = new SiteSettingsInputDto { Description = "Glaze." } }, site);
 
-        Assert.Equal("New", site.Name);
-        Assert.Equal("atelier", site.Slug);
-        Assert.Equal("nl", site.Language);
-        Assert.Equal("Glaze.", site.Description);
-        Assert.Equal("owner", site.OwnerId);
+        Assert.AreEqual("New", site.Name);
+        Assert.AreEqual("atelier", site.Slug);
+        Assert.AreEqual("nl", site.Language);
+        Assert.AreEqual("Glaze.", site.Description);
+        Assert.AreEqual("owner", site.OwnerId);
     }
 
-    [Fact]
+    [TestMethod]
     public void The_response_nests_settings_AC3()
     {
         var site = Stored();
 
         var dto = SiteMapper.ToDto(site);
 
-        Assert.Equal(new SiteSettingsDto("nl", "Ceramics."), dto.Settings);
-        Assert.Equal(site.Id, dto.Id);
+        Assert.AreEqual(new SiteSettingsDto("nl", "Ceramics."), dto.Settings);
+        Assert.AreEqual(site.Id, dto.Id);
     }
 }

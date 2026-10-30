@@ -4,8 +4,8 @@ using System.Text.RegularExpressions;
 
 namespace Hivesite.Content.Tests;
 
-[Collection(ContentApiDefinition.Name)]
-public sealed partial class CreateSiteTests(ContentApi fixture)
+[TestClass]
+public sealed partial class CreateSiteTests
 {
     [GeneratedRegex("^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[0-9a-f]{4}-[0-9a-f]{12}$")]
     private static partial Regex Uuid7();
@@ -13,141 +13,144 @@ public sealed partial class CreateSiteTests(ContentApi fixture)
     [GeneratedRegex(@"^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ$")]
     private static partial Regex Timestamp();
 
+    private static readonly string[] SiteFields = ["id", "name", "slug", "settings", "created_at", "updated_at"];
+    private static readonly string[] SettingsFields = ["language", "description"];
+
     private static string Json(string name = "Atelier Noor", string? slug = null, string? settings = null) =>
         $$"""{"name":{{JsonSerializer.Serialize(name)}},"slug":"{{slug ?? ContentApi.NewSlug()}}"{{(settings is null ? "" : ",\"settings\":" + settings)}}}""";
 
-    [Fact]
+    [TestMethod]
     public async Task Creates_a_site_with_Location_AC1()
     {
-        var api = await fixture.ReadyAsync();
+        var api = await ContentApi.ReadyAsync();
         var slug = ContentApi.NewSlug();
 
         var response = await api.PostAsync(ContentApi.NewOwner(), Json(slug: slug, settings: """{"language":"nl","description":"Ceramics."}"""));
 
-        Assert.Equal(HttpStatusCode.Created, response.Status);
-        Assert.Equal("Atelier Noor", response.Text("name"));
-        Assert.Equal(slug, response.Text("slug"));
-        Assert.Equal("nl", response.Text("settings", "language"));
-        Assert.Equal("Ceramics.", response.Text("settings", "description"));
-        Assert.Equal($"/sites/{response.Text("id")}", response.Raw.Headers.Location!.ToString());
+        Assert.AreEqual(HttpStatusCode.Created, response.Status);
+        Assert.AreEqual("Atelier Noor", response.Text("name"));
+        Assert.AreEqual(slug, response.Text("slug"));
+        Assert.AreEqual("nl", response.Text("settings", "language"));
+        Assert.AreEqual("Ceramics.", response.Text("settings", "description"));
+        Assert.AreEqual($"/sites/{response.Text("id")}", response.Raw.Headers.Location!.ToString());
     }
 
-    [Fact]
+    [TestMethod]
     public async Task Missing_settings_get_defaults_AC2()
     {
-        var api = await fixture.ReadyAsync();
+        var api = await ContentApi.ReadyAsync();
         var owner = ContentApi.NewOwner();
 
         var bare = await api.PostAsync(owner, Json());
         var partial = await api.PostAsync(owner, Json(settings: """{"language":"de"}"""));
         var other = await api.PostAsync(owner, Json(settings: """{"description":"Hi"}"""));
 
-        Assert.Equal("en", bare.Text("settings", "language"));
-        Assert.Equal("", bare.Text("settings", "description"));
-        Assert.Equal("de", partial.Text("settings", "language"));
-        Assert.Equal("", partial.Text("settings", "description"));
-        Assert.Equal("en", other.Text("settings", "language"));
-        Assert.Equal("Hi", other.Text("settings", "description"));
+        Assert.AreEqual("en", bare.Text("settings", "language"));
+        Assert.AreEqual("", bare.Text("settings", "description"));
+        Assert.AreEqual("de", partial.Text("settings", "language"));
+        Assert.AreEqual("", partial.Text("settings", "description"));
+        Assert.AreEqual("en", other.Text("settings", "language"));
+        Assert.AreEqual("Hi", other.Text("settings", "description"));
     }
 
-    [Fact]
+    [TestMethod]
     public async Task The_response_shape_is_stable_AC3()
     {
-        var api = await fixture.ReadyAsync();
+        var api = await ContentApi.ReadyAsync();
 
         var response = await api.PostAsync(ContentApi.NewOwner(), Json());
 
-        Assert.Matches(Uuid7(), response.Text("id"));
-        Assert.Matches(Timestamp(), response.Text("created_at"));
-        Assert.Equal(response.Text("created_at"), response.Text("updated_at"));
-        Assert.Equal(["id", "name", "slug", "settings", "created_at", "updated_at"], response.Body.EnumerateObject().Select(p => p.Name));
-        Assert.Equal(["language", "description"], response.Node("settings").EnumerateObject().Select(p => p.Name));
-        Assert.DoesNotContain(response.Body.EnumerateObject(), p => p.Value.ValueKind == JsonValueKind.Null);
+        Assert.MatchesRegex(Uuid7(), response.Text("id"));
+        Assert.MatchesRegex(Timestamp(), response.Text("created_at"));
+        Assert.AreEqual(response.Text("created_at"), response.Text("updated_at"));
+        CollectionAssert.AreEqual(SiteFields, response.Body.EnumerateObject().Select(p => p.Name).ToList());
+        CollectionAssert.AreEqual(SettingsFields, response.Node("settings").EnumerateObject().Select(p => p.Name).ToList());
+        Assert.DoesNotContain(p => p.Value.ValueKind == JsonValueKind.Null, response.Body.EnumerateObject());
     }
 
-    [Fact]
+    [TestMethod]
     public async Task Stores_and_returns_trimmed_values_AC4()
     {
-        var api = await fixture.ReadyAsync();
+        var api = await ContentApi.ReadyAsync();
 
         var response = await api.PostAsync(ContentApi.NewOwner(), Json(name: "  Atelier  ", settings: """{"description":"  Hello \n"}"""));
 
-        Assert.Equal("Atelier", response.Text("name"));
-        Assert.Equal("Hello", response.Text("settings", "description"));
+        Assert.AreEqual("Atelier", response.Text("name"));
+        Assert.AreEqual("Hello", response.Text("settings", "description"));
     }
 
-    [Fact]
+    [TestMethod]
     public async Task An_80_emoji_name_is_accepted_and_81_is_not_AC4()
     {
-        var api = await fixture.ReadyAsync();
+        var api = await ContentApi.ReadyAsync();
         var owner = ContentApi.NewOwner();
 
         var ok = await api.PostAsync(owner, Json(name: string.Concat(Enumerable.Repeat("\U0001F600", 80))));
         var tooLong = await api.PostAsync(owner, Json(name: string.Concat(Enumerable.Repeat("\U0001F600", 81))));
 
-        Assert.Equal(HttpStatusCode.Created, ok.Status);
-        Assert.Equal("/name", tooLong.ErrorField);
+        Assert.AreEqual(HttpStatusCode.Created, ok.Status);
+        Assert.AreEqual("/name", tooLong.ErrorField);
     }
 
-    [Theory]
-    [InlineData("""{"name":"A","slug":"abc","extra":1}""", "/extra")]
-    [InlineData("""{"name":"A","slug":"abc","settings":{"extra":1}}""", "/settings/extra")]
-    [InlineData("""{"slug":"abc"}""", "/name")]
-    [InlineData("""{"name":"A","slug":null}""", "/slug")]
-    [InlineData("""{"name":5,"slug":"abc"}""", "/name")]
-    [InlineData("""{"name":"A","slug":"ab"}""", "/slug")]
-    [InlineData("""{"name":"A","slug":"abc","settings":{"language":"en_US"}}""", "/settings/language")]
+    [TestMethod]
+    [DataRow("""{"name":"A","slug":"abc","extra":1}""", "/extra")]
+    [DataRow("""{"name":"A","slug":"abc","settings":{"extra":1}}""", "/settings/extra")]
+    [DataRow("""{"slug":"abc"}""", "/name")]
+    [DataRow("""{"name":"A","slug":null}""", "/slug")]
+    [DataRow("""{"name":5,"slug":"abc"}""", "/name")]
+    [DataRow("""{"name":"A","slug":"ab"}""", "/slug")]
+    [DataRow("""{"name":"A","slug":"abc","settings":{"language":"en_US"}}""", "/settings/language")]
     public async Task Invalid_bodies_return_400_with_the_field_AC5_AC6(string body, string field)
     {
-        var api = await fixture.ReadyAsync();
+        var api = await ContentApi.ReadyAsync();
         var response = await api.PostAsync(ContentApi.NewOwner(), body);
 
-        Assert.Equal(HttpStatusCode.BadRequest, response.Status);
-        Assert.Equal("invalid_request", response.ErrorCode);
-        Assert.Equal(field, response.ErrorField);
+        Assert.AreEqual(HttpStatusCode.BadRequest, response.Status);
+        Assert.AreEqual("invalid_request", response.ErrorCode);
+        Assert.AreEqual(field, response.ErrorField);
     }
 
-    [Theory]
-    [InlineData("{")]
-    [InlineData("")]
-    [InlineData("[]")]
+    [TestMethod]
+    [DataRow("{")]
+    [DataRow("")]
+    [DataRow("[]")]
     public async Task Malformed_JSON_has_no_field_AC5(string body)
     {
-        var api = await fixture.ReadyAsync();
+        var api = await ContentApi.ReadyAsync();
 
         var response = await api.PostAsync(ContentApi.NewOwner(), body);
 
-        Assert.Equal(HttpStatusCode.BadRequest, response.Status);
-        Assert.Equal("invalid_request", response.ErrorCode);
-        Assert.Null(response.ErrorField);
+        Assert.AreEqual(HttpStatusCode.BadRequest, response.Status);
+        Assert.AreEqual("invalid_request", response.ErrorCode);
+        Assert.IsNull(response.ErrorField);
     }
 
-    [Fact]
+    [TestMethod]
     public async Task A_description_over_160_is_refused_AC6()
     {
-        var api = await fixture.ReadyAsync();
+        var api = await ContentApi.ReadyAsync();
 
         var response = await api.PostAsync(ContentApi.NewOwner(), Json(settings: $$"""{"description":"{{new string('d', 161)}}"}"""));
 
-        Assert.Equal("/settings/description", response.ErrorField);
+        Assert.AreEqual("/settings/description", response.ErrorField);
     }
 
-    [Fact]
+    [TestMethod]
     public async Task A_failed_request_stores_nothing_AC5()
     {
-        var api = await fixture.ReadyAsync();
+        var api = await ContentApi.ReadyAsync();
         var owner = ContentApi.NewOwner();
 
         await api.PostAsync(owner, """{"name":"A","slug":"abc","extra":1}""");
         var list = await api.GetAsync(owner, "/sites");
 
-        Assert.Empty(list.Node("items").EnumerateArray());
+        Assert.IsEmpty(list.Node("items").EnumerateArray());
     }
 
-    [Fact]
+    [TestMethod]
     public async Task Limits_are_inclusive_AC6()
     {
-        var api = await fixture.ReadyAsync();
+        var api = await ContentApi.ReadyAsync();
         var owner = ContentApi.NewOwner();
         var longSlug = "l" + Guid.NewGuid().ToString("N") + "abcdefg";
 
@@ -155,28 +158,28 @@ public sealed partial class CreateSiteTests(ContentApi fixture)
             settings: $$"""{"description":"{{new string('d', 160)}}"}"""));
         var shortest = await api.PostAsync(owner, Json(slug: "a" + Guid.NewGuid().ToString("N")[..1] + "b"));
 
-        Assert.Equal(HttpStatusCode.Created, response.Status);
-        Assert.Equal(HttpStatusCode.Created, shortest.Status);
+        Assert.AreEqual(HttpStatusCode.Created, response.Status);
+        Assert.AreEqual(HttpStatusCode.Created, shortest.Status);
     }
 
-    [Fact]
+    [TestMethod]
     public async Task A_slug_used_by_any_owner_is_taken_AC7()
     {
-        var api = await fixture.ReadyAsync();
+        var api = await ContentApi.ReadyAsync();
         var slug = ContentApi.NewSlug();
         await api.PostAsync(ContentApi.NewOwner(), Json(slug: slug));
 
         var response = await api.PostAsync(ContentApi.NewOwner(), Json(slug: slug));
 
-        Assert.Equal(HttpStatusCode.BadRequest, response.Status);
-        Assert.Equal("slug_taken", response.ErrorCode);
-        Assert.Equal("/slug", response.ErrorField);
+        Assert.AreEqual(HttpStatusCode.BadRequest, response.Status);
+        Assert.AreEqual("slug_taken", response.ErrorCode);
+        Assert.AreEqual("/slug", response.ErrorField);
     }
 
-    [Fact]
+    [TestMethod]
     public async Task The_eleventh_site_is_refused_AC8()
     {
-        var api = await fixture.ReadyAsync();
+        var api = await ContentApi.ReadyAsync();
         var owner = ContentApi.NewOwner();
         for (var i = 0; i < 10; i++)
         {
@@ -186,47 +189,47 @@ public sealed partial class CreateSiteTests(ContentApi fixture)
         var eleventh = await api.PostAsync(owner, Json());
         var other = await api.PostAsync(ContentApi.NewOwner(), Json());
 
-        Assert.Equal(HttpStatusCode.BadRequest, eleventh.Status);
-        Assert.Equal("too_many_sites", eleventh.ErrorCode);
-        Assert.Null(eleventh.ErrorField);
-        Assert.Equal(HttpStatusCode.Created, other.Status);
+        Assert.AreEqual(HttpStatusCode.BadRequest, eleventh.Status);
+        Assert.AreEqual("too_many_sites", eleventh.ErrorCode);
+        Assert.IsNull(eleventh.ErrorField);
+        Assert.AreEqual(HttpStatusCode.Created, other.Status);
     }
 
-    [Fact]
+    [TestMethod]
     public async Task Without_an_owner_POST_is_unauthenticated_AC11()
     {
-        var api = await fixture.ReadyAsync();
+        var api = await ContentApi.ReadyAsync();
 
         var response = await api.PostAsync(null, Json());
 
-        Assert.Equal(HttpStatusCode.Unauthorized, response.Status);
-        Assert.Equal("unauthenticated", response.ErrorCode);
-        Assert.Null(response.ErrorField);
+        Assert.AreEqual(HttpStatusCode.Unauthorized, response.Status);
+        Assert.AreEqual("unauthenticated", response.ErrorCode);
+        Assert.IsNull(response.ErrorField);
     }
 
-    [Fact]
+    [TestMethod]
     public async Task A_created_site_raises_SiteChanged_once_and_a_failure_raises_nothing_AC23()
     {
-        var api = await fixture.ReadyAsync();
+        var api = await ContentApi.ReadyAsync();
         var owner = ContentApi.NewOwner();
         var before = api.Events.Raised.Count;
 
         var created = await api.PostAsync(owner, Json());
         await api.PostAsync(owner, """{"name":"A"}""");
 
-        Assert.Equal(before + 1, api.Events.Raised.Count);
-        Assert.Contains(api.Events.Raised, e => e.SiteId == created.Text("id") && e.Change == "created");
+        Assert.AreEqual(before + 1, api.Events.Raised.Count);
+        Assert.Contains(e => e.SiteId == created.Text("id") && e.Change == "created", api.Events.Raised);
     }
 
-    [Fact]
+    [TestMethod]
     public async Task Concurrent_posts_with_one_slug_create_exactly_one_site_AC24()
     {
-        var api = await fixture.ReadyAsync();
+        var api = await ContentApi.ReadyAsync();
         var slug = ContentApi.NewSlug();
 
         var responses = await Task.WhenAll(Enumerable.Range(0, 8).Select(_ => api.PostAsync(ContentApi.NewOwner(), Json(slug: slug))));
 
-        Assert.Single(responses, r => r.Status == HttpStatusCode.Created);
-        Assert.All(responses.Where(r => r.Status != HttpStatusCode.Created), r => Assert.Equal("slug_taken", r.ErrorCode));
+        Assert.ContainsSingle(r => r.Status == HttpStatusCode.Created, responses);
+        Assert.IsTrue(responses.Where(r => r.Status != HttpStatusCode.Created).All(r => r.ErrorCode == "slug_taken"));
     }
 }

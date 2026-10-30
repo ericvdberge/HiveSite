@@ -5,44 +5,58 @@ using Hivesite.Shared;
 
 namespace Hivesite.Content.Application;
 
-/// <summary>The rules of API-001, for the current owner.</summary>
-internal sealed class SiteService(SiteRepository sites, ICurrentOwner owner, ITimeService time, IEnumerable<ISiteChangedHandler> handlers)
+/// <summary>The rules of API-001, for the signed-in owner.</summary>
+internal sealed class SiteService(SiteRepository sites, UserContext user, ITimeService time, IEnumerable<ISiteChangedHandler> handlers)
 {
     public const int MaxSitesPerOwner = 10;
 
-    public async Task<Site> GetAsync(Guid id, CancellationToken ct) =>
-        await sites.GetAsync(owner.RequiredId(), id, ct)
-        ?? throw new NotFoundException("site_not_found", "No site with this id.");
+    private static readonly Error SlugTaken = new("slug_taken", "Another site already uses this slug.", "/slug");
 
-    public Task<Page<Site>> ListAsync(int limit, SiteCursor? after, CancellationToken ct) =>
-        sites.ListAsync(owner.RequiredId(), limit, after, ct);
+    /// <summary>Null when the site does not exist or belongs to another owner.</summary>
+    public Task<Site?> GetAsync(Guid id, CancellationToken ct) =>
+        sites.GetAsync(new SiteFilter { OwnerId = user.Id, Id = id }, ct);
 
-    public async Task<Site> CreateAsync(Site site, CancellationToken ct)
+    public async Task<Result<Page<Site>>> ListAsync(SiteFilter filter, CancellationToken ct)
     {
-        if (await sites.CountAsync(owner.RequiredId(), ct) >= MaxSitesPerOwner)
+        filter = filter with { OwnerId = user.Id };
+        if (filter.After is { } after && await GetAsync(after, ct) is null)
         {
-            throw new BusinessRuleException("too_many_sites", $"You can have at most {MaxSitesPerOwner} sites.");
+            return new Error("invalid_cursor", "The cursor is not valid.", "cursor");
+        }
+        return await sites.ListAsync(filter, ct);
+    }
+
+    public async Task<Result<Site>> CreateAsync(Site site, CancellationToken ct)
+    {
+        if (await sites.CountAsync(new SiteFilter { OwnerId = user.Id }, ct) >= MaxSitesPerOwner)
+        {
+            return new Error("too_many_sites", $"You can have at most {MaxSitesPerOwner} sites.");
         }
 
         site.Id = Guid.CreateVersion7();
-        site.OwnerId = owner.RequiredId();
+        site.OwnerId = user.Id;
         site.CreatedAt = site.UpdatedAt = time.UtcNow;
-        sites.Add(site);
-        await sites.SaveAsync(ct);
+        if (!await sites.AddAsync(site, ct))
+        {
+            return SlugTaken;
+        }
         await RaiseAsync(site, SiteChanged.Created, ct);
         return site;
     }
 
-    /// <summary>Saves a site from <see cref="GetAsync"/> after the caller changed it. A no-op change writes and raises nothing.</summary>
-    public async Task<Site> UpdateAsync(Site site, CancellationToken ct)
+    /// <summary>Saves a site from <see cref="GetAsync"/> after the caller changed it. A change to nothing writes and raises nothing.</summary>
+    public async Task<Result<Site>> UpdateAsync(Site site, CancellationToken ct)
     {
-        if (!sites.HasChanges())
+        if (site == await GetAsync(site.Id, ct))
         {
             return site;
         }
 
         site.UpdatedAt = time.UtcNow;
-        await sites.SaveAsync(ct);
+        if (!await sites.UpdateAsync(site, ct))
+        {
+            return SlugTaken;
+        }
         await RaiseAsync(site, SiteChanged.Updated, ct);
         return site;
     }

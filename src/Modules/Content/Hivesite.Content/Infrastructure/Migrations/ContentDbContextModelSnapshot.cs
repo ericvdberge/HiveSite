@@ -23,7 +23,7 @@ namespace Hivesite.Content.Infrastructure.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
-            modelBuilder.Entity("Hivesite.Content.Domain.Site", b =>
+            modelBuilder.Entity("Hivesite.Content.Infrastructure.SiteDao", b =>
                 {
                     b.Property<Guid>("Id")
                         .HasColumnType("uuid")
@@ -63,7 +63,8 @@ namespace Hivesite.Content.Infrastructure.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at");
 
-                    b.HasKey("Id");
+                    b.HasKey("Id")
+                        .HasName("pk_sites");
 
                     b.HasIndex("Slug")
                         .IsUnique()

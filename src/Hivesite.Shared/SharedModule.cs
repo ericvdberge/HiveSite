@@ -1,6 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using FluentValidation;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -23,12 +24,16 @@ public static class SharedModule
         services.AddExceptionHandler<ApiExceptionHandler>();
         services.AddProblemDetails();
 
+        services.AddValidatorsFromAssemblyContaining<PageQueryValidator>();
+
+        services.AddAuthentication(UserAuthenticationHandler.SchemeName)
+            .AddScheme<AuthenticationSchemeOptions, UserAuthenticationHandler>(UserAuthenticationHandler.SchemeName, null);
+        services.AddAuthorization();
+        services.AddHttpContextAccessor();
+        services.TryAddScoped<UserContext>();
+
         services.TryAddSingleton(TimeProvider.System);
         services.TryAddSingleton<ITimeService, TimeService>();
-        services.TryAddScoped<ICurrentOwner, NoCurrentOwner>();
-        services.AddDataProtection();
-        services.TryAddSingleton<CursorProtector>();
-        services.AddValidatorsFromAssemblyContaining<PageQueryValidator>();
         return services;
     }
 }

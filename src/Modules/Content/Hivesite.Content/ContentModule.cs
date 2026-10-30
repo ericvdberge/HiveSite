@@ -36,5 +36,7 @@ public static class ContentModule
     }
 
     internal static DbContextOptionsBuilder Configure(DbContextOptionsBuilder options, string? connectionString) =>
-        options.UseNpgsql(connectionString, npgsql => npgsql.MigrationsHistoryTable("__ef_migrations_history", ContentDbContext.Schema));
+        options
+            .UseNpgsql(connectionString, npgsql => npgsql.MigrationsHistoryTable("__ef_migrations_history", ContentDbContext.Schema))
+            .UseSnakeCaseNamingConvention();
 }

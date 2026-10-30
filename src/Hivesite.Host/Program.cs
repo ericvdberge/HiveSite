@@ -14,6 +14,8 @@ builder.Services
 var app = builder.Build();
 
 app.UseExceptionHandler();
+app.UseAuthentication();
+app.UseAuthorization();
 
 app.MapContentEndpoints();
 app.MapRenderingEndpoints();

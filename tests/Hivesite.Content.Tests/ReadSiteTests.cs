@@ -2,15 +2,15 @@ using System.Net;
 
 namespace Hivesite.Content.Tests;
 
-[Collection(ContentApiDefinition.Name)]
-public sealed class ReadSiteTests(ContentApi fixture)
+[TestClass]
+public sealed class ReadSiteTests
 {
     private static IEnumerable<string> Ids(ApiResponse page) => page.Node("items").EnumerateArray().Select(i => i.GetProperty("id").GetString()!);
 
-    [Fact]
+    [TestMethod]
     public async Task Lists_only_own_sites_newest_first_AC12()
     {
-        var api = await fixture.ReadyAsync();
+        var api = await ContentApi.ReadyAsync();
         var owner = ContentApi.NewOwner();
         var oldest = (await api.CreateAsync(owner)).Text("id");
         api.Clock.Advance(TimeSpan.FromSeconds(2));
@@ -19,27 +19,27 @@ public sealed class ReadSiteTests(ContentApi fixture)
 
         var page = await api.GetAsync(owner, "/sites");
 
-        Assert.Equal(HttpStatusCode.OK, page.Status);
-        Assert.Equal([newest, oldest], Ids(page));
-        Assert.Equal(System.Text.Json.JsonValueKind.Null, page.Node("next_cursor").ValueKind);
+        Assert.AreEqual(HttpStatusCode.OK, page.Status);
+        CollectionAssert.AreEqual(new[] { newest, oldest }, Ids(page).ToList());
+        Assert.AreEqual(System.Text.Json.JsonValueKind.Null, page.Node("next_cursor").ValueKind);
     }
 
-    [Fact]
+    [TestMethod]
     public async Task An_owner_without_sites_gets_an_empty_page_AC12()
     {
-        var api = await fixture.ReadyAsync();
+        var api = await ContentApi.ReadyAsync();
 
         var page = await api.GetAsync(ContentApi.NewOwner(), "/sites");
 
-        Assert.Equal(HttpStatusCode.OK, page.Status);
-        Assert.Empty(page.Node("items").EnumerateArray());
-        Assert.Equal(System.Text.Json.JsonValueKind.Null, page.Node("next_cursor").ValueKind);
+        Assert.AreEqual(HttpStatusCode.OK, page.Status);
+        Assert.IsEmpty(page.Node("items").EnumerateArray());
+        Assert.AreEqual(System.Text.Json.JsonValueKind.Null, page.Node("next_cursor").ValueKind);
     }
 
-    [Fact]
+    [TestMethod]
     public async Task Paging_shows_every_site_once_in_order_including_ties_AC13()
     {
-        var api = await fixture.ReadyAsync();
+        var api = await ContentApi.ReadyAsync();
         var owner = ContentApi.NewOwner();
         var created = new List<(string Id, string At)>();
         api.Clock.Freeze();
@@ -75,70 +75,70 @@ public sealed class ReadSiteTests(ContentApi fixture)
             pages++;
         }
 
-        Assert.Equal(expected, seen);
-        Assert.Equal(3, pages);
+        CollectionAssert.AreEqual(expected, seen);
+        Assert.AreEqual(3, pages);
     }
 
-    [Theory]
-    [InlineData("0")]
-    [InlineData("101")]
-    [InlineData("-1")]
+    [TestMethod]
+    [DataRow("0")]
+    [DataRow("101")]
+    [DataRow("-1")]
     public async Task A_bad_limit_is_refused_AC14(string limit)
     {
-        var api = await fixture.ReadyAsync();
+        var api = await ContentApi.ReadyAsync();
 
         var response = await api.GetAsync(ContentApi.NewOwner(), $"/sites?limit={limit}");
 
-        Assert.Equal(HttpStatusCode.BadRequest, response.Status);
-        Assert.Equal("invalid_request", response.ErrorCode);
-        Assert.Equal("limit", response.ErrorField);
+        Assert.AreEqual(HttpStatusCode.BadRequest, response.Status);
+        Assert.AreEqual("invalid_request", response.ErrorCode);
+        Assert.AreEqual("limit", response.ErrorField);
     }
 
-    [Fact]
+    [TestMethod]
     public async Task A_limit_that_is_not_a_number_is_refused_AC14()
     {
-        var api = await fixture.ReadyAsync();
+        var api = await ContentApi.ReadyAsync();
 
         var response = await api.GetAsync(ContentApi.NewOwner(), "/sites?limit=abc");
 
-        Assert.Equal(HttpStatusCode.BadRequest, response.Status);
-        Assert.Equal("invalid_request", response.ErrorCode);
+        Assert.AreEqual(HttpStatusCode.BadRequest, response.Status);
+        Assert.AreEqual("invalid_request", response.ErrorCode);
     }
 
-    [Theory]
-    [InlineData("1")]
-    [InlineData("100")]
+    [TestMethod]
+    [DataRow("1")]
+    [DataRow("100")]
     public async Task Limits_1_and_100_are_accepted_AC14(string limit)
     {
-        var api = await fixture.ReadyAsync();
+        var api = await ContentApi.ReadyAsync();
 
         var response = await api.GetAsync(ContentApi.NewOwner(), $"/sites?limit={limit}");
 
-        Assert.Equal(HttpStatusCode.OK, response.Status);
+        Assert.AreEqual(HttpStatusCode.OK, response.Status);
     }
 
-    [Theory]
-    [InlineData("garbage")]
-    [InlineData("c_")]
-    [InlineData("c_!!!")]
-    [InlineData("c_bm90IGpzb24")]
-    [InlineData("c_eyJjIjoibm9wZSJ9")]
-    [InlineData("")]
+    [TestMethod]
+    [DataRow("garbage")]
+    [DataRow("c_")]
+    [DataRow("c_!!!")]
+    [DataRow("c_bm90IGpzb24")]
+    [DataRow("c_eyJjIjoibm9wZSJ9")]
+    [DataRow("")]
     public async Task A_garbage_cursor_is_refused_AC15(string cursor)
     {
-        var api = await fixture.ReadyAsync();
+        var api = await ContentApi.ReadyAsync();
 
         var response = await api.GetAsync(ContentApi.NewOwner(), $"/sites?cursor={cursor}");
 
-        Assert.Equal(HttpStatusCode.BadRequest, response.Status);
-        Assert.Equal("invalid_cursor", response.ErrorCode);
-        Assert.Equal("cursor", response.ErrorField);
+        Assert.AreEqual(HttpStatusCode.BadRequest, response.Status);
+        Assert.AreEqual("invalid_cursor", response.ErrorCode);
+        Assert.AreEqual("cursor", response.ErrorField);
     }
 
-    [Fact]
+    [TestMethod]
     public async Task A_well_formed_but_forged_cursor_is_refused_AC15()
     {
-        var api = await fixture.ReadyAsync();
+        var api = await ContentApi.ReadyAsync();
         var owner = ContentApi.NewOwner();
         await api.CreateAsync(owner);
         await api.CreateAsync(owner);
@@ -151,32 +151,33 @@ public sealed class ReadSiteTests(ContentApi fixture)
         {
             var response = await api.GetAsync(owner, $"/sites?cursor={Uri.EscapeDataString(cursor)}");
 
-            Assert.Equal(HttpStatusCode.BadRequest, response.Status);
-            Assert.Equal("invalid_cursor", response.ErrorCode);
-            Assert.Equal("cursor", response.ErrorField);
+            Assert.AreEqual(HttpStatusCode.BadRequest, response.Status);
+            Assert.AreEqual("invalid_cursor", response.ErrorCode);
+            Assert.AreEqual("cursor", response.ErrorField);
         }
     }
 
-    [Fact]
+    [TestMethod]
     public async Task A_cursor_from_another_owner_never_returns_their_data_AC15()
     {
-        var api = await fixture.ReadyAsync();
+        var api = await ContentApi.ReadyAsync();
         var a = ContentApi.NewOwner();
         var b = ContentApi.NewOwner();
         await api.CreateAsync(a);
         await api.CreateAsync(a);
-        var mine = (await api.CreateAsync(b)).Text("id");
+        await api.CreateAsync(b);
         var cursor = (await api.GetAsync(a, "/sites?limit=1")).Node("next_cursor").GetString()!;
 
-        var page = await api.GetAsync(b, $"/sites?cursor={Uri.EscapeDataString(cursor)}");
+        var response = await api.GetAsync(b, $"/sites?cursor={Uri.EscapeDataString(cursor)}");
 
-        Assert.All(Ids(page), id => Assert.Equal(mine, id));
+        Assert.AreEqual(HttpStatusCode.BadRequest, response.Status);
+        Assert.AreEqual("invalid_cursor", response.ErrorCode);
     }
 
-    [Fact]
+    [TestMethod]
     public async Task Gets_a_site_by_id_in_any_case_AC16()
     {
-        var api = await fixture.ReadyAsync();
+        var api = await ContentApi.ReadyAsync();
         var owner = ContentApi.NewOwner();
         var created = await api.CreateAsync(owner, """{"language":"fr"}""");
         var id = created.Text("id");
@@ -184,18 +185,18 @@ public sealed class ReadSiteTests(ContentApi fixture)
         var lower = await api.GetAsync(owner, $"/sites/{id}");
         var upper = await api.GetAsync(owner, $"/sites/{id.ToUpperInvariant()}");
 
-        Assert.Equal(HttpStatusCode.OK, lower.Status);
-        Assert.Equal(created.Body.GetRawText(), lower.Body.GetRawText());
-        Assert.Equal(id, upper.Text("id"));
+        Assert.AreEqual(HttpStatusCode.OK, lower.Status);
+        Assert.AreEqual(created.Body.GetRawText(), lower.Body.GetRawText());
+        Assert.AreEqual(id, upper.Text("id"));
     }
 
-    [Theory]
-    [InlineData("missing")]
-    [InlineData("other")]
-    [InlineData("abc")]
+    [TestMethod]
+    [DataRow("missing")]
+    [DataRow("other")]
+    [DataRow("abc")]
     public async Task Unknown_foreign_and_malformed_ids_give_one_identical_404_AC17(string kind)
     {
-        var api = await fixture.ReadyAsync();
+        var api = await ContentApi.ReadyAsync();
         var foreign = (await api.CreateAsync(ContentApi.NewOwner())).Text("id");
         var id = kind switch { "missing" => Guid.CreateVersion7().ToString(), "other" => foreign, _ => "abc" };
         var baseline = await api.GetAsync(ContentApi.NewOwner(), $"/sites/{Guid.CreateVersion7()}");
@@ -203,18 +204,18 @@ public sealed class ReadSiteTests(ContentApi fixture)
         var get = await api.GetAsync(ContentApi.NewOwner(), $"/sites/{id}");
         var patch = await api.PatchAsync(ContentApi.NewOwner(), id, """{"name":"x"}""");
 
-        Assert.Equal(HttpStatusCode.NotFound, get.Status);
-        Assert.Equal("site_not_found", get.ErrorCode);
-        Assert.Null(get.ErrorField);
-        Assert.Equal(baseline.Body.GetRawText(), get.Body.GetRawText());
-        Assert.Equal(HttpStatusCode.NotFound, patch.Status);
-        Assert.Equal(baseline.Body.GetRawText(), patch.Body.GetRawText());
+        Assert.AreEqual(HttpStatusCode.NotFound, get.Status);
+        Assert.AreEqual("site_not_found", get.ErrorCode);
+        Assert.IsNull(get.ErrorField);
+        Assert.AreEqual(baseline.Body.GetRawText(), get.Body.GetRawText());
+        Assert.AreEqual(HttpStatusCode.NotFound, patch.Status);
+        Assert.AreEqual(baseline.Body.GetRawText(), patch.Body.GetRawText());
     }
 
-    [Fact]
+    [TestMethod]
     public async Task Without_an_owner_GET_and_PATCH_are_unauthenticated_AC11()
     {
-        var api = await fixture.ReadyAsync();
+        var api = await ContentApi.ReadyAsync();
         var id = (await api.CreateAsync(ContentApi.NewOwner())).Text("id");
 
         var responses = new[]
@@ -224,11 +225,11 @@ public sealed class ReadSiteTests(ContentApi fixture)
             await api.PatchAsync(null, id, "{}"),
         };
 
-        Assert.All(responses, r =>
+        foreach (var r in responses)
         {
-            Assert.Equal(HttpStatusCode.Unauthorized, r.Status);
-            Assert.Equal("unauthenticated", r.ErrorCode);
-            Assert.Null(r.ErrorField);
-        });
+            Assert.AreEqual(HttpStatusCode.Unauthorized, r.Status);
+            Assert.AreEqual("unauthenticated", r.ErrorCode);
+            Assert.IsNull(r.ErrorField);
+        }
     }
 }

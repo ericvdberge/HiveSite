@@ -6,7 +6,6 @@
   <ItemGroup>
     <PackageReference Include="Npgsql" />
     <PackageReference Include="Testcontainers.PostgreSql" />
-    <PackageReference Include="xunit.v3.assert" />
-    <PackageReference Include="xunit.v3.extensibility.core" />
+    <PackageReference Include="MSTest.TestFramework" />
   </ItemGroup>
 </Project>

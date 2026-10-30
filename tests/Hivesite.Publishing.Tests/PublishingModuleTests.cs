@@ -2,9 +2,10 @@ using Microsoft.AspNetCore.Builder;
 
 namespace Hivesite.Publishing.Tests;
 
+[TestClass]
 public sealed class PublishingModuleTests
 {
-    [Fact]
+    [TestMethod]
     public async Task The_module_wires_into_a_host()
     {
         var builder = WebApplication.CreateSlimBuilder();
@@ -13,6 +14,6 @@ public sealed class PublishingModuleTests
 
         app.MapPublishingEndpoints();
 
-        Assert.NotNull(app);
+        Assert.IsNotNull(app);
     }
 }

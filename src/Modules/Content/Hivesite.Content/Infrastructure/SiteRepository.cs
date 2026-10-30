@@ -5,45 +5,68 @@ using Npgsql;
 
 namespace Hivesite.Content.Infrastructure;
 
-/// <summary>All database access for sites. Every read is scoped to one owner.</summary>
+/// <summary>All database access for sites.</summary>
 internal sealed class SiteRepository(ContentDbContext db)
 {
-    /// <summary>Tracked, so changing the site and calling <see cref="SaveAsync"/> updates it.</summary>
-    public Task<Site?> GetAsync(string ownerId, Guid id, CancellationToken ct) =>
-        db.Sites.SingleOrDefaultAsync(s => s.OwnerId == ownerId && s.Id == id, ct);
+    public async Task<Site?> GetAsync(SiteFilter filter, CancellationToken ct) =>
+        await Query(filter).AsNoTracking().SingleOrDefaultAsync(ct) is { } dao ? SiteDaoMapper.ToDomain(dao) : null;
 
-    public Task<int> CountAsync(string ownerId, CancellationToken ct) =>
-        db.Sites.CountAsync(s => s.OwnerId == ownerId, ct);
+    public Task<int> CountAsync(SiteFilter filter, CancellationToken ct) => Query(filter).CountAsync(ct);
 
-    /// <summary>Newest first, ties by id ascending, starting after <paramref name="after"/>.</summary>
-    public async Task<Page<Site>> ListAsync(string ownerId, int limit, SiteCursor? after, CancellationToken ct)
+    /// <summary>Up to <see cref="SiteFilter.Limit"/> sites, newest first, ties by id ascending.</summary>
+    public async Task<Page<Site>> ListAsync(SiteFilter filter, CancellationToken ct)
     {
-        var query = db.Sites.AsNoTracking().Where(s => s.OwnerId == ownerId);
-        if (after is not null)
-        {
-            query = query.Where(s => s.CreatedAt < after.CreatedAt || (s.CreatedAt == after.CreatedAt && s.Id.CompareTo(after.Id) > 0));
-        }
-        var rows = await query.OrderByDescending(s => s.CreatedAt).ThenBy(s => s.Id).Take(limit + 1).ToListAsync(ct);
-        return new Page<Site>(rows.Take(limit).ToList(), rows.Count > limit);
+        var rows = await Query(filter).AsNoTracking()
+            .OrderByDescending(s => s.CreatedAt).ThenBy(s => s.Id)
+            .Take(filter.Limit + 1)
+            .ToListAsync(ct);
+        return new Page<Site>(SiteDaoMapper.ToDomain(rows.Take(filter.Limit).ToList()), rows.Count > filter.Limit);
     }
 
-    public void Add(Site site) => db.Sites.Add(site);
+    /// <summary>False when another site already has the slug.</summary>
+    public Task<bool> AddAsync(Site site, CancellationToken ct)
+    {
+        db.Sites.Add(SiteDaoMapper.ToDao(site));
+        return SaveAsync(ct);
+    }
 
-    public bool HasChanges() => db.ChangeTracker.HasChanges();
+    /// <summary>False when another site already has the slug.</summary>
+    public async Task<bool> UpdateAsync(Site site, CancellationToken ct)
+    {
+        SiteDaoMapper.Apply(site, await db.Sites.SingleAsync(s => s.Id == site.Id, ct));
+        return await SaveAsync(ct);
+    }
+
+    private IQueryable<SiteDao> Query(SiteFilter filter)
+    {
+        var query = db.Sites.AsQueryable();
+        if (filter.OwnerId is not null)
+        {
+            query = query.Where(s => s.OwnerId == filter.OwnerId);
+        }
+        if (filter.Id is not null)
+        {
+            query = query.Where(s => s.Id == filter.Id);
+        }
+        if (filter.After is not null)
+        {
+            var after = db.Sites.Where(a => a.Id == filter.After);
+            query = query.Where(s => after.Any(a => s.CreatedAt < a.CreatedAt || (s.CreatedAt == a.CreatedAt && s.Id.CompareTo(a.Id) > 0)));
+        }
+        return query;
+    }
 
     /// <summary>The unique index judges slugs, so two requests racing for one slug cannot both win.</summary>
-    public async Task SaveAsync(CancellationToken ct)
+    private async Task<bool> SaveAsync(CancellationToken ct)
     {
         try
         {
             await db.SaveChangesAsync(ct);
+            return true;
         }
         catch (DbUpdateException e) when (e.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation, ConstraintName: ContentDbContext.SiteSlugIndex })
         {
-            throw new BusinessRuleException("slug_taken", "Another site already uses this slug.", "/slug");
+            return false;
         }
     }
 }
-
-/// <summary>Where a list of sites continues: after this site.</summary>
-public sealed record SiteCursor(DateTime CreatedAt, Guid Id);

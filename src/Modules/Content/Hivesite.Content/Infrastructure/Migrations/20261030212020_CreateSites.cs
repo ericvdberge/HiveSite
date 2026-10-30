@@ -30,7 +30,7 @@ namespace Hivesite.Content.Infrastructure.Migrations
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_sites", x => x.id);
+                    table.PrimaryKey("pk_sites", x => x.id);
                 });
 
             migrationBuilder.CreateIndex(

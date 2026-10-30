@@ -1,23 +1,21 @@
-using System.Text.Json;
-using Hivesite.Content.Domain;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
 
 namespace Hivesite.Content.Infrastructure;
 
-/// <summary>The Content module's database, schema <c>content</c> (ADR 2). Tables and columns are snake_case.</summary>
+/// <summary>The Content module's database, schema <c>content</c> (ADR 2). Tables and columns are snake_case (<see cref="ContentModule.Configure"/>).</summary>
 public sealed class ContentDbContext(DbContextOptions<ContentDbContext> options) : DbContext(options)
 {
     public const string Schema = "content";
     public const string SiteSlugIndex = "ix_sites_slug";
 
-    public DbSet<Site> Sites => Set<Site>();
+    public DbSet<SiteDao> Sites => Set<SiteDao>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.HasDefaultSchema(Schema);
 
-        modelBuilder.Entity<Site>(site =>
+        modelBuilder.Entity<SiteDao>(site =>
         {
             site.ToTable("sites");
             site.Property(s => s.Id).ValueGeneratedNever();
@@ -28,11 +26,6 @@ public sealed class ContentDbContext(DbContextOptions<ContentDbContext> options)
                 .IsDescending(false, true, false)
                 .HasDatabaseName("ix_sites_owner_created_at_id");
         });
-
-        foreach (var property in modelBuilder.Model.GetEntityTypes().SelectMany(e => e.GetProperties()))
-        {
-            property.SetColumnName(JsonNamingPolicy.SnakeCaseLower.ConvertName(property.Name));
-        }
     }
 }
 

@@ -2,10 +2,11 @@
   <PropertyGroup>
     <IsPackable>false</IsPackable>
     <OutputType>Exe</OutputType>
+    <EnableMSTestRunner>true</EnableMSTestRunner>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="xunit.v3" />
+    <PackageReference Include="MSTest" />
   </ItemGroup>
 
 </Project>

@@ -1,23 +1,36 @@
 using System.Collections.Concurrent;
 using System.Net;
+using System.Security.Claims;
 using System.Text;
+using System.Text.Encodings.Web;
 using System.Text.Json;
 using Hivesite.Content.Contracts;
 using Hivesite.Shared;
 using Hivesite.Testing;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace Hivesite.Content.Tests;
 
-/// <summary>Test-only owner: the X-Test-Owner header, no header means no owner.</summary>
-internal sealed class HeaderCurrentOwner(IHttpContextAccessor http) : ICurrentOwner
+/// <summary>Test-only sign-in: the X-Test-Owner header is the user id, no header means nobody is signed in.</summary>
+internal sealed class HeaderAuthenticationHandler(IOptionsMonitor<AuthenticationSchemeOptions> options, ILoggerFactory logger, UrlEncoder encoder)
+    : UserAuthenticationHandler(options, logger, encoder)
 {
     public const string Header = "X-Test-Owner";
 
-    public string? Id => http.HttpContext?.Request.Headers[Header].FirstOrDefault();
+    protected override Task<AuthenticateResult> HandleAuthenticateAsync()
+    {
+        if (Request.Headers[Header].FirstOrDefault() is not { } owner)
+        {
+            return Task.FromResult(AuthenticateResult.NoResult());
+        }
+        var user = new ClaimsPrincipal(new ClaimsIdentity([new Claim(ClaimTypes.NameIdentifier, owner)], Scheme.Name));
+        return Task.FromResult(AuthenticateResult.Success(new AuthenticationTicket(user, Scheme.Name)));
+    }
 }
 
 internal sealed class RecordingHandler : ISiteChangedHandler
@@ -58,37 +71,47 @@ public sealed record ApiResponse(HttpStatusCode Status, JsonElement Body, HttpRe
 }
 
 /// <summary>The app over HTTP against a real PostgreSQL, shared by every Content API test.</summary>
-public sealed class ContentApi : IAsyncLifetime
+[TestClass]
+public sealed class ContentApi : IAsyncDisposable
 {
-    private readonly PostgresFixture _postgres = new();
+    private static readonly ContentApi Shared = new();
+    private static readonly PostgresFixture Postgres = new();
     private WebApplicationFactory<Program>? _factory;
 
     internal RecordingHandler Events { get; } = new();
 
     internal TestClock Clock { get; } = new();
 
-    public async ValueTask InitializeAsync() => await _postgres.InitializeAsync();
+    [AssemblyInitialize]
+    public static Task InitializeAsync(TestContext context) => Postgres.InitializeAsync();
 
-    /// <summary>Call first in every test: skips without Docker, otherwise boots the app once.</summary>
-    public async Task<ContentApi> ReadyAsync()
+    [AssemblyCleanup]
+    public static async Task CleanupAsync()
     {
-        _postgres.SkipIfUnavailable();
-        if (_factory is null)
+        await Shared.DisposeAsync();
+        await Postgres.DisposeAsync();
+    }
+
+    /// <summary>Call first in every test: inconclusive without Docker, otherwise boots the app once.</summary>
+    public static async Task<ContentApi> ReadyAsync()
+    {
+        var api = Shared;
+        Postgres.SkipIfUnavailable();
+        if (api._factory is null)
         {
-            _factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
+            api._factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
             {
-                builder.UseSetting("ConnectionStrings:Content", _postgres.ConnectionString);
+                builder.UseSetting("ConnectionStrings:Content", Postgres.ConnectionString);
                 builder.ConfigureServices(services =>
                 {
-                    services.AddHttpContextAccessor();
-                    services.AddScoped<ICurrentOwner, HeaderCurrentOwner>();
-                    services.AddSingleton<ISiteChangedHandler>(Events);
-                    services.AddSingleton<TimeProvider>(Clock);
+                    services.AddAuthentication("Test").AddScheme<AuthenticationSchemeOptions, HeaderAuthenticationHandler>("Test", null);
+                    services.AddSingleton<ISiteChangedHandler>(api.Events);
+                    services.AddSingleton<TimeProvider>(api.Clock);
                 });
             });
-            await _factory.Services.MigrateContentDatabaseAsync();
+            await api._factory.Services.MigrateContentDatabaseAsync();
         }
-        return this;
+        return api;
     }
 
     public static string NewOwner() => "owner-" + Guid.NewGuid().ToString("N");
@@ -104,7 +127,7 @@ public sealed class ContentApi : IAsyncLifetime
         using var request = new HttpRequestMessage(method, path);
         if (owner is not null)
         {
-            request.Headers.Add(HeaderCurrentOwner.Header, owner);
+            request.Headers.Add(HeaderAuthenticationHandler.Header, owner);
         }
         foreach (var (name, value) in headers)
         {
@@ -114,8 +137,8 @@ public sealed class ContentApi : IAsyncLifetime
         {
             request.Content = new StringContent(json, Encoding.UTF8, "application/json");
         }
-        var response = await client.SendAsync(request, TestContext.Current.CancellationToken);
-        var text = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+        var response = await client.SendAsync(request);
+        var text = await response.Content.ReadAsStringAsync();
         var body = text.Length == 0 ? default : JsonDocument.Parse(text).RootElement.Clone();
         return new ApiResponse(response.StatusCode, body, response);
     }
@@ -133,7 +156,7 @@ public sealed class ContentApi : IAsyncLifetime
     {
         var json = $$"""{"name":"Site","slug":"{{NewSlug()}}"{{(settings is null ? "" : ",\"settings\":" + settings)}}}""";
         var response = await PostAsync(owner, json);
-        Assert.Equal(HttpStatusCode.Created, response.Status);
+        Assert.AreEqual(HttpStatusCode.Created, response.Status);
         return response;
     }
 
@@ -143,12 +166,5 @@ public sealed class ContentApi : IAsyncLifetime
         {
             await _factory.DisposeAsync();
         }
-        await _postgres.DisposeAsync();
     }
-}
-
-[CollectionDefinition(Name)]
-public sealed class ContentApiDefinition : ICollectionFixture<ContentApi>
-{
-    public const string Name = "content-api";
 }

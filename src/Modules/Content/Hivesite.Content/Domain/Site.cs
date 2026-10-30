@@ -1,7 +1,7 @@
 namespace Hivesite.Content.Domain;
 
-/// <summary>A site and its settings (API-001). Stored as <c>content.sites</c>.</summary>
-public sealed class Site
+/// <summary>A site and its settings (API-001). A record, so a PATCH that changes nothing compares equal to the stored site.</summary>
+public sealed record Site
 {
     public Guid Id { get; set; }
 

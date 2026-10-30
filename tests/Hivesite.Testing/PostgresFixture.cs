@@ -1,13 +1,13 @@
+using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Testcontainers.PostgreSql;
-using Xunit;
 
 namespace Hivesite.Testing;
 
 /// <summary>
-/// A real PostgreSQL in a container, shared by the tests of one class or collection.
-/// Without Docker the tests that need it are skipped on a developer machine and fail in CI.
+/// A real PostgreSQL in a container, shared by the tests of one class or assembly.
+/// Without Docker the tests that need it are inconclusive on a developer machine and fail in CI.
 /// </summary>
-public sealed class PostgresFixture : IAsyncLifetime
+public sealed class PostgresFixture : IAsyncDisposable
 {
     private PostgreSqlContainer? _container;
     private string? _skipReason;
@@ -15,7 +15,7 @@ public sealed class PostgresFixture : IAsyncLifetime
     public string ConnectionString =>
         _container?.GetConnectionString() ?? throw new InvalidOperationException("The PostgreSQL container is not running.");
 
-    public async ValueTask InitializeAsync()
+    public async Task InitializeAsync()
     {
         try
         {
@@ -33,7 +33,7 @@ public sealed class PostgresFixture : IAsyncLifetime
     {
         if (_skipReason is not null)
         {
-            Assert.Skip(_skipReason);
+            Assert.Inconclusive(_skipReason);
         }
     }
 

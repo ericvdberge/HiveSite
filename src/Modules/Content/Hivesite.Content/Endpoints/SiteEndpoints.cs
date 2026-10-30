@@ -1,5 +1,4 @@
 using Hivesite.Content.Application;
-using Hivesite.Content.Infrastructure;
 using Hivesite.Shared;
 using Microsoft.AspNetCore.Http.HttpResults;
 
@@ -8,41 +7,45 @@ namespace Hivesite.Content.Endpoints;
 /// <summary>API-001. Each handler maps the DTO, calls <see cref="SiteService"/> and maps the result back. Nothing more.</summary>
 internal static class SiteEndpoints
 {
-    private const string CursorPurpose = "Hivesite.Content.Sites";
+    private static readonly ApiError SiteNotFound = ApiError.Of("site_not_found", "No site with this id.");
 
     public static void MapSiteEndpoints(this IEndpointRouteBuilder endpoints)
     {
-        var sites = endpoints.MapGroup("/sites").RequireOwner();
-        sites.MapPost("", CreateSite).Validate<SitePostDto>();
-        sites.MapGet("", ListSites).Validate<PageQuery>();
-        sites.MapGet("{id}", GetSite);
-        sites.MapPatch("{id}", UpdateSite).Validate<SitePatchDto>();
+        var sites = endpoints.MapGroup("/sites").RequireAuthorization();
+        sites.MapPost("", CreateSite).Validate<SitePostValidator>();
+        sites.MapGet("", ListSites).Validate<PageQueryValidator>();
+        sites.MapGet("{id:guid}", GetSite);
+        sites.MapPatch("{id:guid}", UpdateSite).Validate<SitePatchValidator>();
+        // An id that is no UUID names no site: the same 404 as a missing one (API-001 Ids).
+        sites.MapMethods("{id}", [HttpMethods.Get, HttpMethods.Patch], () => TypedResults.NotFound(SiteNotFound));
     }
 
-    private static async Task<Created<SiteDto>> CreateSite(SitePostDto dto, SiteService service, CancellationToken ct)
+    private static async Task<Results<Created<SiteDto>, BadRequest<ApiError>>> CreateSite(SitePostDto dto, SiteService service, CancellationToken ct)
     {
-        var site = await service.CreateAsync(SiteMapper.ToEntity(dto), ct);
-        return TypedResults.Created($"/sites/{site.Id}", SiteMapper.ToDto(site));
+        var result = await service.CreateAsync(SiteMapper.ToEntity(dto), ct);
+        return result.IsSuccess
+            ? TypedResults.Created($"/sites/{result.Value.Id}", SiteMapper.ToDto(result.Value))
+            : TypedResults.BadRequest(new ApiError(result.Error));
     }
 
-    private static async Task<Ok<PageDto<SiteDto>>> ListSites([AsParameters] PageQuery query, SiteService service, CursorProtector cursors, CancellationToken ct)
+    private static async Task<Results<Ok<PageDto<SiteDto>>, BadRequest<ApiError>>> ListSites([AsParameters] PageQuery query, SiteService service, CancellationToken ct)
     {
-        var after = query.Cursor is null ? null : cursors.Unprotect<SiteCursor>(query.Cursor, CursorPurpose);
-        var page = await service.ListAsync(query.Limit, after, ct);
-        var next = page.HasMore ? cursors.Protect(new SiteCursor(page.Items[^1].CreatedAt, page.Items[^1].Id), CursorPurpose) : null;
-        return TypedResults.Ok(new PageDto<SiteDto>(SiteMapper.ToDto(page.Items), next));
+        var result = await service.ListAsync(SiteMapper.ToFilter(query), ct);
+        return result.IsSuccess ? TypedResults.Ok(SiteMapper.ToDto(result.Value)) : TypedResults.BadRequest(new ApiError(result.Error));
     }
 
-    private static async Task<Ok<SiteDto>> GetSite(string id, SiteService service, CancellationToken ct) =>
-        TypedResults.Ok(SiteMapper.ToDto(await service.GetAsync(ParseId(id), ct)));
+    private static async Task<Results<Ok<SiteDto>, NotFound<ApiError>>> GetSite(Guid id, SiteService service, CancellationToken ct) =>
+        await service.GetAsync(id, ct) is { } site ? TypedResults.Ok(SiteMapper.ToDto(site)) : TypedResults.NotFound(SiteNotFound);
 
-    private static async Task<Ok<SiteDto>> UpdateSite(string id, SitePatchDto dto, SiteService service, CancellationToken ct)
+    private static async Task<Results<Ok<SiteDto>, NotFound<ApiError>, BadRequest<ApiError>>> UpdateSite(Guid id, SitePatchDto dto, SiteService service, CancellationToken ct)
     {
-        var site = await service.GetAsync(ParseId(id), ct);
+        if (await service.GetAsync(id, ct) is not { } site)
+        {
+            return TypedResults.NotFound(SiteNotFound);
+        }
+
         SiteMapper.Apply(dto, site);
-        return TypedResults.Ok(SiteMapper.ToDto(await service.UpdateAsync(site, ct)));
+        var result = await service.UpdateAsync(site, ct);
+        return result.IsSuccess ? TypedResults.Ok(SiteMapper.ToDto(result.Value)) : TypedResults.BadRequest(new ApiError(result.Error));
     }
-
-    /// <summary>Only the canonical 8-4-4-4-12 form, any letter case. Anything else is an id no site has, so a 404.</summary>
-    private static Guid ParseId(string id) => Guid.TryParseExact(id, "D", out var guid) ? guid : Guid.Empty;
 }
