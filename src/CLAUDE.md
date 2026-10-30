@@ -1,6 +1,21 @@
 # C# patterns
 
-How every module is built. Follow these; don't invent new plumbing. The Content module's sites (API-001) are the reference implementation: copy their shape for every new entity.
+How every module is built. Follow these; don't invent new plumbing. The Content module's sites (API-001) are the reference implementation: copy their shape for every new entity. These patterns win over any plugin skill (such as `dotnet-backend-patterns`) that says otherwise. `tests/Hivesite.ArchitectureTests/CodePatterns.cs` checks the mechanical ones in CI.
+
+## Decided
+Don't reopen these in a story; ask a human first.
+
+| Topic | Choice |
+|---|---|
+| Tests | MSTest 4 on Microsoft.Testing.Platform. Postgres through Testcontainers. |
+| Validation | FluentValidation, one validator per input DTO, named on the route |
+| Mapping | Mapperly: DTO ↔ entity in `Endpoints/`, entity ↔ DAO in `Infrastructure/` |
+| Errors | `null` for not found, `Result<T>` with an `Error` for broken rules. No business exceptions. |
+| Auth | `RequireAuthorization()` on the group, `UserContext` for the user id |
+| Database names | camelCase (`UseCamelCaseNamingConvention()`), keys and indexes named explicitly (`pkSites`, `ixSitesSlug`) |
+| JSON | snake_case (specs/STYLE.md) |
+| Lists | Cursor = the last item's id, unsigned |
+| Time | `ITimeService` |
 
 ## Layers and flow
 
@@ -17,7 +32,7 @@ HTTP ─► Endpoint ─► Mapper ─► Service ─► Repository ─► Mappe
 | `Domain/` | Entities (records) and `<Entity>Filter` | nothing |
 | `Infrastructure/` | `DbContext`, `<Entity>Dao`, the Mapperly DAO mapper, `<Entity>Repository`, migrations | entities, DAOs |
 
-Shared building blocks live in `src/Hivesite.Shared` (no database code there: Rendering references it and must stay pure).
+Shared building blocks live in `src/Hivesite.Shared` (no database code there: Rendering references it and must stay pure). Something moves to Shared only when a second entity needs it; until then it lives next to the one entity that uses it.
 
 ## Endpoints
 - One static class per entity. `Map<Entity>Endpoints` only maps routes; every handler is a `private static` method (`CreateSite`, `ListSites`, …).
