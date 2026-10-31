@@ -2,7 +2,7 @@
 id: API-002
 title: Pages and menu order
 domain: content
-status: approved
+status: built
 owner: api-architect
 stories: [13]
 depends_on: [API-001]
