@@ -19,12 +19,15 @@ public static class ContentModule
 
         services.AddScoped<SiteRepository>();
         services.AddScoped<SiteService>();
+        services.AddScoped<PageRepository>();
+        services.AddScoped<PageService>();
         return services;
     }
 
     public static IEndpointRouteBuilder MapContentEndpoints(this IEndpointRouteBuilder endpoints)
     {
         endpoints.MapSiteEndpoints();
+        endpoints.MapPageEndpoints();
         return endpoints;
     }
 
