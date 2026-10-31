@@ -10,6 +10,7 @@
 | [API-002](content/API-002-pages-and-menu.md) | Pages and menu order | built | #13 | API-001 |
 | [API-003](content/API-003-block-types.md) | Block type registry | approved | #14 | API-001 |
 | [API-004](content/API-004-page-blocks.md) | Page blocks | approved | #15 | API-001, API-002, API-003 |
+| [API-005](content/API-005-entities.md) | Entities | in review | #36 | API-001, API-002, API-003, API-004 |
 
 ## publishing
 
@@ -29,12 +30,15 @@
 ## By status
 
 - **draft** (3): API-011, API-012, API-021
-- **in review** (2): API-010, API-020
+- **in review** (3): API-005, API-010, API-020
 - **approved** (2): API-003, API-004
 - **built** (2): API-001, API-002
 
 ## Open questions
 
+- API-005: Should `accent_color` also fill the button fill `color.accent`? Then Content must also pick or check `color.on_accent` on it (4.5:1), for example the theme's `color.text` or `color.background`, whichever passes.
+- API-005: Contrast against `color.background` and `color.surface` (proposed), or `color.background` only, as first described?
+- API-005: The theme table and the `brand_styling` values depend on `design/tokens.json` in #33, which is not merged. Is version 1 of that file final, so this spec can cite it?
 - API-010: Which fields does the `brand_styling` entity type have (API-005)? This spec assumes `theme`, `display_font` and `corners` with the values in the Brand styling table, each with a default (`atelier`, `from_theme`, `from_theme`). If API-005 names or shapes them differently, the table follows API-005.
 - API-010: Does the `brand_styling` entity get color fields (the owner's color picker field type)? Today no choice touches a color, so the contrast rules in Tokens hold for every combination. The API-005 draft adds `accent_color`, which fills `color.accent_text` and is checked for contrast on save. If that stays, the Brand styling table needs an `accent_color` row, "No choice touches a color" no longer holds, and this spec must say how a free color value reaches the page: an attribute selector cannot carry it, and API-011 allows no inline style.
 - API-010: Preview for agents and owners. An agent (and an owner) can only check a styling change before publishing through a preview. Preview is in API-011, which is held for ADR 3, and under ADR 3 it becomes an asynchronous build. Until a preview spec is approved, the only check is reading the `brand_styling` entity back.
