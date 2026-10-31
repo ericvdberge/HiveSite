@@ -19,6 +19,8 @@ Auth, ids, errors, validation, lists and timestamps follow the shared convention
 ### GET /themes
 Auth: owner
 
+Operation: `ListThemes`
+
 Query: `limit` (1 to 100, default 20), `cursor`.
 
 Request
@@ -159,12 +161,14 @@ All three themes, in the order of the table in Themes below. The first item is s
 ```
 
 Errors
-- 400 `invalid_request`: `limit` is not an integer from 1 to 100.
-- 400 `invalid_cursor`
+- 400 `invalid_request`: `limit` is not an integer from 1 to 100. `field` is `limit`.
+- 400 `invalid_cursor`: `cursor` is not a cursor this endpoint returned. `field` is `cursor`. With three themes and the default `limit`, `next_cursor` is always `null`.
 - 401 `unauthenticated`
 
 ### GET /themes/{key}/assets/{file}
 Auth: none (public)
+
+Operation: `GetThemeAsset`
 
 The theme's stylesheet and font files, for the draft preview. Published sites carry their own copy in each release (API-020, API-021).
 
@@ -245,15 +249,29 @@ Brand styling comes from the `brand_styling` entity (API-005). It picks a theme 
 - `Hivesite.Rendering.Contracts` offers the theme registry (keys, names, `color_scheme`, `version`, tokens and asset files), so Publishing (API-020) can render and store a release without calling HTTP.
 - This spec raises no events. A change to brand styling is a change to the `brand_styling` entity and raises that entity's event (API-005).
 
+### Operation names
+- Each endpoint has an operation name (`ListThemes`, `GetThemeAsset`). It becomes the `operationId` and the C# method name, and is the name a tool call uses. It never changes; renaming one is a breaking change.
+
+## Agent use
+An AI agent acting for an owner, through tool calls or an MCP server, can style a site with this spec and API-005 alone. This section adds no behaviour; it says how the endpoints are used.
+1. `ListThemes` gives every valid `theme` key with its `name`, `description`, `color_scheme` and tokens. An agent picks from this list and never guesses a key.
+2. `GET /sites/{id}/entity-types/brand_styling` (API-005) gives the JSON Schema of brand styling: the `enum` of every choice in Brand styling above and their defaults.
+3. `PATCH /sites/{id}/entities/brand_styling` (API-005) applies the choice. It sets values, so sending the same body again gives the same result and is safe to retry.
+
+- An invalid value fails with a 400 whose `code` and `field` name the value to change (STYLE.md). The agent fixes that field and sends again.
+- This spec stores nothing and changes nothing. `ListThemes` is read-only and safe to call any number of times.
+- To see the result before publishing, an agent needs a preview. The preview is held with API-011 (see Open questions).
+
 ## Decisions
 - **Themes are a fixed registry with a `key`, like block types (API-003).** They are not stored resources, so they have no UUID.
 - **A site's theme is part of its brand styling, and brand styling comes from the `brand_styling` entity (API-005).** The owner chose this: brand styling is a built-in entity with default values, so it uses the same architecture as the rest of the content. Rendering keeps no table and stays pure; it reads brand styling through `Hivesite.Content.Contracts`. The plan's `PUT /sites/{id}/theme` is dropped; the owner sets the theme through the entity endpoints of API-005.
 - **`GET /themes/{key}/assets/{file}` is added** for the preview's stylesheet and fonts. It is public: theme files hold no owner data.
 - **Theme keys and token names are those of `design/tokens.json` (#9):** `atelier`, `ivory` and `studio`, and the file's groups and names. The theme metadata field is `color_scheme`, as in the file.
 - **Brand styling choices are attribute selectors in the theme stylesheet,** not inline styles. The page's CSP allows no inline style (API-011), and HTML carries no values.
-- **The draft uses new brand styling at once; the live site at the next publish.** Rollback (API-020) brings back the styling a release was published with.
+- **The draft uses new brand styling at once; the live site at the next publish.** Rollback (API-020) brings back, on the live site, the styling a release was published with; it does not change the `brand_styling` entity.
 
 ## Open questions
 - Which fields does the `brand_styling` entity type have (API-005)? This spec assumes `theme`, `display_font` and `corners` with the values in the Brand styling table, each with a default (`atelier`, `from_theme`, `from_theme`). If API-005 names or shapes them differently, the table follows API-005.
-- Does the `brand_styling` entity get color fields (the owner's color picker field type)? Today no choice touches a color, so the contrast rules in Tokens hold for every combination. If owners can pick colors, this spec must say which tokens a color may set and how contrast is checked or rejected.
+- Does the `brand_styling` entity get color fields (the owner's color picker field type)? Today no choice touches a color, so the contrast rules in Tokens hold for every combination. The API-005 draft adds `accent_color`, which fills `color.accent_text` and is checked for contrast on save. If that stays, the Brand styling table needs an `accent_color` row, "No choice touches a color" no longer holds, and this spec must say how a free color value reaches the page: an attribute selector cannot carry it, and API-011 allows no inline style.
+- Preview for agents and owners. An agent (and an owner) can only check a styling change before publishing through a preview. Preview is in API-011, which is held for ADR 3, and under ADR 3 it becomes an asynchronous build. Until a preview spec is approved, the only check is reading the `brand_styling` entity back.
 - ADR 3 (sandboxed Vue/Nuxt templates) may change how the stylesheet reaches the page. The `data-display-font` and `data-corners` attributes on `<html>` and the "no inline style" reason refer to the C# renderer in API-011, which is held. Keep the attribute selectors, or let templates read tokens another way?

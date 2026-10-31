@@ -19,6 +19,8 @@ Auth, ids, errors, validation, lists and timestamps follow the shared convention
 ### POST /sites/{id}/publish
 Auth: site owner
 
+Operation: `PublishSite`
+
 Renders the site as it is now (API-011 `RenderSite`, `mode` `release`, with the site's current brand styling; brand styling comes from the `brand_styling` entity, API-005), stores the files as a new release and makes it live. The call returns when the release is live.
 
 Request
@@ -61,6 +63,8 @@ Errors
 
 ### GET /sites/{id}/releases
 Auth: site owner
+
+Operation: `ListReleases`
 
 Query: `limit` (1 to 100, default 20), `cursor`.
 
@@ -119,6 +123,8 @@ Errors
 ### GET /releases/{id}
 Auth: site owner
 
+Operation: `GetRelease`
+
 Request
 ```
 GET /releases/01a18270-91ab-7f04-a6d3-55e1b0c7f284
@@ -150,7 +156,9 @@ Errors
 ### POST /sites/{id}/releases/{rid}/rollback
 Auth: site owner
 
-Makes an older release live again. Nothing is rendered: the release's stored files are served as they are, with the theme and content they were published with.
+Operation: `RollbackRelease`
+
+Makes another kept release of the site live: an older one, or a newer one to undo an earlier rollback. Nothing is rendered: the release's stored files are served as they are, with the theme and content they were published with.
 
 Request
 ```
@@ -208,6 +216,8 @@ Errors
 
 ### Rollback
 - Rollback moves the live pointer to an existing release. It creates no release and does not change `number`.
+- Any kept release can be made live, older or newer than the live one. A rollback is undone by a rollback to the release that was live before it.
+- Rollback changes only what visitors see. It does not change the draft: pages, blocks and the `brand_styling` entity stay as they are. It deletes nothing.
 - Rolling back to the release that is already live changes nothing and returns 200 with the release as it is.
 - After a rollback, the next publish renders the current draft as a new release with the next `number` and makes it live.
 - Rolling back twice to the same release gives the same result.
@@ -237,6 +247,23 @@ Errors
 - A rollback to the release that is already live raises nothing.
 - `Hivesite.Publishing.Contracts` also offers `GetLiveRelease(site_id)` for other modules. Content does not use it in this version.
 
+### Operation names
+- Each endpoint has an operation name (`PublishSite`, `ListReleases`, `GetRelease`, `RollbackRelease`). It becomes the `operationId` and the C# method name, and is the name a tool call uses. It never changes; renaming one is a breaking change.
+
+## Agent use
+An AI agent acting for an owner, through tool calls or an MCP server, can publish, check and roll back a site with this spec alone. This section adds no behaviour; it says how the endpoints above are used safely.
+
+| Operation | Changes | Safe to repeat | Check the result with |
+|---|---|---|---|
+| `PublishSite` | Creates a release and makes it live. May prune the oldest release (see Retention). | No: every call creates a new release. | `is_live` and `number` in the response, or `ListReleases`. |
+| `ListReleases`, `GetRelease` | Nothing. | Yes. | – |
+| `RollbackRelease` | Moves the live pointer. Deletes nothing and leaves the draft as it is. | Yes: the same call again changes nothing. | `is_live` and `live_since` in the response, or `GetRelease`. |
+
+- Before `PublishSite`, an agent notes the newest `number` from `ListReleases` with `limit=1`. After a timeout or a lost response it calls that again: if the newest release has a higher `number` and is live, the publish went through and it does not publish again.
+- To undo a publish, an agent rolls back to the release that was live before it. It finds that release in `ListReleases` before it publishes.
+- Errors are machine-readable (STYLE.md): an agent branches on `code`. `site_has_no_pages` and `release_too_large` mean the draft must change first; publishing again without a change fails the same way.
+- A publish is a public change. An agent asks the owner before it calls `PublishSite` or `RollbackRelease`, unless the owner told it to go ahead.
+
 ## Decisions
 - **Rollback moves a pointer, it does not copy.** Release numbers stay the owner's history: "release 2 is live again" is clearer than a new release 4 that equals release 2.
 - **`GET /releases/{id}` is added** to the plan's endpoint list, for the `Location` header and for reading one release.
@@ -249,7 +276,7 @@ Errors
 
 ## Open questions
 - ADR 3: how is a release built? This spec calls the C# `RenderSite` (API-011), which is held. Under ADR 3 a release is a static build of Vue/Nuxt templates in a sandbox. Which contract does Publishing call, and what does it get back: files with paths and content types, as now?
-- ADR 3: is publish still synchronous? A sandboxed build may take longer than the Host's request timeout. If not, publish returns 202 with a release in a `building` state, and this spec needs that state, a failure state and a way to poll.
+- ADR 3: is publish still synchronous? A sandboxed build may take longer than the Host's request timeout. If not, publish returns 202 with a release in a `building` state, and this spec needs that state, a failure state with an error `code`, and a way to poll. The retry check in Agent use then changes: an agent polls `GetRelease` until the release is live or failed.
 - ADR 3: do the limits hold for a static build (max 3,000 files and 50 MB per release)? A Nuxt build adds framework files per release.
 - ADR 3: `theme` and `theme_version` on a release. If templates replace the theme registry (API-010), what identifies the look a release was built with: theme key and version, a template version, or both?
 - ADR 3: Site slug changes and the home page slug. Both exist for path-based `/s/{site_slug}/` serving (API-021, held). With a per-site origin, does a slug change still reach the live site without a republish, and does a release still record its home page slug?
