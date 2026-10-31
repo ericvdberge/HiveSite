@@ -1,0 +1,282 @@
+---
+id: API-020
+title: Releases and rollback
+domain: publishing
+status: in review
+owner: api-architect
+stories: [19, 20]
+depends_on: [API-001, API-002, API-004, API-010, API-011]
+version: 1
+---
+
+## Purpose
+A site owner can publish a site as an immutable release, see the release history, and make an older release live again.
+
+Auth, ids, errors, validation, lists and timestamps follow the shared conventions in API-001.
+
+## Endpoints
+
+### POST /sites/{id}/publish
+Auth: site owner
+
+Operation: `PublishSite`
+
+Renders the site as it is now (API-011 `RenderSite`, `mode` `release`, with the site's current brand styling; brand styling comes from the `brand_styling` entity, API-005), stores the files as a new release and makes it live. The call returns when the release is live.
+
+Request
+```json
+{
+  "note": "New spring collection"
+}
+```
+
+The body is optional. Without a body, or with `{}`, `note` is `""`.
+
+Response 201
+
+Headers: `Location: /releases/01a1828f-3c10-7d2e-8b4f-0e2a6c9d1b57`
+```json
+{
+  "id": "01a1828f-3c10-7d2e-8b4f-0e2a6c9d1b57",
+  "site_id": "01a181c9-b7ca-70bc-abf5-a9e81e300af7",
+  "number": 3,
+  "note": "New spring collection",
+  "is_live": true,
+  "theme": "atelier",
+  "theme_version": 1,
+  "site_slug": "atelier-noor",
+  "page_count": 3,
+  "file_count": 9,
+  "size_bytes": 412377,
+  "created_at": "2026-10-28T14:02:11Z",
+  "live_since": "2026-10-28T14:02:11Z"
+}
+```
+
+Errors
+- 400 `invalid_request`: body is not JSON, `note` is not a string or is over 200 characters, or an unknown field is present.
+- 400 `site_has_no_pages`: the site has no pages, so there is no home page to publish.
+- 400 `release_too_large`: the rendered site has more than 3,000 files or more than 50 MB in total. Nothing is stored.
+- 401 `unauthenticated`
+- 404 `site_not_found`
+- 415 `unsupported_media_type`: a body is sent and `Content-Type` is not `application/json`.
+
+### GET /sites/{id}/releases
+Auth: site owner
+
+Operation: `ListReleases`
+
+Query: `limit` (1 to 100, default 20), `cursor`.
+
+Request
+```
+GET /sites/01a181c9-b7ca-70bc-abf5-a9e81e300af7/releases?limit=2
+```
+
+Response 200
+```json
+{
+  "items": [
+    {
+      "id": "01a1828f-3c10-7d2e-8b4f-0e2a6c9d1b57",
+      "site_id": "01a181c9-b7ca-70bc-abf5-a9e81e300af7",
+      "number": 3,
+      "note": "New spring collection",
+      "is_live": false,
+      "theme": "atelier",
+      "theme_version": 1,
+      "site_slug": "atelier-noor",
+      "page_count": 3,
+      "file_count": 9,
+      "size_bytes": 412377,
+      "created_at": "2026-10-28T14:02:11Z",
+      "live_since": null
+    },
+    {
+      "id": "01a18270-91ab-7f04-a6d3-55e1b0c7f284",
+      "site_id": "01a181c9-b7ca-70bc-abf5-a9e81e300af7",
+      "number": 2,
+      "note": "",
+      "is_live": true,
+      "theme": "ivory",
+      "theme_version": 1,
+      "site_slug": "atelier-noor",
+      "page_count": 3,
+      "file_count": 9,
+      "size_bytes": 398105,
+      "created_at": "2026-10-28T13:28:40Z",
+      "live_since": "2026-10-28T14:20:03Z"
+    }
+  ],
+  "next_cursor": "01a18270-91ab-7f04-a6d3-55e1b0c7f284"
+}
+```
+
+Here release 2 was made live again by a rollback after release 3 was published.
+
+Errors
+- 400 `invalid_request`: `limit` is not an integer from 1 to 100.
+- 400 `invalid_cursor`: `cursor` is not the id of a release of this site. `field` is `cursor`.
+- 401 `unauthenticated`
+- 404 `site_not_found`
+
+### GET /releases/{id}
+Auth: site owner
+
+Operation: `GetRelease`
+
+Request
+```
+GET /releases/01a18270-91ab-7f04-a6d3-55e1b0c7f284
+```
+
+Response 200
+```json
+{
+  "id": "01a18270-91ab-7f04-a6d3-55e1b0c7f284",
+  "site_id": "01a181c9-b7ca-70bc-abf5-a9e81e300af7",
+  "number": 2,
+  "note": "",
+  "is_live": true,
+  "theme": "ivory",
+  "theme_version": 1,
+  "site_slug": "atelier-noor",
+  "page_count": 3,
+  "file_count": 9,
+  "size_bytes": 398105,
+  "created_at": "2026-10-28T13:28:40Z",
+  "live_since": "2026-10-28T14:20:03Z"
+}
+```
+
+Errors
+- 401 `unauthenticated`
+- 404 `release_not_found`: no release with this id, it was pruned (see Retention), or its site belongs to another owner.
+
+### POST /sites/{id}/releases/{rid}/rollback
+Auth: site owner
+
+Operation: `RollbackRelease`
+
+Makes another kept release of the site live: an older one, or a newer one to undo an earlier rollback. Nothing is rendered: the release's stored files are served as they are, with the theme and content they were published with.
+
+Request
+```
+POST /sites/01a181c9-b7ca-70bc-abf5-a9e81e300af7/releases/01a18270-91ab-7f04-a6d3-55e1b0c7f284/rollback
+```
+
+No body. An empty body or `{}` is accepted.
+
+Response 200
+```json
+{
+  "id": "01a18270-91ab-7f04-a6d3-55e1b0c7f284",
+  "site_id": "01a181c9-b7ca-70bc-abf5-a9e81e300af7",
+  "number": 2,
+  "note": "",
+  "is_live": true,
+  "theme": "ivory",
+  "theme_version": 1,
+  "site_slug": "atelier-noor",
+  "page_count": 3,
+  "file_count": 9,
+  "size_bytes": 398105,
+  "created_at": "2026-10-28T13:28:40Z",
+  "live_since": "2026-10-28T14:20:03Z"
+}
+```
+
+Errors
+- 400 `invalid_request`: a body is sent that is not empty and not `{}`.
+- 401 `unauthenticated`
+- 404 `site_not_found`
+- 404 `release_not_found`: no release with this id for this site, or it was pruned.
+
+## Rules
+
+### Release fields
+- `id`: a UUIDv7, as API-001 Ids. Set by the server.
+- `site_id`: the site the release belongs to.
+- `number`: 1, 2, 3, … per site, in the order releases are created. Never reused, also after pruning. Owners speak of "release 3".
+- `note`: 0 to 200 characters after trimming, default `""`. Set on publish, never changed.
+- `is_live`: `true` for exactly one release of a site once it has published, `false` for all others.
+- `theme`, `theme_version`: the theme key (the `theme` field of the `brand_styling` entity, API-005) and theme version (API-010) the release was rendered with.
+- `site_slug`: the site slug when the release was created. For information only; the live site is always served under the current slug (API-021).
+- `page_count`: the number of pages in the release. `file_count` and `size_bytes`: the stored files and their total size in bytes.
+- `created_at`: when the release was created. `live_since`: when it last became live, or `null` when it is not live.
+- Every field is always present. Only `live_since` can be `null`.
+
+### Publishing
+- Publish reads the site, its `brand_styling` entity (API-005), its pages in `menu_order` and their blocks in one consistent read through `Hivesite.Content.Contracts`. It then calls `RenderSite` (API-011), and takes `theme_version` from the theme registry in `Hivesite.Rendering.Contracts` (API-010).
+- The release holds exactly the files `RenderSite` returned, under their paths. They are written to file storage (a local folder now, blob storage later) before the release is made live. If storing fails, no release is created and the live release does not change.
+- The release also records, internally, the slug of its home page (`menu_order` 0), so API-021 can redirect `/s/{site_slug}/{home_slug}` to the site root.
+- A release never changes after it is created. Its files are never rewritten.
+- Every publish creates a new release, also when nothing changed since the last one.
+- Publish is synchronous. With the limits below it renders in well under the Host's request timeout.
+
+### Rollback
+- Rollback moves the live pointer to an existing release. It creates no release and does not change `number`.
+- Any kept release can be made live, older or newer than the live one. A rollback is undone by a rollback to the release that was live before it.
+- Rollback changes only what visitors see. It does not change the draft: pages, blocks and the `brand_styling` entity stay as they are. It deletes nothing.
+- Rolling back to the release that is already live changes nothing and returns 200 with the release as it is.
+- After a rollback, the next publish renders the current draft as a new release with the next `number` and makes it live.
+- Rolling back twice to the same release gives the same result.
+
+### Concurrency
+- Making a release live is one database write. A visitor gets either the old release or the new one, never a mix (API-021).
+
+### Ordering
+- `GET /sites/{id}/releases` returns releases by `number` descending, newest first.
+
+### Retention
+- A site keeps its 20 newest releases plus the live release. After a publish, older releases beyond that are pruned: their files and their record are deleted, and they return 404 `release_not_found`.
+- The live release is never pruned, also when it is older than the 20 newest.
+
+### Limits
+- Max 3,000 files and 50 MB (52,428,800 bytes) per release. Larger returns 400 `release_too_large`.
+- `note`: max 200 characters.
+- Max 21 stored releases per site (20 newest plus a live one older than those).
+
+### Site slug changes
+- Release HTML has relative links (API-011), so it works under any slug. A slug change in Content reaches the live site at once, without a new publish.
+- Publishing listens to `SiteChanged` (API-001) and records each slug a published site has had, with the time it stopped being current. API-021 uses this to redirect former slugs.
+
+### Side effects
+- Raised through `Hivesite.Publishing.Contracts` after the live pointer changes:
+  - `ReleasePublished { site_id, release_id, number, reason: "publish" | "rollback" }`.
+- A rollback to the release that is already live raises nothing.
+- `Hivesite.Publishing.Contracts` also offers `GetLiveRelease(site_id)` for other modules. Content does not use it in this version.
+
+### Operation names
+- Each endpoint has an operation name (`PublishSite`, `ListReleases`, `GetRelease`, `RollbackRelease`). It becomes the `operationId` and the C# method name, and is the name a tool call uses. It never changes; renaming one is a breaking change.
+
+## Agent use
+An AI agent acting for an owner, through tool calls or an MCP server, can publish, check and roll back a site with this spec alone. This section adds no behaviour; it says how the endpoints above are used safely.
+
+| Operation | Changes | Safe to repeat | Check the result with |
+|---|---|---|---|
+| `PublishSite` | Creates a release and makes it live. May prune the oldest release (see Retention). | No: every call creates a new release. | `is_live` and `number` in the response, or `ListReleases`. |
+| `ListReleases`, `GetRelease` | Nothing. | Yes. | – |
+| `RollbackRelease` | Moves the live pointer. Deletes nothing and leaves the draft as it is. | Yes: the same call again changes nothing. | `is_live` and `live_since` in the response, or `GetRelease`. |
+
+- Before `PublishSite`, an agent notes the newest `number` from `ListReleases` with `limit=1`. After a timeout or a lost response it calls that again: if the newest release has a higher `number` and is live, the publish went through and it does not publish again.
+- To undo a publish, an agent rolls back to the release that was live before it. It finds that release in `ListReleases` before it publishes.
+- Errors are machine-readable (STYLE.md): an agent branches on `code`. `site_has_no_pages` and `release_too_large` mean the draft must change first; publishing again without a change fails the same way.
+- A publish is a public change. An agent asks the owner before it calls `PublishSite` or `RollbackRelease`, unless the owner told it to go ahead.
+
+## Decisions
+- **Rollback moves a pointer, it does not copy.** Release numbers stay the owner's history: "release 2 is live again" is clearer than a new release 4 that equals release 2.
+- **`GET /releases/{id}` is added** to the plan's endpoint list, for the `Location` header and for reading one release.
+- **Publish always creates a release.** Skipping unchanged content would make a publish with a new `note` do nothing, which is surprising.
+- **There is no unpublish** in this version. A site that has published stays online with its live release. Unpublishing is a later story.
+- **There is no preview of an old release** in this version. The owner sees its number, note, theme and dates in the history.
+- **Publish is synchronous.** A job queue with a status to poll is a later story, when a site can be big enough to need it.
+- **Retention is 20 releases** so storage per site stays bounded (at most 21 × 50 MB).
+- **Kept simple for the first build: not in this version.** No `Idempotency-Key` on publish (every publish creates a release, as API-001 v3). Publishes and rollbacks of one site are not serialized: one owner publishes from one admin, so they are not expected to race. `number` is unique per site, so if two publishes do race only one is stored and the other fails. Each can come back with its own story.
+
+## Open questions
+- ADR 3: how is a release built? This spec calls the C# `RenderSite` (API-011), which is held. Under ADR 3 a release is a static build of Vue/Nuxt templates in a sandbox. Which contract does Publishing call, and what does it get back: files with paths and content types, as now?
+- ADR 3: is publish still synchronous? A sandboxed build may take longer than the Host's request timeout. If not, publish returns 202 with a release in a `building` state, and this spec needs that state, a failure state with an error `code`, and a way to poll. The retry check in Agent use then changes: an agent polls `GetRelease` until the release is live or failed.
+- ADR 3: do the limits hold for a static build (max 3,000 files and 50 MB per release)? A Nuxt build adds framework files per release.
+- ADR 3: `theme` and `theme_version` on a release. If templates replace the theme registry (API-010), what identifies the look a release was built with: theme key and version, a template version, or both?
+- ADR 3: Site slug changes and the home page slug. Both exist for path-based `/s/{site_slug}/` serving (API-021, held). With a per-site origin, does a slug change still reach the live site without a republish, and does a release still record its home page slug?

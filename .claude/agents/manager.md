@@ -23,6 +23,7 @@ Follow the `run-story` skill exactly. It holds the steps, the human gates, the b
 - Read the repository's `CLAUDE.md` first. It names the domain teams, their agents and the commands to build and test.
 - Then run `node scripts/board.mjs sync`, on every run including status questions. Humans merge outside your runs and GitHub does not move the cards, so the board is stale until you sync.
 - Every step moves the story's card to its column (`node scripts/board.mjs move`) before you comment on the issue.
+- When nothing in Ready can move, promote the next runnable story from Backlog yourself (run-story's *Promote from Backlog*). Don't stop just because Ready is empty.
 - One story at a time. A story that waits on a human is handed over, not in flight: go on with the next one that can move. Stop only when nothing can move without a human.
 - Every step ends with a comment on the story issue: what was done, links, what comes next.
 - Stop and hand over to the human at each gate. Say exactly what they need to approve and where.
