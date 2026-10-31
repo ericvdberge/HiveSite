@@ -1,19 +1,19 @@
 ---
 name: run-story
-description: The agent factory's playbook for taking GitHub stories from Ready to pull requests a human can merge, one at a time, until everything waits on a human. Use when asked to run, continue or check a story, or to run the next one on the board.
+description: The agent factory's playbook for taking GitHub stories from Backlog or Ready to pull requests a human can merge, one at a time, until everything waits on a human. Use when asked to run, continue or check a story, or to run the next one on the board.
 ---
 
 # Run a story
 
-One story moves through fixed steps. Each step has one owner, one output, and a board column. Humans own three gates; agents never pass a gate on their behalf.
+One story moves through fixed steps. Each step has one owner, one output, and a board column. Humans own the gates after Ready; agents never pass a gate on their behalf.
 
 ```
-Backlog ─(human)→ Ready → Spec review ─(human merges spec PR)→ Building → Agent review → Ready to merge ─(human merges)→ Done
+Backlog ─(manager or human)→ Ready → Spec review ─(human merges spec PR)→ Building → Agent review → Ready to merge ─(human merges)→ Done
 ```
 
 | Column | Owner | Output | Leaves when |
 |---|---|---|---|
-| Backlog | human, `pm` | story issue | a human moves it to **Ready** |
+| Backlog | `pm`, manager | story issue | the manager promotes it (see *Promote from Backlog*), or a human moves it to **Ready** |
 | Ready | manager | — | manager starts it |
 | Spec review | `api-architect` | spec PR (`spec/...` branch) | **a human merges the spec PR** with `status: approved` |
 | Building | `pm`, then the module's dev agent | task list, draft build PR | dev pushes a PR that builds and passes tests locally |
@@ -24,7 +24,7 @@ Backlog ─(human)→ Ready → Spec review ─(human merges spec PR)→ Buildin
 
 1. Read `CLAUDE.md`. Its **Factory** section names the teams (`team:*` label → dev agent), the build and test commands, and the board.
 2. Catch the board up with what humans did since the last run: `node scripts/board.mjs sync`. It moves closed issues to **Done** and stories with an open spec PR to **Spec review**. GitHub does not move cards on its own, so never skip this.
-3. Find the story: the issue number you were given, or the top item in **Ready**: `node scripts/board.mjs list Ready`.
+3. Find the story: the issue number you were given, or the top item in **Ready**: `node scripts/board.mjs list Ready`. A named story still in **Backlog** goes through *Promote from Backlog* first.
 4. Read the issue, its comments and its linked spec. Work out which step it is in from its column and the last manager comment.
 
 ## Steps
@@ -64,9 +64,21 @@ A **stop** in the steps ends work on that story, not the run. After each stop, a
 2. Pick, in this order:
    - a story whose gate a human passed since its last manager comment: its spec or design PR was merged, or a human answered a sketch or a question;
    - a story in **Building** or **Agent review** with no run going and no `needs-human` label;
-   - the top story in **Ready**.
-3. Skip stories that wait on a human: an open spec or design PR in **Spec review**, a sketch with no reply, **Ready to merge**, `needs-human`, or the review budget used. Never take a story from **Backlog**; humans move stories into Ready.
+   - the top story in **Ready**;
+   - the top story in **Backlog** that passes *Promote from Backlog*.
+3. Skip stories that wait on a human: an open spec or design PR in **Spec review**, a sketch with no reply, **Ready to merge**, `needs-human`, or the review budget used.
 4. Nothing left? End with one summary: each story you touched, where it stopped, and what the human must do, most urgent first.
+
+## Promote from Backlog
+
+When nothing in **Ready** can move, take work from **Backlog** yourself instead of stopping. `node scripts/board.mjs list Backlog`, lowest issue number first.
+
+1. Promote only an item an agent team can finish: `type:story` or `type:task` with a `team:content`, `team:rendering`, `team:publishing` or `team:design` label. Skip `type:case` (a human approves cases), parents with open sub-issues (run the children), `team:factory` and items with no team label (both are human work), and `needs-human`.
+2. Skip it when it depends on open work: its body says "Depends on #N", "Blocked by #N" or "after #N" and #N is not closed, or it needs a spec that waits on an open spec PR.
+3. No acceptance criteria yet? Start `pm` to refine it with the write-story skill first. If pm can't write testable criteria from what's there, add `needs-human`, comment the question, and skip it.
+4. Move it to **Ready** and comment: `**Promote** — moved from Backlog: <one line why it can move>. Next: spec.` Then run it from step 1.
+
+A human who moves a story back to **Backlog** while it's in flight is parking it: don't promote it again until its last human comment says to.
 
 ## Send back a PR with human review comments
 
