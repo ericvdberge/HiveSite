@@ -2,11 +2,11 @@
 id: API-003
 title: Block type registry
 domain: content
-status: approved
+status: in review
 owner: api-architect
 stories: [14]
 depends_on: [API-001]
-version: 2
+version: 3
 ---
 
 ## Purpose
@@ -19,7 +19,9 @@ Auth, errors, validation and lists follow the shared conventions in API-001.
 ### GET /block-types
 Auth: owner
 
-Query: `limit` (1 to 100, default 20), `cursor`.
+Query: `limit` (1 to 100, default 20), `cursor` (from `next_cursor` of the previous page).
+
+Block types have no id; their key is `type`. So `next_cursor` is the `type` of the last item on the page, or `null` on the last page. The next page starts with the block type after `cursor` in the order of the table in Block types.
 
 Request
 ```
@@ -70,9 +72,25 @@ The response holds all seven block types in the order of the table in Block type
 }
 ```
 
+Paged example. With `limit=3`, the first page holds `hero`, `rich_text` and `image`.
+```
+GET /block-types?limit=3
+```
+```json
+{
+  "items": [
+    { "type": "hero", "name": "Hero", "description": "…", "version": 1, "schema": { "…": "see Block types" } },
+    { "type": "rich_text", "name": "Rich text", "description": "…", "version": 1, "schema": { "…": "see Block types" } },
+    { "type": "image", "name": "Image", "description": "…", "version": 1, "schema": { "…": "see Block types" } }
+  ],
+  "next_cursor": "image"
+}
+```
+`GET /block-types?limit=3&cursor=image` returns `gallery`, `card_list` and `contact_form` with `next_cursor` `"contact_form"`. `GET /block-types?limit=3&cursor=contact_form` returns `embed` with `next_cursor` `null`.
+
 Errors
 - 400 `invalid_request`: `limit` is not an integer from 1 to 100.
-- 400 `invalid_cursor`
+- 400 `invalid_cursor`: `cursor` is not the `type` of one of the seven block types. `field` is `cursor`.
 - 401 `unauthenticated`
 
 ## Tiptap mapping
