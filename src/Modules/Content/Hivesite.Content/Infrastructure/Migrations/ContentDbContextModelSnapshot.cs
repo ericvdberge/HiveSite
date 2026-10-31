@@ -23,6 +23,53 @@ namespace Hivesite.Content.Infrastructure.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("Hivesite.Content.Infrastructure.PageDao", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("createdAt");
+
+                    b.Property<int>("MenuOrder")
+                        .HasColumnType("integer")
+                        .HasColumnName("menuOrder");
+
+                    b.Property<Guid>("SiteId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("siteId");
+
+                    b.Property<string>("Slug")
+                        .IsRequired()
+                        .HasMaxLength(60)
+                        .HasColumnType("character varying(60)")
+                        .HasColumnName("slug");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(320)
+                        .HasColumnType("character varying(320)")
+                        .HasColumnName("title");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updatedAt");
+
+                    b.HasKey("Id")
+                        .HasName("pkPages");
+
+                    b.HasIndex("SiteId", "MenuOrder")
+                        .HasDatabaseName("ixPagesSiteIdMenuOrder");
+
+                    b.HasIndex("SiteId", "Slug")
+                        .IsUnique()
+                        .HasDatabaseName("ixPagesSiteIdSlug");
+
+                    b.ToTable("pages", "content");
+                });
+
             modelBuilder.Entity("Hivesite.Content.Infrastructure.SiteDao", b =>
                 {
                     b.Property<Guid>("Id")
@@ -75,6 +122,16 @@ namespace Hivesite.Content.Infrastructure.Migrations
                         .HasDatabaseName("ixSitesOwnerIdCreatedAtId");
 
                     b.ToTable("sites", "content");
+                });
+
+            modelBuilder.Entity("Hivesite.Content.Infrastructure.PageDao", b =>
+                {
+                    b.HasOne("Hivesite.Content.Infrastructure.SiteDao", null)
+                        .WithMany()
+                        .HasForeignKey("SiteId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fkPagesSiteId");
                 });
 #pragma warning restore 612, 618
         }

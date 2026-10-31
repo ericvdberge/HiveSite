@@ -44,6 +44,25 @@ internal sealed class RecordingHandler : ISiteChangedHandler
     }
 }
 
+internal sealed class RecordingPageHandler : IPageChangedHandler, IMenuChangedHandler
+{
+    public ConcurrentQueue<PageChanged> Pages { get; } = new();
+
+    public ConcurrentQueue<MenuChanged> Menus { get; } = new();
+
+    public Task HandleAsync(PageChanged change, CancellationToken cancellationToken)
+    {
+        Pages.Enqueue(change);
+        return Task.CompletedTask;
+    }
+
+    public Task HandleAsync(MenuChanged change, CancellationToken cancellationToken)
+    {
+        Menus.Enqueue(change);
+        return Task.CompletedTask;
+    }
+}
+
 /// <summary>Real time plus an offset that only grows, or a frozen instant, so tests control the second.</summary>
 internal sealed class TestClock : TimeProvider
 {
@@ -80,6 +99,8 @@ public sealed class ContentApi : IAsyncDisposable
 
     internal RecordingHandler Events { get; } = new();
 
+    internal RecordingPageHandler PageEvents { get; } = new();
+
     internal TestClock Clock { get; } = new();
 
     [AssemblyInitialize]
@@ -106,6 +127,8 @@ public sealed class ContentApi : IAsyncDisposable
                 {
                     services.AddAuthentication("Test").AddScheme<AuthenticationSchemeOptions, HeaderAuthenticationHandler>("Test", null);
                     services.AddSingleton<ISiteChangedHandler>(api.Events);
+                    services.AddSingleton<IPageChangedHandler>(api.PageEvents);
+                    services.AddSingleton<IMenuChangedHandler>(api.PageEvents);
                     services.AddSingleton<TimeProvider>(api.Clock);
                 });
             });
@@ -159,6 +182,25 @@ public sealed class ContentApi : IAsyncDisposable
         Assert.AreEqual(HttpStatusCode.Created, response.Status);
         return response;
     }
+
+    /// <summary>Creates a page and returns the created body. Without a slug, a fresh one.</summary>
+    public async Task<ApiResponse> CreatePageAsync(string owner, string siteId, string? slug = null)
+    {
+        var response = await SendAsync(HttpMethod.Post, $"/sites/{siteId}/pages", owner, $$"""{"title":"Page","slug":"{{slug ?? NewSlug()}}"}""");
+        Assert.AreEqual(HttpStatusCode.Created, response.Status);
+        return response;
+    }
+
+    public Task<ApiResponse> PutMenuAsync(string? owner, string siteId, params string[] pageIds) =>
+        SendAsync(HttpMethod.Put, $"/sites/{siteId}/menu", owner, "{\"page_ids\":[" + string.Join(',', pageIds.Select(i => $"\"{i}\"")) + "]}");
+
+    /// <summary>The ids of the site's pages in list order.</summary>
+    public async Task<List<string>> MenuAsync(string owner, string siteId) =>
+        (await GetAsync(owner, $"/sites/{siteId}/pages?limit=100")).Node("items").EnumerateArray().Select(i => i.GetProperty("id").GetString()!).ToList();
+
+    public int PageEventsFor(string pageId) => PageEvents.Pages.Count(e => e.PageId == pageId);
+
+    public int MenuEventsFor(string siteId) => PageEvents.Menus.Count(e => e.SiteId == siteId);
 
     public async ValueTask DisposeAsync()
     {
