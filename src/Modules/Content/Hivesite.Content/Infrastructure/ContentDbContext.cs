@@ -8,8 +8,11 @@ public sealed class ContentDbContext(DbContextOptions<ContentDbContext> options)
 {
     public const string Schema = "content";
     public const string SiteSlugIndex = "ixSitesSlug";
+    public const string PageSlugIndex = "ixPagesSiteIdSlug";
 
     public DbSet<SiteDao> Sites => Set<SiteDao>();
+
+    public DbSet<PageDao> Pages => Set<PageDao>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -26,6 +29,19 @@ public sealed class ContentDbContext(DbContextOptions<ContentDbContext> options)
             site.HasIndex(s => new { s.OwnerId, s.CreatedAt, s.Id })
                 .IsDescending(false, true, false)
                 .HasDatabaseName("ixSitesOwnerIdCreatedAtId");
+        });
+
+        modelBuilder.Entity<PageDao>(page =>
+        {
+            page.ToTable("pages");
+            page.HasKey(p => p.Id).HasName("pkPages");
+            page.Property(p => p.Id).ValueGeneratedNever();
+            page.Property(p => p.Title).HasMaxLength(320); // 80 code points, up to 4 UTF-16 chars each
+            page.Property(p => p.Slug).HasMaxLength(60);
+            page.HasOne<SiteDao>().WithMany().HasForeignKey(p => p.SiteId).HasConstraintName("fkPagesSiteId");
+            page.HasIndex(p => new { p.SiteId, p.Slug }).IsUnique().HasDatabaseName(PageSlugIndex);
+            // Serves GET /sites/{id}/pages. Not unique: a menu change moves several orders at once.
+            page.HasIndex(p => new { p.SiteId, p.MenuOrder }).HasDatabaseName("ixPagesSiteIdMenuOrder");
         });
     }
 }
