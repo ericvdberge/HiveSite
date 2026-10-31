@@ -12,7 +12,7 @@ Needs `gh` signed in with the `project` scope (`gh auth refresh -s project`) and
 
 ## The page
 
-The sidebar holds the four views (with the number waiting on you), the manager's state, **Run next story** and **Message the manager**. On a phone it folds into a bar at the top.
+The sidebar holds the four views (with the number waiting on you), the manager's state, **Run until my turn** and **Message the manager**. On a phone it folds into a bar at the top.
 
 1. **Your turn.** Everything waiting on you, most urgent first. The top item is open.
    - Ranking: the factory asked you something (`needs-human`), then a run that failed, then a spec or design to approve (it blocks building), then a build PR to merge, then a case to approve.
@@ -56,13 +56,15 @@ Work started from a Claude chat isn't shown as *working*. You see it in the issu
 | Send back with my notes | `gh pr review --comment`, then the manager with run-story's *Send back* section |
 | Send and continue | `gh issue comment`, then the manager continues the story with your comment |
 | Comment on a line | A review comment on the PR, through the GitHub API |
-| Run next story / Run this story | The manager: "Use the run-story skill to run …" |
+| Run until my turn / Run this story | The manager: "Use the run-story skill to run …" |
 | New story | The manager, using write-story, puts it in Backlog |
 | Message the manager | The manager, with your words |
 | Column | `node scripts/board.mjs move` |
 | Sync board | `node scripts/board.mjs sync` |
 
-One story runs at a time, as run-story asks. Anything else that would start a second story run waits in a queue and starts when the running one ends; you can stop it while it waits. Messages run alongside.
+Every story run keeps going until everything waits on you. When a story stops at a gate (a spec, a design, a sketch, a merge or `needs-human`), the manager goes on with the next story that can move, and ends with a summary of what waits on you. It never takes a story from Backlog, and you can stop a run from its log.
+
+One story is worked at a time, as run-story asks. Anything else that would start a second story run waits in a queue and starts when the running one ends; you can stop it while it waits. Messages run alongside.
 
 Merging and approving are human gates. The server only does them when you press the button, never because an agent asked.
 
