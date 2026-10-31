@@ -311,7 +311,8 @@ function addLog(e) {
 /* ---------- Claude runs ---------- */
 
 const runs = new Map();
-for (const f of readdirSync(RUNS_DIR).filter(f => f.endsWith(".json"))) {
+// Run files are named after their id, which starts with the date.
+for (const f of readdirSync(RUNS_DIR).filter(f => /^\d.*\.json$/.test(f))) {
   try {
     const r = JSON.parse(readFileSync(join(RUNS_DIR, f), "utf8"));
     // Nothing starts by itself when the server restarts.
