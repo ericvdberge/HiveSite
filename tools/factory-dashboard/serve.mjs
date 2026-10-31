@@ -164,22 +164,105 @@ async function fetchBoard() {
   };
 }
 
-// Overlapping requests share one read; a read under 15 s old is reused.
-let cache, reading;
-function board(fresh) {
-  if (!fresh && cache && Date.now() - cache.at < 15_000) return Promise.resolve(cache);
-  reading ??= fetchBoard().then(b => (cache = b)).finally(() => { reading = undefined; });
-  return reading;
+/* ---------- GitHub cache ---------- */
+
+// GitHub gives 5,000 GraphQL points an hour, shared with every `gh` call the
+// agent runs make. So the board is read only when something changed. A
+// conditional call to the repo's events feed tells: a 304 costs nothing. A card
+// moved on github.com makes no event, so the board is also read every 10
+// minutes. Runs and buttons on this page mark it dirty right away. Everything
+// is kept on disk, so a restart paints from the last read.
+const CACHE_FILE = join(RUNS_DIR, "github-cache.json");
+const BOARD_MAX_AGE = 10 * 60e3, CHECK_EVERY = 60e3, MIN_GAP = 10e3, LOW_GAP = 5 * 60e3, LOW_POINTS = 500;
+let store = { board: null, etag: null, details: {} };
+try { store = { ...store, ...JSON.parse(readFileSync(CACHE_FILE, "utf8")) }; } catch {}
+let dirty = !store.board, checkedAt = 0, pausedUntil = 0, lastError = null, reading, saving;
+const persist = () => { clearTimeout(saving); saving = setTimeout(() => writeFileSync(CACHE_FILE, JSON.stringify(store)), 500); };
+const isRateLimit = e => /rate limit/i.test(e?.message ?? "");
+
+// Whether anything happened in the repository since the last check.
+async function repoChanged() {
+  if (Date.now() - checkedAt < CHECK_EVERY) return false;
+  checkedAt = Date.now();
+  const etagArgs = store.etag ? ["-H", `If-None-Match: ${store.etag}`] : [];
+  // gh exits non-zero on a 304; the headers are on stdout either way.
+  const out = await new Promise(ok => execFile("gh", ["api", "-i", ...etagArgs, `repos/${cfg.repo}/events?per_page=1`], { cwd: ROOT, windowsHide: true }, (err, stdout) => ok(stdout || "")));
+  if (/^HTTP\/\S+ 304/m.test(out)) return false;
+  const etag = out.match(/^etag:\s*(.+)$/im)?.[1]?.trim();
+  if (!etag || etag === store.etag) return false;
+  store.etag = etag;
+  persist();
+  return true;
 }
 
-async function issueDetail(n) {
-  const d = await ghJson("issue", "view", String(n), "--repo", cfg.repo, "--json", "number,title,body,state,url,labels,comments,createdAt,author");
-  d.comments = d.comments.slice(-12).map(c => ({ author: c.author?.login, at: c.createdAt, body: c.body }));
-  return d;
+// When the GraphQL budget comes back. This query is answered even at zero.
+async function graphqlReset() {
+  try { return Date.parse(JSON.parse(await run("gh", ["api", "graphql", "-f", "query={ rateLimit { resetAt } }"])).data.rateLimit.resetAt); }
+  catch { return Date.now() + 5 * 60e3; }
 }
+
+const withState = b => b && { ...b, pausedUntil: pausedUntil > Date.now() ? pausedUntil : null, error: lastError };
+
+// `fresh` comes from this page after a run or a button; it still waits MIN_GAP
+// so several open tabs don't each read the board.
+async function board(fresh) {
+  const b = store.board, now = Date.now();
+  if (now < pausedUntil) { if (b) return withState(b); throw new Error(lastError); }
+  const gap = (b?.rate?.remaining ?? LOW_POINTS) < LOW_POINTS ? LOW_GAP : MIN_GAP;
+  const due = !b || ((fresh || dirty || now - b.at > BOARD_MAX_AGE || await repoChanged()) && now - b.at > gap);
+  if (!due) return withState(b);
+  reading ??= fetchBoard()
+    .then(nb => { store.board = nb; dirty = false; lastError = null; persist(); })
+    .catch(async e => {
+      lastError = e.message;
+      if (isRateLimit(e)) pausedUntil = await graphqlReset();
+      else pausedUntil = Date.now() + 60e3;
+    })
+    .finally(() => { reading = undefined; });
+  await reading;
+  if (!store.board) throw new Error(lastError);
+  return withState(store.board);
+}
+
+// Issue, PR and spec reads, kept until the thing they show changes: an issue or
+// PR until its updatedAt on the board moves, a spec until its branch does.
+async function detail(key, stamp, read) {
+  const hit = store.details[key];
+  if (hit && (stamp ? hit.stamp === stamp : Date.now() - hit.at < 5 * 60e3)) return hit.value;
+  if (hit && Date.now() < pausedUntil) return hit.value;
+  try {
+    const value = await read();
+    store.details[key] = { stamp, at: Date.now(), value };
+    const keys = Object.keys(store.details);
+    if (keys.length > 200) for (const k of keys.sort((a, b) => store.details[a].at - store.details[b].at).slice(0, keys.length - 200)) delete store.details[k];
+    persist();
+    return value;
+  } catch (e) {
+    if (isRateLimit(e)) pausedUntil = await graphqlReset();
+    if (hit) return hit.value;
+    throw e;
+  }
+}
+const cardStamp = n => store.board?.cards.find(c => c.number === n)?.updatedAt;
+const prStamp = n => store.board?.prs.find(p => p.number === n)?.updatedAt;
+const branchStamp = ref => ref ? store.board?.prs.find(p => p.branch === ref)?.updatedAt : store.etag;
+
+// Details go through REST, which has its own hourly budget; GraphQL is left for the board.
+const issueDetail = n => detail(`issue:${n}`, cardStamp(n), async () => {
+  const [i, comments] = await Promise.all([
+    ghJson("api", `repos/${cfg.repo}/issues/${n}`),
+    ghJson("api", `repos/${cfg.repo}/issues/${n}/comments?per_page=100`),
+  ]);
+  return {
+    number: i.number, title: i.title, body: i.body ?? "", state: i.state.toUpperCase(), url: i.html_url, createdAt: i.created_at,
+    author: { login: i.user?.login }, labels: i.labels.map(l => ({ name: l.name })),
+    comments: comments.slice(-12).map(c => ({ author: c.user?.login, at: c.created_at, body: c.body })),
+  };
+});
 
 // A spec file by id (API-005) at a ref: the PR branch while in review, main once merged.
-async function spec(id, ref) {
+const spec = (id, ref) => detail(`spec:${id}@${ref || "main"}`, branchStamp(ref), () => readSpec(id, ref));
+async function readSpec(id, ref) {
   const at = encodeURIComponent(ref || "HEAD");
   const tree = await ghJson("api", `repos/${cfg.repo}/git/trees/${at}?recursive=1`);
   const file = tree.tree.find(f => f.type === "blob" && f.path.startsWith("specs/") && f.path.split("/").pop().toUpperCase().startsWith(id.toUpperCase()));
@@ -188,9 +271,10 @@ async function spec(id, ref) {
   return { id, ref, path: file.path, url: `https://github.com/${cfg.repo}/blob/${ref || "main"}/${file.path}`, text };
 }
 
-async function prFiles(n) {
+const prFiles = n => detail(`pr:${n}`, prStamp(n), () => readPrFiles(n));
+async function readPrFiles(n) {
   const [pr, files, comments] = await Promise.all([
-    ghJson("pr", "view", String(n), "--repo", cfg.repo, "--json", "number,title,url,state,isDraft,headRefName,headRefOid,body,reviewDecision,additions,deletions"),
+    ghJson("api", `repos/${cfg.repo}/pulls/${n}`).then(p => ({ number: p.number, title: p.title, url: p.html_url, state: p.merged_at ? "MERGED" : p.state.toUpperCase(), isDraft: p.draft, headRefName: p.head.ref, headRefOid: p.head.sha, body: p.body ?? "", additions: p.additions, deletions: p.deletions })),
     ghJson("api", `repos/${cfg.repo}/pulls/${n}/files?per_page=100`),
     ghJson("api", `repos/${cfg.repo}/pulls/${n}/comments?per_page=100`),
   ]);
@@ -227,7 +311,8 @@ function addLog(e) {
 /* ---------- Claude runs ---------- */
 
 const runs = new Map();
-for (const f of readdirSync(RUNS_DIR).filter(f => f.endsWith(".json"))) {
+// Run files are named after their id, which starts with the date.
+for (const f of readdirSync(RUNS_DIR).filter(f => /^\d.*\.json$/.test(f))) {
   try {
     const r = JSON.parse(readFileSync(join(RUNS_DIR, f), "utf8"));
     // Nothing starts by itself when the server restarts.
@@ -333,7 +418,7 @@ function startRun(r) {
     if (/authenticat|oauth|log ?in|401/i.test(r.result ?? "")) { r.result = `${SIGN_IN}\n\n${r.result}`; auth.at = 0; }
     if (code !== 0 && err.trim()) r.rows.push({ kind: "error", at: Date.now(), text: brief(err, 2000) });
     addLog({ who: "manager", issue: r.issue, run: id, msg: `${r.label}: ${r.status}${r.result ? " · " + brief(r.result, 140) : ""}` });
-    cache = undefined;
+    dirty = true;
     save(r);
     nextQueued();
   });
@@ -411,8 +496,8 @@ async function act(b) {
       addLog({ who: "you", issue: b.issue ?? null, msg: `Merged PR #${b.pr}` });
       break;
     case "pr-comment": {
-      const pr = await ghJson("pr", "view", String(b.pr), "--repo", cfg.repo, "--json", "headRefOid");
-      await run("gh", ["api", "-X", "POST", `repos/${cfg.repo}/pulls/${b.pr}/comments`, "-f", `body=${b.body}`, "-f", `commit_id=${pr.headRefOid}`, "-f", `path=${b.path}`, "-F", `line=${b.line}`, "-f", "side=RIGHT"]);
+      const sha = (await run("gh", ["api", `repos/${cfg.repo}/pulls/${b.pr}`, "--jq", ".head.sha"])).trim();
+      await run("gh", ["api", "-X", "POST", `repos/${cfg.repo}/pulls/${b.pr}/comments`, "-f", `body=${b.body}`, "-f", `commit_id=${sha}`, "-f", `path=${b.path}`, "-F", `line=${b.line}`, "-f", "side=RIGHT"]);
       addLog({ who: "you", issue: b.issue ?? null, msg: `Commented on PR #${b.pr} ${b.path}:${b.line}` });
       break;
     }
@@ -440,7 +525,7 @@ async function act(b) {
         await run("gh", ["issue", "edit", String(b.issue), "--repo", cfg.repo, "--add-label", "approved"]);
         addLog({ who: "you", issue: b.issue, msg: `Approved case #${b.issue}` });
       }
-      cache = undefined;
+      dirty = true;
       // A merged build PR closes its story: nothing left to run.
       if (b.then === "story") return { run: startOrQueue(PROMPTS["run-story"]({ issue: b.issue })) };
       if (b.then === "case") return { run: startOrQueue({ label: `Stories for case #${b.issue}`, kind: "ask", issue: b.issue, prompt: `I approved case #${b.issue}. Start pm to write its stories with the write-story skill, as sub-issues of #${b.issue}, and put them on the board in Backlog.` }) };
@@ -452,7 +537,7 @@ async function act(b) {
       return { run: startOrQueue(p) };
     }
   }
-  cache = undefined;
+  dirty = true;
   return out;
 }
 

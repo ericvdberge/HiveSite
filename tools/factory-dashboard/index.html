@@ -352,7 +352,9 @@ function rail(){
 }
 function banners(){
   let h="";
-  if(S.error)h+=`<div class="banner crit">GitHub can't be read: ${esc(S.error)}</div>`;
+  if(S.gh?.pausedUntil&&S.gh.pausedUntil>Date.now())h+=`<div class="banner">GitHub's hourly limit is used up. This is the board from ${ago(S.gh.at)}; it reads again after ${clock(S.gh.pausedUntil)}.</div>`;
+  else if(S.gh?.error)h+=`<div class="banner">This is the board from ${ago(S.gh.at)}. GitHub can't be read right now: ${esc(S.gh.error)}</div>`;
+  else if(S.error)h+=`<div class="banner crit">GitHub can't be read: ${esc(S.error)}</div>`;
   if(S.claude&&!S.claude.loggedIn)h+=`<div class="banner crit"><span>The agents can't start: the <span class="mono">claude</span> CLI isn't signed in. Run <span class="mono">claude auth login</span> in a terminal, with the account you want the agents to use.</span><span class="spacer"></span><button class="small" data-act="check-claude">Check again</button></div>`;
   const stale=all().filter(x=>x.stale);
   if(stale.length)h+=`<div class="banner"><span>${stale.length} ${stale.length===1?"card sits":"cards sit"} in the wrong column on GitHub (${stale.slice(0,3).map(x=>`#${x.number}`).join(", ")}).</span><span class="spacer"></span><button class="small" data-act="sync">Sync board</button></div>`;
@@ -598,8 +600,11 @@ document.addEventListener("click",async e=>{
 
 /* ================= data ================= */
 async function loadClaude(fresh){try{S.claude=await api("/api/claude"+(fresh?"?fresh":""))}catch{}draw()}
+// The last board is kept in this browser too, so a reload paints at once.
+const SAVED="factory.board";
+function savedBoard(){try{return JSON.parse(localStorage.getItem(SAVED))}catch{return null}}
 async function loadBoard(fresh){
-  try{S.gh=await api("/api/board"+(fresh?"?fresh":""));S.error=null}catch(e){S.error=e.message}
+  try{S.gh=await api("/api/board"+(fresh?"?fresh":""));S.error=null;try{localStorage.setItem(SAVED,JSON.stringify(S.gh))}catch{}}catch(e){S.error=e.message}
   S.loaded=true;derive();draw();
 }
 async function loadRuns(){
@@ -616,9 +621,12 @@ async function loadRuns(){
 }
 (async function boot(){
   route();
+  const saved=savedBoard();
+  if(saved?.cards){S.gh=saved;S.loaded=true;derive();draw()}
   await Promise.all([loadBoard(),loadRuns(),loadClaude()]);
   setInterval(()=>{if(document.visibilityState==="visible")loadClaude()},60e3);
-  // The board every minute while visible (about 2 GraphQL points a read);
+  // The board every minute while visible. The server answers from its cache and
+  // only reads GitHub when something changed (see serve.mjs, GitHub cache);
   // runs every 3 s while one is going or waiting, else every 20 s.
   setInterval(()=>{if(document.visibilityState==="visible")loadBoard()},60e3);
   setInterval(()=>{if(S.runs.some(r=>r.status==="running"||r.status==="queued"))loadRuns()},3e3);
