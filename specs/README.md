@@ -8,7 +8,7 @@
 |---|---|---|---|---|
 | [API-001](content/API-001-sites.md) | Sites | built | #12 | — |
 | [API-002](content/API-002-pages-and-menu.md) | Pages and menu order | built | #13 | API-001 |
-| [API-003](content/API-003-block-types.md) | Block type registry | approved | #14 | API-001 |
+| [API-003](content/API-003-block-types.md) | Block type registry | in review | #14 | API-001 |
 | [API-004](content/API-004-page-blocks.md) | Page blocks | approved | #15 | API-001, API-002, API-003 |
 | [API-005](content/API-005-entities.md) | Entities | in review | #36 | API-001, API-002, API-003, API-004 |
 
@@ -30,8 +30,8 @@
 ## By status
 
 - **draft** (3): API-011, API-012, API-021
-- **in review** (3): API-005, API-010, API-020
-- **approved** (2): API-003, API-004
+- **in review** (4): API-003, API-005, API-010, API-020
+- **approved** (1): API-004
 - **built** (2): API-001, API-002
 
 ## Open questions
