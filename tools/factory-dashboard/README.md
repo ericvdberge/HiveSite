@@ -95,10 +95,12 @@ A run's log shows its session, so you can continue it in a terminal with `claude
 ## Files
 
 - `serve.mjs`: the local server.
-  - Reads GitHub with one GraphQL query of about 2 points, reused for 15 seconds.
+  - Reads the board with one GraphQL query of a few points, and only when something changed: a conditional call to the repo's events feed (free when nothing happened), a run ending or a button on the page. It also reads every 10 minutes, for cards moved on github.com. Below 500 points left it reads at most every 5 minutes.
+  - Keeps the board and every issue, PR and spec it showed in `.runs/github-cache.json`. An issue or PR is read again only when its `updatedAt` moves; a spec when its branch does. A restart starts from that file.
+  - When GitHub's hourly limit runs out, it waits for the reset and serves the last board; the page says until when.
   - Runs `gh` and the board script.
   - Starts, queues and stops `claude` runs, and keeps their logs and a short action log in `.runs/`, which git ignores.
-- `index.html`: the page, in the Hivesite brand. It re-reads the board every minute while it's visible, after every action, and when a run ends.
+- `index.html`: the page, in the Hivesite brand. It asks the server for the board every minute while it's visible, after every action, and when a run ends. It keeps the last board in `localStorage`, so a reload paints at once.
 
 The server listens on 127.0.0.1 only and refuses POST requests from other origins.
 
