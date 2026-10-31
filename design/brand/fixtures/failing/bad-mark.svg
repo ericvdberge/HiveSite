@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 58 64">
+  <!-- Failing fixture for check-brand.mjs: not well-formed (the <g> is never closed). -->
+  <title>Broken mark</title>
+  <g>
+    <path d="M29 2 L55 17 L55 47 L29 62 L3 47 L3 17 Z" fill="#CDAE74"/>
+</svg>

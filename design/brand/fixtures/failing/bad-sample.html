@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Failing fixture for check-brand.mjs</title>
+<!-- Breaks: an external stylesheet and script, an off-brand color, a 200 ms step, a 150 ms CSS transition, no reduced-motion branch. -->
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond">
+<style>
+body{background:#0D0C0A}
+button{transition:color .15s ease}
+</style>
+<script src="https://cdn.example.com/anim.js"></script>
+</head>
+<body>
+<button type="button">Play again</button>
+<script>
+  const DURATIONS = {
+    trace:    { start: 0,   ms: 850 },
+    lightOut: { start: 850, ms: 200 }
+  };
+</script>
+</body>
+</html>

@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="dark">
+<title>Hivesite loader</title>
+<!-- One self-contained file: no external scripts, styles, fonts or images. Fonts fall back to Georgia and the system sans. -->
+<style>
+:root{
+  color-scheme:dark;
+  --ink:#100E0B;--panel:#17140F;--champagne:#CDAE74;--bronze:#94733A;--ivory:#F5F1E8;--stone:#A69D8C;
+  --display:"Cormorant Garamond","Iowan Old Style",Georgia,serif;
+  --text:"Hanken Grotesk",ui-sans-serif,system-ui,sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+}
+*{box-sizing:border-box}
+body{margin:0;min-height:100vh;display:grid;place-items:center;padding:32px 20px;background:var(--ink);color:var(--ivory);font-family:var(--text);font-size:16px;line-height:1.6}
+main{width:min(100%,720px);display:grid;gap:16px}
+.eyebrow{margin:0;font-family:var(--mono);font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--champagne)}
+h1{margin:0;font-family:var(--display);font-size:40px;font-weight:500;line-height:1.1}
+h2{margin:0;font-family:var(--mono);font-size:12px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;color:var(--stone)}
+.stage{background:var(--panel);border-radius:18px;padding:40px 20px;display:grid;justify-items:center;gap:12px}
+.loader-lg{display:block;width:160px;height:160px}
+.label{margin:0;font-family:var(--display);font-style:italic;font-size:20px;color:var(--stone)}
+.row{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:28px}
+.mark-24{display:block;width:24px;height:24px;flex:none}
+button{display:inline-flex;align-items:center;gap:10px;min-height:44px;padding:10px 20px 10px 14px;border:1px solid var(--champagne);border-radius:999px;background:transparent;color:var(--ivory);font:600 15px/1 var(--text);cursor:pointer}
+button:hover{text-decoration:underline;text-underline-offset:.2em}
+button:focus-visible{outline:2px solid var(--ivory);outline-offset:3px}
+.note{margin:0;color:var(--stone);font-size:14px}
+</style>
+</head>
+<body>
+<main>
+  <p class="eyebrow">Hivesite · Loader · 2.2 s loop</p>
+  <h1>While a site renders or publishes</h1>
+
+  <!-- The markup below is the static logo, so the page is complete without scripts and under reduced motion. -->
+  <section class="stage" aria-labelledby="lg-heading">
+    <h2 id="lg-heading">Loader</h2>
+    <div role="status">
+      <svg class="loader-lg" data-loader viewBox="0 0 120 120" aria-hidden="true" focusable="false">
+        <defs>
+          <radialGradient id="glow-lg">
+            <stop offset="0" stop-color="#F5F1E8"/>
+            <stop offset="0.35" stop-color="#CDAE74" stop-opacity="0.8"/>
+            <stop offset="1" stop-color="#CDAE74" stop-opacity="0"/>
+          </radialGradient>
+        </defs>
+        <path class="hex" d="M60 20 L94.64 40 L94.64 80 L60 100 L25.36 80 L25.36 40Z" fill="#CDAE74" fill-opacity="1" stroke="#CDAE74" stroke-width="1.4" stroke-linejoin="round" pathLength="1" stroke-dasharray="1" stroke-dashoffset="0"/>
+        <text class="H" x="60" y="71" text-anchor="middle" font-family="Cormorant Garamond, Georgia, serif" font-weight="600" font-size="31" fill="#100E0B" opacity="1">H</text>
+        <circle class="light" r="8" fill="url(#glow-lg)" opacity="0"/>
+      </svg>
+      <p class="label">Building your site…</p>
+    </div>
+  </section>
+
+  <!-- 24 px: no text label on the mark, a heavier stroke and a larger H so it stays legible. -->
+  <section class="stage" aria-labelledby="sm-heading">
+    <h2 id="sm-heading">Small, 24 px</h2>
+    <div class="row">
+      <svg class="mark-24" data-loader viewBox="0 0 24 24" role="img" aria-label="Building" focusable="false">
+        <defs>
+          <radialGradient id="glow-sm-1">
+            <stop offset="0" stop-color="#F5F1E8"/>
+            <stop offset="0.35" stop-color="#CDAE74" stop-opacity="0.8"/>
+            <stop offset="1" stop-color="#CDAE74" stop-opacity="0"/>
+          </radialGradient>
+        </defs>
+        <path class="hex" d="M12 1.5 L21.09 6.75 L21.09 17.25 L12 22.5 L2.91 17.25 L2.91 6.75Z" fill="#CDAE74" fill-opacity="1" stroke="#CDAE74" stroke-width="1.6" stroke-linejoin="round" pathLength="1" stroke-dasharray="1" stroke-dashoffset="0"/>
+        <text class="H" x="12" y="15.6" text-anchor="middle" font-family="Cormorant Garamond, Georgia, serif" font-weight="700" font-size="10.5" fill="#100E0B" opacity="1">H</text>
+        <circle class="light" r="3.5" fill="url(#glow-sm-1)" opacity="0"/>
+      </svg>
+      <button type="button" aria-busy="true">
+        <svg class="mark-24" data-loader viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <defs>
+            <radialGradient id="glow-sm-2">
+              <stop offset="0" stop-color="#F5F1E8"/>
+              <stop offset="0.35" stop-color="#CDAE74" stop-opacity="0.8"/>
+              <stop offset="1" stop-color="#CDAE74" stop-opacity="0"/>
+            </radialGradient>
+          </defs>
+          <path class="hex" d="M12 1.5 L21.09 6.75 L21.09 17.25 L12 22.5 L2.91 17.25 L2.91 6.75Z" fill="#CDAE74" fill-opacity="1" stroke="#CDAE74" stroke-width="1.6" stroke-linejoin="round" pathLength="1" stroke-dasharray="1" stroke-dashoffset="0"/>
+          <text class="H" x="12" y="15.6" text-anchor="middle" font-family="Cormorant Garamond, Georgia, serif" font-weight="700" font-size="10.5" fill="#100E0B" opacity="1">H</text>
+          <circle class="light" r="3.5" fill="url(#glow-sm-2)" opacity="0"/>
+        </svg>
+        <span>Publishing</span>
+      </button>
+    </div>
+  </section>
+
+  <p class="note" id="reduced-note" hidden>Reduced motion is on, so the loader shows the static logo.</p>
+</main>
+
+<script>
+(() => {
+  'use strict';
+
+  // Every animated step of one loop, in milliseconds from the start of the loop.
+  // check-brand.mjs reads this table: no `ms` may be under 300.
+  const DURATIONS = {
+    lightIn:  { start: 0,    ms: 300 }, // the light fades in as it sets off (plan.html: about 110 ms)
+    trace:    { start: 0,    ms: 990 }, // the light traces the hexagon, sine ease
+    lightOut: { start: 990,  ms: 300 }, // the light fades out where the trace ends (plan.html: about 275 ms)
+    fill:     { start: 990,  ms: 330 }, // the fill and the H appear together
+    release:  { start: 1650, ms: 550 }  // the fill fades out and the stroke unwinds, ready for the next loop
+  };
+  const CYCLE_MS = 2200; // one loop; 1320 to 1650 is a still hold
+
+  const clamp = (x) => Math.max(0, Math.min(1, x));
+  // Slow in, slow out.
+  const io = (x) => { x = clamp(x); return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2; };
+  const sine = (x) => 0.5 - 0.5 * Math.cos(Math.PI * clamp(x));
+  const at = (step, t) => (t - DURATIONS[step].start) / DURATIONS[step].ms;
+
+  const loaders = [...document.querySelectorAll('svg[data-loader]')].map((svg) => {
+    const hex = svg.querySelector('.hex');
+    return { hex, H: svg.querySelector('.H'), light: svg.querySelector('.light'), length: hex.getTotalLength() };
+  });
+
+  function frame(t) {
+    const draw = sine(at('trace', t));
+    const release = io(at('release', t));
+    const offset = release > 0 ? -release : 1 - draw;
+    const fill = io(at('fill', t)) * (1 - release);
+    const glow = io(at('lightIn', t)) * (1 - io(at('lightOut', t)));
+    for (const l of loaders) {
+      l.hex.setAttribute('stroke-dashoffset', offset);
+      l.hex.setAttribute('fill-opacity', fill);
+      l.H.setAttribute('opacity', fill);
+      if (glow > 0) {
+        const p = l.hex.getPointAtLength(draw * l.length);
+        l.light.setAttribute('cx', p.x);
+        l.light.setAttribute('cy', p.y);
+      }
+      l.light.setAttribute('opacity', glow);
+    }
+  }
+
+  // The static logo: filled hexagon with the H, no light.
+  function showStatic() {
+    for (const l of loaders) {
+      l.hex.setAttribute('stroke-dashoffset', 0);
+      l.hex.setAttribute('fill-opacity', 1);
+      l.H.setAttribute('opacity', 1);
+      l.light.setAttribute('opacity', 0);
+    }
+  }
+
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)');
+  const note = document.getElementById('reduced-note');
+  let raf = 0, t0 = 0;
+
+  function loop(now) {
+    frame(Math.max(0, now - t0) % CYCLE_MS);
+    raf = requestAnimationFrame(loop);
+  }
+  function start() {
+    cancelAnimationFrame(raf);
+    note.hidden = !reduce.matches;
+    if (reduce.matches) { raf = 0; showStatic(); return; }
+    frame(0);
+    t0 = performance.now();
+    raf = requestAnimationFrame(loop);
+  }
+
+  // Follows the setting live: on stops the loop and shows the static logo, off starts the loop again.
+  reduce.addEventListener('change', start);
+  start();
+
+  window.HivesiteLoader = Object.freeze({ DURATIONS, CYCLE_MS });
+})();
+</script>
+</body>
+</html>

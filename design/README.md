@@ -6,7 +6,7 @@ Visual design for Hivesite sites, written so renderers never need a hard-coded v
 - `blocks/<type>.md`: one layout note per block type in API-003.
 - The block notes will become the default Vue components in `@hivesite/blocks` (#36).
 - `check-contrast.mjs`: `node design/check-contrast.mjs design/tokens.json` checks that the themes share their keys and prints every contrast ratio.
-- `brand/`: logo, lockups and motion samples (a separate task).
+- `brand/`: logo, lockups and motion samples. See [brand/README.md](brand/README.md).
 
 ## Themes
 

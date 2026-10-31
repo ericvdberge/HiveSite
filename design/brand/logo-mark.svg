@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 58 64" width="58" height="64" role="img" aria-labelledby="hs-mark-title">
+  <title id="hs-mark-title">Hivesite mark: a hexagon with an inner hexagon and an H</title>
+  <path d="M29 2 L55 17 L55 47 L29 62 L3 47 L3 17 Z" fill="none" stroke="#CDAE74" stroke-width="1.5" stroke-linejoin="round"/>
+  <path d="M29 14 L44 22.5 L44 41.5 L29 50 L14 41.5 L14 22.5 Z" fill="none" stroke="#CDAE74" stroke-width="1" stroke-linejoin="round" opacity="0.6"/>
+  <text x="29" y="38" text-anchor="middle" font-family="Cormorant Garamond, Georgia, serif" font-size="17" font-weight="600" fill="#CDAE74">H</text>
+</svg>

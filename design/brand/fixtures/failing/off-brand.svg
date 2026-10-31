@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="58" height="64">
+  <!-- Failing fixture for check-brand.mjs: well formed, but no viewBox, no title, off-brand colors and an external image. -->
+  <path d="M29 2 L55 17 L55 47 L29 62 L3 47 L3 17 Z" fill="#FF0000" stroke="white"/>
+  <image href="https://example.com/logo.png" width="58" height="64"/>
+</svg>

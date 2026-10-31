@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 40" width="200" height="40" role="img" aria-labelledby="hs-lockup-light-title">
+  <title id="hs-lockup-light-title">Hivesite</title>
+  <!-- For light backgrounds (Ivory #F5F1E8 or white). Transparent: place it on the background, it has none of its own. -->
+  <g transform="translate(0 1) scale(0.5862)">
+    <path d="M29 2 L55 17 L55 47 L29 62 L3 47 L3 17 Z" fill="#94733A"/>
+    <text x="29" y="40" text-anchor="middle" font-family="Cormorant Garamond, Georgia, serif" font-size="24" font-weight="600" fill="#F5F1E8">H</text>
+  </g>
+  <text x="48" y="30" font-family="Cormorant Garamond, Georgia, serif" font-size="32" font-weight="600" fill="#100E0B">Hivesite</text>
+</svg>
