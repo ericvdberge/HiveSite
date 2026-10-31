@@ -55,8 +55,12 @@ public sealed class MenuTests
         var (api, owner, siteId, pages) = await SetUpAsync();
         api.Clock.Advance(TimeSpan.FromMinutes(5));
 
-        await api.PutMenuAsync(owner, siteId, pages[2].Text("id"), pages[1].Text("id"), pages[0].Text("id"));
+        var order = new[] { pages[2].Text("id"), pages[1].Text("id"), pages[0].Text("id") };
 
+        var response = await api.PutMenuAsync(owner, siteId, order);
+
+        Assert.AreEqual(HttpStatusCode.OK, response.Status);
+        CollectionAssert.AreEqual(order, await api.MenuAsync(owner, siteId));
         foreach (var page in pages)
         {
             var read = await api.GetAsync(owner, "/pages/" + page.Text("id"));

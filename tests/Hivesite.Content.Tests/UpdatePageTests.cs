@@ -41,6 +41,7 @@ public sealed class UpdatePageTests
         var id = kind switch { "missing" => Guid.CreateVersion7().ToString(), "other" => page.Text("id"), _ => "abc" };
         var stranger = ContentApi.NewOwner();
         var baseline = await api.GetAsync(stranger, $"/pages/{Guid.CreateVersion7()}");
+        var raised = api.PageEventsFor(page.Text("id"));
 
         var get = await api.GetAsync(stranger, "/pages/" + id);
         var patch = await PatchAsync(api, stranger, id, """{"title":"x"}""");
@@ -53,7 +54,10 @@ public sealed class UpdatePageTests
             Assert.IsNull(r.ErrorField);
             Assert.AreEqual(baseline.Body.GetRawText(), r.Body.GetRawText());
         }
-        Assert.AreEqual(HttpStatusCode.OK, (await api.GetAsync(owner, "/pages/" + page.Text("id"))).Status);
+        var after = await api.GetAsync(owner, "/pages/" + page.Text("id"));
+        Assert.AreEqual(HttpStatusCode.OK, after.Status);
+        Assert.AreEqual(page.Body.GetRawText(), after.Body.GetRawText());
+        Assert.AreEqual(raised, api.PageEventsFor(page.Text("id")));
     }
 
     [TestMethod]
@@ -122,6 +126,19 @@ public sealed class UpdatePageTests
         Assert.AreEqual("invalid_request", response.ErrorCode);
         var read = await api.GetAsync(owner, "/pages/" + page.Text("id"));
         Assert.AreEqual(page.Body.GetRawText(), read.Body.GetRawText());
+    }
+
+    [TestMethod]
+    public async Task A_title_over_80_code_points_is_refused_AC18()
+    {
+        var (api, owner, _, page) = await SetUpAsync();
+        var title = string.Concat(Enumerable.Repeat("\U0001F600", 81));
+
+        var response = await PatchAsync(api, owner, page.Text("id"), $$"""{"title":"{{title}}"}""");
+
+        Assert.AreEqual(HttpStatusCode.BadRequest, response.Status);
+        Assert.AreEqual("invalid_request", response.ErrorCode);
+        Assert.AreEqual("/title", response.ErrorField);
     }
 
     [TestMethod]
