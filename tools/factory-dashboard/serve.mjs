@@ -253,9 +253,11 @@ function fold(r, ev) {
     const i = b.input ?? {};
     if (b.name === "Agent" || b.name === "Task") {
       const agent = String(i.subagent_type ?? "general-purpose").split(":").pop();
-      // A "run next story" run learns its story from the first subagent it starts.
+      // A "run until my turn" run learns its first story from the first subagent it starts.
       r.issue ??= firstIssue(i.description) ?? firstIssue(i.prompt);
-      r.agents.push({ id: b.id, agent, text: i.description ?? brief(i.prompt, 120), issue: firstIssue(i.description) ?? firstIssue(i.prompt) ?? r.issue, startedAt: Date.now() });
+      // A run keeps going story after story; `current` is the one it's on now.
+      r.current = firstIssue(i.description) ?? firstIssue(i.prompt) ?? r.current ?? r.issue;
+      r.agents.push({ id: b.id, agent, text: i.description ?? brief(i.prompt, 120), issue: r.current, startedAt: Date.now() });
       rows.push({ kind: "agent", who, agent, text: i.description ?? brief(i.prompt, 120) });
       addLog({ who: agent, issue: r.issue, run: r.id, msg: `${agent} started: ${i.description ?? brief(i.prompt, 80)}` });
     } else rows.push({ kind: "tool", who, text: `${b.name} ${brief(i.command ?? i.file_path ?? i.pattern ?? i.skill ?? i.url ?? "", 160)}` });
@@ -272,11 +274,13 @@ function fold(r, ev) {
   return rows;
 }
 
+// Every story run keeps going until everything waits on you (run-story's *Keep going*).
+const KEEP_GOING = "\n\nWhen a story stops at a human gate, keep going with the next story that can move, until everything waits on me. End with what waits on me.";
 // One story at a time, as run-story asks: a second story run waits its turn.
 const storyBusy = () => [...runs.values()].some(r => r.status === "running" && r.kind === "story");
 function startOrQueue(p) {
   const id = new Date().toISOString().replace(/[:.]/g, "-") + "-" + randomUUID().slice(0, 6);
-  const r = { id, label: p.label, prompt: p.prompt, issue: p.issue ?? null, pr: p.pr ?? null, team: p.team ?? null, kind: p.kind ?? "ask", status: "queued", queuedAt: Date.now(), startedAt: Date.now(), rows: [], agents: [] };
+  const r = { id, label: p.label, prompt: p.kind === "story" ? p.prompt + KEEP_GOING : p.prompt, issue: p.issue ?? null, pr: p.pr ?? null, team: p.team ?? null, kind: p.kind ?? "ask", status: "queued", queuedAt: Date.now(), startedAt: Date.now(), rows: [], agents: [] };
   runs.set(id, r);
   if (r.kind === "story" && storyBusy()) {
     addLog({ who: "you", issue: r.issue, run: id, msg: `Queued for the manager: ${r.label}` });
@@ -354,7 +358,7 @@ const listRuns = () => [...runs.values()].sort((a, b) => b.startedAt - a.started
 
 // Prompts for the manager. Each names the skill it follows, as the factory expects.
 const PROMPTS = {
-  "run-next": () => ({ label: "Run next story", kind: "story", prompt: "Use the run-story skill to run the next story on the board." }),
+  "run-next": () => ({ label: "Run until my turn", kind: "story", prompt: "Use the run-story skill to run the stories on the board." }),
   "run-story": b => ({ label: `Run story #${b.issue}`, kind: "story", issue: b.issue, prompt: `Use the run-story skill to run story #${b.issue}.` }),
   "send-back": b => ({ label: `Send back PR #${b.pr}`, kind: "story", issue: b.issue, pr: b.pr, prompt: `Use the run-story skill to send PR #${b.pr} back to its team with my review comments.${b.note ? `\n\nAlso from me: ${b.note}` : ""}` }),
   "refine": b => ({ label: `Refine #${b.issue}`, kind: "ask", issue: b.issue, prompt: `Start the pm agent to refine issue #${b.issue} into acceptance criteria and a task list, following the write-story skill. Don't move it out of its column.` }),

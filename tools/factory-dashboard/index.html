@@ -219,7 +219,7 @@ footer{border-top:1px solid var(--line);padding:18px 0;color:var(--muted);font-s
   <nav class="nav" id="nav" aria-label="Views"></nav>
   <div class="mgr">
     <div class="state" id="state"></div>
-    <button class="small gold" data-act="run-next" id="runNext">Run next story</button>
+    <button class="small gold" data-act="run-next" id="runNext">Run until my turn</button>
     <button class="small" data-act="chat">Message the manager</button>
   </div>
   <div class="foot"><em>Crafted by many. Made for you.</em><span id="foot"></span></div>
@@ -272,7 +272,7 @@ function derive(){
   const active=new Map();
   for(const r of S.runs.filter(r=>r.status==="running")){
     for(const a of (r.agents||[]).filter(a=>!a.endedAt)){const n=a.issue??r.issue;if(n)active.set(n,{agent:a.agent,run:r,since:a.startedAt})}
-    if(r.issue&&!active.has(r.issue))active.set(r.issue,{agent:"manager",run:r,since:r.startedAt});
+    const n=r.current??r.issue;if(n&&!active.has(n))active.set(n,{agent:"manager",run:r,since:r.startedAt});
   }
   const items=new Map();
   for(const c of b.cards){
@@ -392,7 +392,7 @@ function nowView(){
   const teams=[...new Set(S.gh.labels.filter(l=>l.name.startsWith("team:")).map(l=>l.name.slice(5))),"rnd"];
   const desc=Object.fromEntries(S.gh.labels.map(l=>[l.name.slice(5),l.description]));
   const busy=all().filter(x=>x.state==="working");
-  let h=`<h1>Agents</h1><p class="lede">${running.length?`${running.length} manager ${running.length===1?"run":"runs"} going. Click one to follow it.`:"Nobody is working. Run the next story, or message the manager."}</p>`;
+  let h=`<h1>Agents</h1><p class="lede">${running.length?`${running.length} manager ${running.length===1?"run":"runs"} going. Click one to follow it.`:"Nobody is working. Run until it's your turn, or message the manager."}</p>`;
   h+=`<div class="now">${teams.map(t=>{const w=busy.filter(x=>x.team===t);const inflight=all().filter(x=>x.team===t&&isLeaf(x)&&!["done","backlog"].includes(x.state)).length;
     return`<div class="team"><h3><span class="dot ${w.length?"on":""}"></span>${esc(teamName(t))}<span class="spacer"></span><span class="tag">${inflight} in flight</span></h3>
      ${w.length?w.map(x=>`<div class="who"><b>${esc(x.agent)}</b> on <a href="#" data-act="open" data-n="${x.number}">#${x.number} ${esc(x.title)}</a></div><div class="last">${esc(lastLine(x.run))}</div>`).join(""):`<div class="last">${esc(t==="rnd"?"Finds and sizes cases":desc[t]||"")}</div><div class="who muted">Idle</div>`}</div>`}).join("")}</div>`;
