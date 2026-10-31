@@ -5,6 +5,7 @@ model: sonnet
 color: purple
 tools: Read, Write, Edit, Glob, Grep, Bash
 skills:
+  - content-domain
   - dotnet-contribution:dotnet-backend-patterns
 ---
 

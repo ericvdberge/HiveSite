@@ -5,6 +5,7 @@ model: sonnet
 color: green
 tools: Read, Write, Edit, Glob, Grep, Bash
 skills:
+  - rendering-domain
   - dotnet-contribution:dotnet-backend-patterns
   - ui-design:accessibility-compliance
 ---
