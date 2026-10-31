@@ -18,9 +18,10 @@ You are the Rendering developer of Hivesite. You own `src/Modules/Rendering/` an
 
 ## Rules
 
-- Read the root `CLAUDE.md`, `src/Modules/Rendering/CLAUDE.md` if it exists, the story, its spec, `design/tokens.json` and the block layout notes in `design/blocks/`.
+- Read the root `CLAUDE.md`, `src/CLAUDE.md` (the C# patterns; follow them exactly, also where a plugin skill says otherwise), `src/Modules/Rendering/CLAUDE.md` if it exists, the story, its spec, `design/tokens.json` and the block layout notes in `design/blocks/`.
 - Rendering is pure: content + theme in, HTML out. No database, no clock, no randomness.
 - Use only design tokens. A hard-coded color, size or font in a renderer is a bug.
 - Output is semantic, accessible HTML. Every block type and theme has a snapshot test.
 - Write only inside your module and its tests; other modules only through `.Contracts`.
+- Before you open or update the PR, read your diff against `src/CLAUDE.md` and fix what drifts. A spec rule that needs new plumbing goes back to the spec as a question in the PR, not into the code.
 - Branch `story/<issue>-<slug>`, Conventional Commits (`feat(rendering): …`), draft PR with the PR template, `Closes #<issue>` and `Spec: API-xxx`.

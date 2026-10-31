@@ -1,0 +1,630 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Hivesite Factory</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600&family=Hanken+Grotesk:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.2/marked.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.1.6/purify.min.js"></script>
+<style>
+/* Hivesite brand. Quiet luxury: Ink and Panel, Champagne for what matters,
+   Ivory text, Stone for the rest. Motion: one shape at a time, 300 ms or slower. */
+:root{
+  --bg:#100E0B; --panel:#17140F; --raise:#1D1913; --line:#2B261E; --text:#F5F1E8; --muted:#A69D8C;
+  --gold:#CDAE74; --bronze:#94733A; --on-gold:#100E0B;
+  --ok:#A3BC8E; --warn:#D9A65A; --crit:#D98C78;
+  --display:"Cormorant Garamond",Georgia,serif; --sans:"Hanken Grotesk",system-ui,sans-serif; --mono:"IBM Plex Mono",ui-monospace,monospace;
+  color-scheme:dark;
+}
+@media (prefers-color-scheme: light){:root:not([data-theme="dark"]){
+  --bg:#F5F1E8; --panel:#FBF9F4; --raise:#FFFFFF; --line:#E1D9C9; --text:#100E0B; --muted:#6E6656;
+  --gold:#94733A; --bronze:#94733A; --on-gold:#F5F1E8; --ok:#4E7A3E; --warn:#9A6414; --crit:#A8452F; color-scheme:light}}
+:root[data-theme="light"]{
+  --bg:#F5F1E8; --panel:#FBF9F4; --raise:#FFFFFF; --line:#E1D9C9; --text:#100E0B; --muted:#6E6656;
+  --gold:#94733A; --bronze:#94733A; --on-gold:#F5F1E8; --ok:#4E7A3E; --warn:#9A6414; --crit:#A8452F; color-scheme:light}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--text);font:15px/1.55 var(--sans);-webkit-font-smoothing:antialiased}
+a{color:inherit;text-decoration-color:var(--bronze);text-underline-offset:3px}
+a:hover{color:var(--gold)}
+.wrap{max-width:1040px;margin:0 auto;padding:0 20px}
+.label{font:500 11px/1.4 var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+.mono{font-family:var(--mono);font-size:12.5px}
+.muted{color:var(--muted)}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.spacer{flex:1}
+button{font:500 14px/1 var(--sans);color:var(--text);background:transparent;border:1px solid var(--line);border-radius:2px;padding:10px 16px;cursor:pointer;white-space:nowrap;transition:border-color .3s,background-color .3s,color .3s}
+button:hover:not(:disabled){border-color:var(--gold);color:var(--gold)}
+button:disabled{opacity:.4;cursor:not-allowed}
+button.gold{background:var(--gold);border-color:var(--gold);color:var(--on-gold);font-weight:600}
+button.gold:hover:not(:disabled){background:transparent;color:var(--gold)}
+button.quiet{border-color:transparent;padding:6px 8px;color:var(--muted)}
+button.small{padding:6px 10px;font-size:13px}
+:is(button,a,textarea,select,[tabindex]):focus-visible{outline:1px solid var(--gold);outline-offset:3px}
+textarea,select,input{font:inherit;color:var(--text);background:var(--bg);border:1px solid var(--line);border-radius:2px;padding:10px 12px;width:100%;transition:border-color .3s}
+textarea:focus,select:focus,input:focus{border-color:var(--bronze);outline:none}
+textarea{resize:vertical;min-height:84px;line-height:1.5}
+select{width:auto;padding:7px 10px}
+
+/* sidebar */
+.app{display:grid;grid-template-columns:248px minmax(0,1fr);min-height:100vh}
+.rail{position:sticky;top:0;height:100vh;overflow:auto;border-right:1px solid var(--line);background:var(--panel);padding:28px 20px 20px;display:flex;flex-direction:column;gap:28px}
+.mark b{display:block;font:600 34px/1 var(--display);letter-spacing:.01em}
+.mark span{display:block;color:var(--gold);margin-top:6px}
+.nav{display:flex;flex-direction:column;gap:2px}
+.nav a{display:flex;align-items:center;gap:10px;padding:9px 10px;text-decoration:none;color:var(--muted);border-left:1px solid transparent;transition:color .3s,border-color .3s,background-color .3s}
+.nav a:hover{color:var(--text)}
+.nav a[aria-current="page"]{color:var(--text);border-left-color:var(--gold);background:var(--bg)}
+.nav .n{margin-left:auto;font:500 11.5px var(--mono);color:var(--muted)}
+.nav .n.hot{color:var(--on-gold);background:var(--gold);padding:1px 7px}
+.mgr{border-top:1px solid var(--line);padding-top:20px;display:flex;flex-direction:column;gap:10px}
+.mgr button{width:100%}
+.state{display:flex;align-items:center;gap:8px;font-size:14px}
+.state small{display:block;color:var(--muted);font-size:12.5px}
+.rail .foot{margin-top:auto;font-size:12px;color:var(--muted);display:flex;flex-direction:column;gap:4px}
+.rail .foot em{font-family:var(--display);font-size:16px;color:var(--text)}
+@media (max-width:860px){
+  .app{grid-template-columns:minmax(0,1fr)}
+  .rail{position:static;height:auto;border-right:0;border-bottom:1px solid var(--line);padding:16px;gap:14px}
+  .nav{flex-direction:row;overflow-x:auto}.nav a{white-space:nowrap;border-left:0;border-bottom:1px solid transparent}.nav a[aria-current="page"]{border-bottom-color:var(--gold)}
+  .mgr{flex-direction:row;flex-wrap:wrap;align-items:center;padding-top:12px}.mgr button{width:auto}.rail .foot{display:none}
+}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--muted);flex:none;display:inline-block}
+.dot.on{background:var(--gold)}.dot.ok{background:var(--ok)}.dot.crit{background:var(--crit)}
+@media (prefers-reduced-motion:no-preference){.dot.on{animation:breathe 2.4s ease-in-out infinite}@keyframes breathe{50%{opacity:.3}}}
+
+main{padding:36px 0 80px}
+section{margin-bottom:48px}
+h1{font:500 44px/1.05 var(--display);margin:0 0 6px;letter-spacing:-.005em}
+h2{font:500 30px/1.1 var(--display);margin:0;display:flex;align-items:baseline;gap:12px}
+h2 .count{font:500 12px var(--mono);color:var(--gold);letter-spacing:.1em}
+.lede{color:var(--muted);margin:0 0 20px;max-width:62ch}
+.banner{border:1px solid var(--line);border-left:2px solid var(--warn);padding:12px 16px;margin-bottom:20px;display:flex;gap:12px;align-items:center;flex-wrap:wrap;font-size:14px}
+.banner.crit{border-left-color:var(--crit)}
+
+/* your turn */
+.queue{display:flex;flex-direction:column;border-top:1px solid var(--line);margin-top:16px}
+.q{border-bottom:1px solid var(--line)}
+.qh{display:grid;grid-template-columns:28px 128px minmax(0,1fr) auto;gap:14px;align-items:baseline;padding:16px 4px;cursor:pointer;transition:background-color .3s}
+.qh:hover{background:var(--panel)}
+.q .n{font:500 20px var(--display);color:var(--muted)}
+.q.open .n{color:var(--gold)}
+.q .t{font-weight:500;min-width:0}
+.q .t small{display:block;color:var(--muted);font-weight:400;font-size:13.5px;margin-top:2px}
+.q .age{font:12px var(--mono);color:var(--muted);white-space:nowrap}
+.tag{font:500 10.5px/1.4 var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--muted);white-space:nowrap}
+.tag.gold{color:var(--gold)}.tag.crit{color:var(--crit)}.tag.ok{color:var(--ok)}.tag.warn{color:var(--warn)}
+.qb{display:none;padding:0 4px 22px 46px}
+.q.open .qb{display:block}
+@media (prefers-reduced-motion:no-preference){.q.open .qb{animation:rise .4s ease}@keyframes rise{from{opacity:0;transform:translateY(-4px)}}}
+.qb .why{margin:0 0 14px;max-width:70ch}
+.links{display:flex;gap:18px;flex-wrap:wrap;margin-bottom:14px;font-size:14px}
+.links a,.links button.link{color:var(--gold);background:none;border:0;padding:0;font:inherit;cursor:pointer;text-decoration:underline;text-decoration-color:var(--bronze);text-underline-offset:3px}
+.say{display:flex;flex-direction:column;gap:10px;max-width:760px}
+.say .hint{font-size:12.5px;color:var(--muted)}
+@media (max-width:640px){.qh{grid-template-columns:24px minmax(0,1fr) auto}.qh .tag{display:none}.qb{padding-left:4px}}
+.calm{padding:28px 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line);margin-top:16px}
+.calm p{margin:0 0 14px;font:500 22px/1.3 var(--display)}
+
+/* agents now */
+.now{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,300px),1fr));gap:1px;background:var(--line);border:1px solid var(--line);margin-top:16px}
+.team{background:var(--bg);padding:16px 18px;display:flex;flex-direction:column;gap:8px;min-width:0}
+.team h3{margin:0;font:500 20px var(--display);display:flex;align-items:center;gap:8px}
+.team .who{font-size:14px;min-width:0}
+.team .who b{font-family:var(--mono);font-size:12.5px;font-weight:500;color:var(--gold)}
+.team .last{font-size:13px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.runs{display:flex;flex-direction:column;gap:0;margin-top:16px;border-top:1px solid var(--line)}
+.run{display:grid;grid-template-columns:14px minmax(0,1fr) auto;gap:12px;align-items:center;padding:12px 4px;border-bottom:1px solid var(--line);cursor:pointer;transition:background-color .3s}
+.run:hover{background:var(--panel)}
+.run .l{min-width:0}
+.run .l small{display:block;color:var(--muted);font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.run .age{font:12px var(--mono);color:var(--muted);white-space:nowrap}
+
+/* the work */
+.seg{display:inline-flex;border:1px solid var(--line)}
+.seg button{border:0;border-right:1px solid var(--line);border-radius:0;padding:8px 14px;font-size:13px}
+.seg button:last-child{border-right:0}
+.seg button[aria-pressed="true"]{background:var(--text);color:var(--bg)}
+.tree{margin-top:16px;border-top:1px solid var(--line)}
+.tr{display:grid;grid-template-columns:minmax(0,1fr) 110px 180px;gap:14px;align-items:center;padding:10px 4px;border-bottom:1px solid var(--line);cursor:pointer;transition:background-color .3s}
+.tr:hover{background:var(--panel)}
+.tr.phase{cursor:default;padding-top:22px}
+.tr.phase:hover{background:none}
+.tr.phase .ti{font:500 22px var(--display)}
+.tr .ti{display:flex;gap:10px;align-items:baseline;min-width:0}
+.tr .ti span:last-child{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bar{height:2px;background:var(--line);position:relative;min-width:60px;flex:1}
+.bar i{position:absolute;inset:0 auto 0 0;background:var(--gold)}
+.st{font-size:13px;color:var(--muted);display:flex;align-items:center;gap:8px;white-space:nowrap}
+.st.waiting{color:var(--gold)}.st.blocked{color:var(--crit)}.st.working{color:var(--text)}.st.done{color:var(--ok)}
+@media (max-width:700px){.tr{grid-template-columns:minmax(0,1fr) auto}.tr .team-c{display:none}}
+.boardwrap{overflow-x:auto;margin-top:16px}
+.board{display:grid;grid-template-columns:repeat(7,minmax(170px,1fr));gap:1px;background:var(--line);border:1px solid var(--line);min-width:1220px}
+.col{background:var(--bg);padding:12px;min-height:220px;display:flex;flex-direction:column;gap:8px}
+.col h4{margin:0 0 4px;display:flex;justify-content:space-between}
+.col.you h4 .label{color:var(--gold)}
+.card{border:1px solid var(--line);background:var(--panel);padding:10px 12px;cursor:pointer;font-size:14px;transition:border-color .3s}
+.card:hover{border-color:var(--bronze)}
+.card .m{display:flex;gap:8px;margin-bottom:4px}
+.card.attn{border-left:2px solid var(--gold)}
+.card.blocked{border-left:2px solid var(--crit)}
+
+/* drawer */
+.scrim{position:fixed;inset:0;background:rgba(8,7,5,.55);z-index:20;opacity:0;pointer-events:none;transition:opacity .35s}
+.scrim.open{opacity:1;pointer-events:auto}
+.drawer{position:fixed;inset:0 0 0 auto;width:min(860px,100%);background:var(--bg);border-left:1px solid var(--line);z-index:21;transform:translateX(100%);transition:transform .45s cubic-bezier(.2,.7,.2,1);display:flex;flex-direction:column}
+.drawer.open{transform:none}
+@media (prefers-reduced-motion:reduce){.drawer,.scrim,.q.open .qb{transition:none;animation:none}}
+.dh{padding:20px 24px 14px;border-bottom:1px solid var(--line)}
+.dh h2{font-size:30px;margin-top:6px}
+.db{padding:20px 24px 60px;overflow:auto;display:flex;flex-direction:column;gap:22px}
+.track{display:flex;gap:0;border:1px solid var(--line);overflow-x:auto}
+.track div{flex:1;min-width:96px;padding:8px 10px;border-right:1px solid var(--line);font-size:12.5px;color:var(--muted)}
+.track div:last-child{border-right:0}
+.track div.done{color:var(--ok)}
+.track div.cur{background:var(--panel);color:var(--text);box-shadow:inset 0 -2px 0 var(--gold)}
+.track div b{display:block;font:500 10px var(--mono);letter-spacing:.12em;text-transform:uppercase;margin-bottom:2px}
+.tabs{display:flex;gap:22px;border-bottom:1px solid var(--line)}
+.tabs button{border:0;padding:10px 0;border-radius:0;color:var(--muted);font-size:14px;border-bottom:1px solid transparent;margin-bottom:-1px}
+.tabs button[aria-current="true"]{color:var(--text);border-bottom-color:var(--gold)}
+.prose{line-height:1.65;overflow-wrap:anywhere;max-width:74ch}
+.prose h1,.prose h2,.prose h3{font-family:var(--display);font-weight:500;line-height:1.15;margin:1.3em 0 .4em;display:block}
+.prose h1{font-size:28px}.prose h2{font-size:23px}.prose h3{font-size:19px}
+.prose>:first-child{margin-top:0}
+.prose code{font-family:var(--mono);font-size:12.5px;background:var(--panel);padding:1px 5px}
+.prose pre{background:var(--panel);border:1px solid var(--line);padding:12px;overflow:auto}
+.prose pre code{background:none;padding:0}
+.prose table{border-collapse:collapse;display:block;overflow:auto;font-size:13.5px}.prose td,.prose th{border:1px solid var(--line);padding:5px 9px;text-align:left}
+.prose blockquote{border-left:2px solid var(--bronze);margin:0;padding-left:14px;color:var(--muted)}
+.comment{border-top:1px solid var(--line);padding:14px 0}
+.comment .h{font-size:13px;color:var(--muted);margin-bottom:6px}
+.comment .h b{color:var(--text);font-weight:500}
+.files{display:flex;flex-wrap:wrap;gap:6px}
+.files button{font:12px var(--mono);padding:5px 9px}
+.files button[aria-pressed="true"]{border-color:var(--gold);color:var(--gold)}
+.code{border:1px solid var(--line);overflow-x:auto;font:12.5px/1.6 var(--mono)}
+.code table{border-collapse:collapse;width:100%}
+.code td{padding:0 10px;white-space:pre;vertical-align:top}
+.code td.ln{width:1%;text-align:right;color:var(--muted);user-select:none}
+.code td.ln button{border:0;padding:0;font:inherit;color:inherit}
+.code td.ln button:hover{color:var(--gold)}
+.code tr.add td.src{background:color-mix(in srgb,var(--ok) 12%,transparent)}
+.code tr.del td.src{background:color-mix(in srgb,var(--crit) 12%,transparent)}
+.code tr.hunk td{color:var(--muted);background:var(--panel)}
+.code tr.cm td{white-space:normal;font-family:var(--sans);font-size:13.5px;padding:8px 12px 10px 48px;background:var(--panel)}
+.cmt{border-left:2px solid var(--bronze);padding:2px 0 2px 12px;margin:4px 0}
+.cmt .h{font-size:12px;color:var(--muted)}
+.log{display:flex;flex-direction:column;gap:8px;font-size:13.5px}
+.log .r{display:grid;grid-template-columns:52px 110px minmax(0,1fr);gap:10px}
+.log .r .k{font:12px var(--mono);color:var(--muted)}
+.log .r.agent .k:nth-child(2){color:var(--gold)}
+.log .r.tool{font:12px var(--mono);color:var(--muted)}
+.log .r.error .b{color:var(--crit)}
+.log .r.result .b{border-left:2px solid var(--gold);padding-left:12px}
+.skel{height:14px;background:var(--panel);margin:8px 0;width:60%}
+.modal{position:fixed;inset:0;z-index:30;display:grid;place-items:center;padding:16px;background:rgba(8,7,5,.6)}
+.modal .box{background:var(--bg);border:1px solid var(--line);border-top:2px solid var(--gold);width:min(560px,100%);padding:24px;display:flex;flex-direction:column;gap:14px}
+.modal h3{margin:0;font:500 28px var(--display)}
+.modal label{display:flex;flex-direction:column;gap:6px;font-size:13px;color:var(--muted)}
+.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--text);color:var(--bg);padding:10px 18px;z-index:40;font-size:14px;max-width:calc(100% - 32px)}
+footer{border-top:1px solid var(--line);padding:18px 0;color:var(--muted);font-size:12.5px}
+</style>
+</head>
+<body>
+<div class="app">
+<aside class="rail">
+  <div class="mark"><b>Hivesite</b><span class="label">Factory</span></div>
+  <nav class="nav" id="nav" aria-label="Views"></nav>
+  <div class="mgr">
+    <div class="state" id="state"></div>
+    <button class="small gold" data-act="run-next" id="runNext">Run until my turn</button>
+    <button class="small" data-act="chat">Message the manager</button>
+  </div>
+  <div class="foot"><em>Crafted by many. Made for you.</em><span id="foot"></span></div>
+</aside>
+<main class="wrap">
+  <div id="banners"></div>
+  <section id="view"></section>
+</main>
+</div>
+<div class="scrim" id="scrim" data-act="close"></div>
+<aside class="drawer" id="drawer" aria-hidden="true"><div class="dh" id="dh"></div><div class="db" id="db"></div></aside>
+<div id="modal"></div>
+
+<script>
+/* GitHub holds the work, Claude does it. The page asks one question first:
+   what needs you next. Everything is derived from GitHub (via the local
+   server) and from the manager runs the server starts. */
+
+const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+function ago(t){if(!t)return"";const s=(Date.now()-new Date(t))/1000;if(s<45)return"just now";if(s<3600)return Math.round(s/60)+" min ago";if(s<86400)return Math.round(s/3600)+" h ago";return Math.round(s/86400)+" d ago"}
+function dur(a,b){const s=Math.max(0,((b?new Date(b):Date.now())-new Date(a))/1000);return s<60?Math.round(s)+"s":s<3600?Math.floor(s/60)+"m":Math.floor(s/3600)+"h "+Math.floor(s%3600/60)+"m"}
+const clock=t=>new Date(t).toLocaleTimeString([], {hour:"2-digit",minute:"2-digit"});
+const md=t=>{try{return DOMPurify.sanitize(marked.parse(t||""))}catch{return`<pre>${esc(t)}</pre>`}};
+function toast(t){const d=document.createElement("div");d.className="toast";d.setAttribute("role","status");d.textContent=t;document.body.append(d);setTimeout(()=>d.remove(),4200)}
+async function api(path,body){
+  const r=await fetch(path,body?{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(body)}:{});
+  const j=await r.json().catch(()=>({}));
+  if(!r.ok)throw new Error(j.error||r.statusText);
+  return j;
+}
+
+/* ================= model ================= */
+const KIND={epic:"Epic",feature:"Feature",story:"Story",task:"Task",bug:"Bug",case:"Case"};
+const roleOf=a=>a==="manager"?"manager":a==="pm"||a==="rnd-analyst"?"analyst":a==="api-architect"?"architect":a==="designer"?"designer":/^dev-/.test(a)?"developer":/test/.test(a)?"tester":/review/.test(a)?"reviewer":"developer";
+const STEP_OF_ROLE={analyst:"refine",architect:"spec",designer:"spec",developer:"build",reviewer:"review",tester:"review"};
+// run-story's steps, with the two places where you merge.
+const STEPS=[["refine","Refine"],["spec","Spec"],["spec_ok","You approve"],["build","Build"],["review","Agent review"],["merge","You merge"]];
+const S={gh:null,runs:[],log:[],items:new Map(),error:null,loaded:false};
+const C={issue:{},spec:{},pr:{}};
+const ui={view:"turn",open:null,drawer:null,tab:"issue",pr:null,file:null,line:null,drafts:{}};
+const VIEWS=["turn","agents","portfolio","board"];
+function route(){const h=location.hash.slice(1);ui.view=VIEWS.includes(h)?h:"turn";window.scrollTo(0,0);draw()}
+window.addEventListener("hashchange",route);
+
+function derive(){
+  const b=S.gh;if(!b)return;
+  const prsBy=new Map(b.prs.map(p=>[p.number,p]));
+  // Who works on which issue right now, from the running manager runs.
+  const active=new Map();
+  for(const r of S.runs.filter(r=>r.status==="running")){
+    for(const a of (r.agents||[]).filter(a=>!a.endedAt)){const n=a.issue??r.issue;if(n)active.set(n,{agent:a.agent,run:r,since:a.startedAt})}
+    const n=r.current??r.issue;if(n&&!active.has(n))active.set(n,{agent:"manager",run:r,since:r.startedAt});
+  }
+  const items=new Map();
+  for(const c of b.cards){
+    const kind=KIND[c.type]?c.type:"task";
+    const it={...c,kind,closed:c.state==="CLOSED",prs:c.prs.map(n=>prsBy.get(n)).filter(Boolean),team:c.team||(kind==="case"?"rnd":null)};
+    const open=it.prs.filter(p=>p.state==="OPEN"&&!p.draft);
+    it.gatePr=c.column==="Spec review"?open.find(p=>p.kind!=="build")||open[0]:open.find(p=>p.kind==="build")||open[0];
+    const act=active.get(c.number);
+    if(it.closed||c.column==="Done")it.state="done";
+    else if(act){it.state="working";it.agent=act.agent;it.run=act.run.id;it.since=act.since;it.step=STEP_OF_ROLE[roleOf(act.agent)]}
+    else if(c.needsHuman)it.state="blocked";
+    else if(kind==="case")it.state=c.labels.includes("approved")?"queued":"waiting";
+    else if(c.column==="Backlog")it.state="backlog";
+    else if(c.column==="Spec review"&&it.gatePr)it.state="waiting";
+    else if(c.column==="Ready to merge")it.state="waiting";
+    else it.state="queued";
+    it.step??={Backlog:"refine",Ready:"spec","Spec review":it.state==="waiting"?"spec_ok":"spec",Building:"build","Agent review":"review","Ready to merge":"merge"}[c.column];
+    items.set(c.number,it);
+  }
+  S.items=items;
+}
+const all=()=>[...S.items.values()];
+const isLeaf=it=>["story","task","bug"].includes(it.kind);
+const storyRunning=()=>S.runs.some(r=>r.status==="running"&&r.kind==="story");
+const teamName=t=>t==="rnd"?"R&D":t?t[0].toUpperCase()+t.slice(1):"—";
+function children(n){return all().filter(x=>x.parent===n)}
+function leavesUnder(n){const out=[];const walk=p=>children(p).forEach(c=>{if(isLeaf(c))out.push(c);walk(c.number)});walk(n);return out}
+const STATE={backlog:["Backlog",""],queued:["Next up",""],working:["Working","working"],waiting:["Your turn","waiting"],blocked:["Needs you","blocked"],done:["Done","done"]};
+function stateText(it){
+  if(it.state==="working")return`${it.agent} · ${dur(it.since)}`;
+  if(it.state==="queued")return it.kind==="case"?"Approved":`Next: ${it.column}`;
+  return STATE[it.state]?.[0]||it.state;
+}
+function cached(kind,key,url){const c=C[kind];if(!(key in c)){c[key]=null;api(url).then(v=>{c[key]=v;draw()},e=>{c[key]={error:e.message};draw()})}return c[key]}
+function forget(n){delete C.issue[n];const it=S.items.get(n);for(const p of it?.prs||[])delete C.pr[p.number]}
+
+/* ================= what needs you, in order ================= */
+// 1. the factory stopped and asked you, 2. a run failed, 3. a spec or design
+// waits (it blocks building), 4. a build PR to merge, 5. a case to approve.
+function attention(){
+  const list=[];
+  for(const it of all().filter(x=>x.state==="blocked"))list.push({rank:0,it,tag:["Needs you","crit"],why:"The factory stopped and asked you something. Read the latest comment and answer it here.",act:"answer"});
+  const latest=new Map();for(const r of S.runs)if(r.issue&&!latest.has(r.issue))latest.set(r.issue,r);
+  for(const r of latest.values())if(r.status==="failed"&&Date.now()-r.startedAt<3*864e5){const it=S.items.get(r.issue);if(it&&it.state!=="done"&&it.state!=="blocked")list.push({rank:1,it,run:r,tag:["Run failed","crit"],why:`${r.label} stopped: ${String(r.result||r.last||"no answer").slice(0,180)}`,act:"retry"})}
+  for(const it of all().filter(x=>x.state==="waiting")){
+    if(it.kind==="case"){list.push({rank:4,it,tag:["Case","gold"],why:"R&D proposes this. Approve it and pm writes the stories, or tell them what to change.",act:"case"});continue}
+    const p=it.gatePr;
+    if(it.column==="Spec review")list.push({rank:2,it,pr:p,tag:[p?.kind==="spec"?"Spec":"Design","gold"],why:`${p?.kind==="spec"?"The architect":"The designer"} finished${p?` PR #${p.number}`:""}. Read it, then approve to let the team build, or tell them what to change.`,act:"gate"});
+    else list.push({rank:3,it,pr:p,tag:["Merge","ok"],why:`Agents built and reviewed it${p?.ci?`; CI ${p.ci.toLowerCase()}`:""}. Read the changes, then merge, or tell them what to change.`,act:"gate"});
+  }
+  const age=x=>new Date(x.it.updatedAt||0).getTime();
+  return list.sort((a,b)=>a.rank-b.rank||age(a)-age(b));
+}
+
+/* ================= drawing ================= */
+let raf=0,dirty=false;
+function editing(){const a=document.activeElement;return a&&/^(TEXTAREA|INPUT|SELECT)$/.test(a.tagName)}
+// A timer, not requestAnimationFrame: rAF pauses in background tabs and the page would go stale.
+function draw(){dirty=true;if(editing())return;clearTimeout(raf);raf=setTimeout(paint,16)}
+document.addEventListener("focusout",()=>setTimeout(()=>{if(dirty&&!editing())draw()},50));
+function paint(){
+  dirty=false;
+  rail();
+  if(!S.loaded){$("#view").innerHTML=`<div class="skel"></div><div class="skel"></div>`;return}
+  banners();
+  $("#view").innerHTML={turn:turnView,agents:nowView,portfolio:()=>workView("portfolio"),board:()=>workView("board")}[ui.view]();
+  if(ui.drawer&&!ui.drawer.run)drawerView();
+}
+function rail(){
+  const r=S.runs.filter(r=>r.status==="running"),q=S.runs.filter(r=>r.status==="queued");
+  const wait=S.loaded?attention().length:"",busy=all().filter(x=>x.state==="working").length;
+  const nav=[["turn","Your turn",wait,wait>0],["agents","Agents",r.length?r.length+" running":"",false],["portfolio","Portfolio","",false],["board","Board",all().filter(x=>x.stale).length?"sync":"",false]];
+  $("#nav").innerHTML=nav.map(([id,nm,n,hot])=>`<a href="#${id}" ${ui.view===id?'aria-current="page"':""}>${nm}${n!==""&&n!==0?`<span class="n ${hot?"hot":""}">${n}</span>`:""}</a>`).join("");
+  $("#state").innerHTML=r.length?`<span class="dot on"></span><span>Manager · working<small>${esc(r[0].label)}${busy?` · ${busy} on issues`:""}${q.length?` · ${q.length} waiting`:""}</small></span>`:`<span class="dot"></span><span>Manager · idle<small>Starts when you run or message it</small></span>`;
+  const b=$("#runNext");b.disabled=storyRunning();b.title=storyRunning()?"A story is running":"";
+  $("#foot").textContent=S.gh?`Read from GitHub ${ago(S.gh.at)} · ${S.gh.repo}`:"";
+}
+function banners(){
+  let h="";
+  if(S.error)h+=`<div class="banner crit">GitHub can't be read: ${esc(S.error)}</div>`;
+  if(S.claude&&!S.claude.loggedIn)h+=`<div class="banner crit"><span>The agents can't start: the <span class="mono">claude</span> CLI isn't signed in. Run <span class="mono">claude auth login</span> in a terminal, with the account you want the agents to use.</span><span class="spacer"></span><button class="small" data-act="check-claude">Check again</button></div>`;
+  const stale=all().filter(x=>x.stale);
+  if(stale.length)h+=`<div class="banner"><span>${stale.length} ${stale.length===1?"card sits":"cards sit"} in the wrong column on GitHub (${stale.slice(0,3).map(x=>`#${x.number}`).join(", ")}).</span><span class="spacer"></span><button class="small" data-act="sync">Sync board</button></div>`;
+  $("#banners").innerHTML=h;
+}
+
+// The box under everything that waits on you: approve, or say what you think.
+function sayBox(a){
+  const it=a.it,k="say:"+it.number,gate=a.act==="gate"&&a.pr,c=a.act==="case";
+  const hint=a.pr?`Posted as a review on PR #${a.pr.number}; the manager sends it back to the team.`:`Posted as a comment on #${it.number}; the manager picks it up.`;
+  return`<div class="say"><textarea data-draft="${k}" placeholder="${gate||c?"What do you think? Leave it empty to approve as it is.":"Your answer or instructions for the team…"}">${esc(ui.drafts[k]||"")}</textarea>
+    <div class="row">${gate?`<button class="gold" data-act="approve" data-n="${it.number}" data-pr="${a.pr.number}">${it.column==="Spec review"?"Approve and merge":"Merge"}</button>`:c?`<button class="gold" data-act="approve" data-n="${it.number}">Approve case</button>`:""}
+      <button ${gate||c?"":"class='gold'"} data-act="send" data-n="${it.number}" ${a.pr?`data-pr="${a.pr.number}"`:""}>${gate||c?"Send back with my notes":"Send and continue"}</button>
+      ${a.act==="retry"?`<button data-act="run-story" data-n="${it.number}">Retry as it is</button>`:""}
+      <span class="hint">${hint} Ctrl+Enter sends.</span></div></div>`;
+}
+function turnView(){
+  const list=attention();
+  if(!list.some(a=>a.it.number===ui.open))ui.open=list[0]?.it.number??null;
+  let h=`<h1>Your turn</h1><p class="lede">${list.length?`${list.length} ${list.length===1?"thing waits":"things wait"} on you, most urgent first. Approve it, or say what you think and the agents go again.`:"Nothing waits on you."}</p>`;
+  if(!list.length){
+    const next=all().filter(x=>x.state==="queued"&&isLeaf(x)&&x.column==="Ready").sort((a,b)=>a.number-b.number)[0];
+    h+=`<div class="calm">${next?`<p>Next up: #${next.number} ${esc(next.title)}</p><div class="row"><button class="gold" data-act="run-story" data-n="${next.number}" ${storyRunning()?"disabled":""}>Run it</button><button data-act="open" data-n="${next.number}">Read it first</button></div>`
+      :`<p>Nothing is ready. Move a story out of the backlog when you want the team to start.</p><div class="row"><a href="#board"><button>Open the board</button></a><button data-act="new">New story</button></div>`}</div>`;
+    return h;
+  }
+  h+=`<div class="queue">${list.map((a,i)=>{const it=a.it,open=ui.open===it.number;
+    return`<div class="q ${open?"open":""}"><div class="qh" data-act="toggle" data-n="${it.number}" tabindex="0" aria-expanded="${open}"><span class="n">${i+1}</span><span class="tag ${a.tag[1]}">${a.tag[0]}</span><span class="t">#${it.number} ${esc(it.title)}<small>${esc(teamName(it.team))}${a.pr?` · PR #${a.pr.number}`:""}</small></span><span class="age">${ago(it.updatedAt)}</span></div>
+    <div class="qb"><p class="why">${esc(a.why)}</p>
+     <div class="links">${a.pr?`<button class="link" data-act="open" data-n="${it.number}" data-tab="${a.pr.kind==="spec"?"spec":"changes"}">Read the ${a.pr.kind==="spec"?"spec":"changes"}</button>`:""}<button class="link" data-act="open" data-n="${it.number}">Open #${it.number}</button>${a.run?`<button class="link" data-act="watch" data-run="${a.run.id}">See the run</button>`:""}<a href="${esc((a.pr||it).url)}" target="_blank" rel="noopener">GitHub ↗</a></div>
+     ${sayBox(a)}</div></div>`}).join("")}</div>`;
+  return h;
+}
+
+function nowView(){
+  const running=S.runs.filter(r=>r.status==="running"),queued=S.runs.filter(r=>r.status==="queued");
+  const teams=[...new Set(S.gh.labels.filter(l=>l.name.startsWith("team:")).map(l=>l.name.slice(5))),"rnd"];
+  const desc=Object.fromEntries(S.gh.labels.map(l=>[l.name.slice(5),l.description]));
+  const busy=all().filter(x=>x.state==="working");
+  let h=`<h1>Agents</h1><p class="lede">${running.length?`${running.length} manager ${running.length===1?"run":"runs"} going. Click one to follow it.`:"Nobody is working. Run until it's your turn, or message the manager."}</p>`;
+  h+=`<div class="now">${teams.map(t=>{const w=busy.filter(x=>x.team===t);const inflight=all().filter(x=>x.team===t&&isLeaf(x)&&!["done","backlog"].includes(x.state)).length;
+    return`<div class="team"><h3><span class="dot ${w.length?"on":""}"></span>${esc(teamName(t))}<span class="spacer"></span><span class="tag">${inflight} in flight</span></h3>
+     ${w.length?w.map(x=>`<div class="who"><b>${esc(x.agent)}</b> on <a href="#" data-act="open" data-n="${x.number}">#${x.number} ${esc(x.title)}</a></div><div class="last">${esc(lastLine(x.run))}</div>`).join(""):`<div class="last">${esc(t==="rnd"?"Finds and sizes cases":desc[t]||"")}</div><div class="who muted">Idle</div>`}</div>`}).join("")}</div>`;
+  const recent=S.runs.filter(r=>r.status!=="running"&&r.status!=="queued").slice(0,4);
+  const shown=[...running,...queued,...recent];
+  if(shown.length)h+=`<h2 style="margin-top:36px">Runs</h2><div class="runs">${shown.map(r=>`<div class="run" data-act="watch" data-run="${r.id}" tabindex="0"><span class="dot ${r.status==="running"?"on":r.status==="done"?"ok":r.status==="failed"?"crit":""}"></span><span class="l">${esc(r.label)}<small>${esc(r.status==="queued"?"Waiting for the running story to finish":r.last||r.status)}</small></span><span class="age">${r.status==="running"?dur(r.startedAt):r.status==="queued"?"queued":ago(r.endedAt||r.startedAt)}</span></div>`).join("")}</div>`;
+  return h;
+}
+function lastLine(runId){return S.runs.find(x=>x.id===runId)?.last||""}
+
+function workView(kind){
+  const lede=kind==="board"?"Every card in its GitHub column. Gold edges wait on you.":"The plan's phases with everything under them. Nest work with GitHub sub-issues.";
+  return`<div class="row"><h1>${kind==="board"?"Board":"Portfolio"}</h1><span class="spacer"></span><button class="small" data-act="new">New story</button></div><p class="lede">${lede}</p>${kind==="board"?boardHtml():portfolioHtml()}`;
+}
+function statusHtml(it){const s=STATE[it.state]||["",""];return`<span class="st ${s[1]}">${it.state==="working"?'<span class="dot on"></span>':""}${esc(stateText(it))}</span>`}
+const progress=leaves=>{const d=leaves.filter(x=>x.state==="done").length;return`<span class="st"><span class="bar"><i style="width:${leaves.length?Math.round(d/leaves.length*100):0}%"></i></span>${d}/${leaves.length}</span>`};
+function portfolioHtml(){
+  const phases=S.gh.phases||{};
+  const roots=all().filter(x=>!x.parent||!S.items.has(x.parent));
+  const byPhase={};for(const it of roots)(byPhase[it.kind==="case"?"cases":it.phase??"none"]??=[]).push(it);
+  const row=(it,lvl)=>{const kids=children(it.number);
+    return`<div class="tr" data-act="open" data-n="${it.number}" tabindex="0"><span class="ti" style="padding-left:${lvl*20}px"><span class="tag">${KIND[it.kind]}</span><span class="mono muted">#${it.number}</span><span>${esc(it.title)}</span></span><span class="team-c muted" style="font-size:13px">${esc(teamName(it.team))}</span>${!isLeaf(it)&&kids.length?progress(leavesUnder(it.number)):statusHtml(it)}</div>`+kids.sort((a,b)=>a.number-b.number).map(k=>row(k,lvl+1)).join("")};
+  const keys=[...Object.keys(byPhase).filter(k=>/^\d+$/.test(k)).sort(),...("none" in byPhase?["none"]:[]),...("cases" in byPhase?["cases"]:[])];
+  return`<div class="tree">${keys.map(k=>{const list=byPhase[k].sort((a,b)=>a.number-b.number);const p=phases[k];
+    return`<div class="tr phase"><span class="ti"><span>${k==="cases"?"Cases":k==="none"?"No phase":`${k} · ${esc(p?.name||"Phase "+k)}`}</span></span><span class="team-c muted" style="font-size:13px">${p?esc(p.when):""}</span>${progress(list.flatMap(x=>isLeaf(x)?[x]:leavesUnder(x.number)))}</div>`+list.map(it=>row(it,0)).join("")}).join("")}</div>`;
+}
+function boardHtml(){
+  return`<div class="boardwrap"><div class="board">${S.gh.columns.map(col=>{const list=all().filter(x=>x.column===col&&!x.offBoard).sort((a,b)=>(b.state==="waiting")-(a.state==="waiting")||a.number-b.number);
+    return`<div class="col ${col==="Spec review"||col==="Ready to merge"?"you":""}"><h4><span class="label">${esc(col)}</span><span class="label">${list.length}</span></h4>${(col==="Done"?list.slice(-8):list).map(it=>`<div class="card ${it.state==="waiting"?"attn":it.state==="blocked"?"blocked":""}" data-act="open" data-n="${it.number}" tabindex="0"><div class="m"><span class="mono muted">#${it.number}</span><span class="tag">${esc(teamName(it.team))}</span></div>${esc(it.title)}${["working","waiting","blocked"].includes(it.state)?`<div style="margin-top:6px">${statusHtml(it)}</div>`:""}</div>`).join("")}</div>`}).join("")}</div></div>`;
+}
+
+/* ---------- drawer ---------- */
+function openDrawer(d){ui.drawer=d;ui.line=null;$("#drawer").classList.add("open");$("#scrim").classList.add("open");$("#drawer").setAttribute("aria-hidden","false");$("#db").scrollTop=0;d.run?runDrawer(d.run):drawerView()}
+function closeDrawer(){ui.drawer=null;$("#drawer").classList.remove("open");$("#scrim").classList.remove("open");$("#drawer").setAttribute("aria-hidden","true")}
+function drawerView(){
+  const it=S.items.get(ui.drawer?.n);if(!it){closeDrawer();return}
+  const a=attention().find(x=>x.it.number===it.number)||{it,act:"say"};
+  const tabs=[["issue","Issue"],...(it.kind!=="bug"&&it.kind!=="case"?[["spec",it.team==="design"?"Design":"Spec"]]:[]),...(it.prs.length?[["changes","Changes"]]:[]),["activity","Activity"]];
+  if(!tabs.some(t=>t[0]===ui.tab))ui.tab="issue";
+  const keepScroll=$("#db").scrollTop;
+  $("#dh").innerHTML=`<div class="row"><span class="tag">${KIND[it.kind]} · #${it.number} · ${esc(teamName(it.team))} · ${esc(it.column)}</span><span class="spacer"></span><a class="mono" href="${esc(it.url)}" target="_blank" rel="noopener">GitHub ↗</a><button class="quiet" data-act="close" aria-label="Close">Close</button></div><h2>${esc(it.title)}</h2>`;
+  const ci=STEPS.findIndex(s=>s[0]===it.step);
+  const track=isLeaf(it)?`<div class="track">${STEPS.map(([id,nm],i)=>{const done=it.state==="done"||(ci>=0&&i<ci&&it.state!=="backlog"),cur=it.state!=="done"&&it.state!=="backlog"&&i===ci;return`<div class="${done?"done":""} ${cur?"cur":""}"><b>${nm}</b>${cur?esc(stateText(it)):done?"Done":""}</div>`}).join("")}</div>`:"";
+  const controls=`<div class="row">${isLeaf(it)&&it.state!=="done"&&it.state!=="working"?`<button class="small" data-act="run-story" data-n="${it.number}">Run this story</button>`:""}
+    ${it.state==="working"?`<button class="small" data-act="watch" data-run="${it.run}">Watch ${esc(it.agent)}</button>`:""}
+    ${!it.offBoard?`<span class="muted" style="font-size:13px">Column</span><select data-act="move" data-n="${it.number}">${S.gh.columns.map(c=>`<option ${c===it.boardColumn?"selected":""}>${esc(c)}</option>`).join("")}</select>`:""}</div>`;
+  const body={issue:issueTab,spec:specTab,changes:changesTab,activity:activityTab}[ui.tab](it);
+  $("#db").innerHTML=`${track}${it.state!=="done"?`<div>${sayBox(a)}</div>`:""}${controls}<div class="tabs">${tabs.map(([k,n])=>`<button data-act="tab" data-tab="${k}" aria-current="${ui.tab===k}">${n}</button>`).join("")}</div><div>${body}</div>`;
+  $("#db").scrollTop=keepScroll;
+}
+function issueTab(it){
+  const d=cached("issue",it.number,"/api/issue/"+it.number);
+  if(!d)return`<div class="skel"></div><div class="skel"></div>`;
+  if(d.error)return`<p class="muted">${esc(d.error)}</p>`;
+  return`<div class="prose">${md(d.body)||"<p class='muted'>No description.</p>"}</div>${d.comments.length?`<div style="margin-top:22px"><span class="label">Latest comments</span>${d.comments.map(c=>`<div class="comment"><div class="h"><b>${esc(c.author)}</b> · ${ago(c.at)}</div><div class="prose">${md(c.body)}</div></div>`).join("")}</div>`:""}`;
+}
+// Specs this item names (API-005) or has a spec PR for, read from the PR branch while in review.
+function specTab(it){
+  const d=cached("issue",it.number,"/api/issue/"+it.number);
+  if(!d)return`<div class="skel"></div>`;
+  const refs=new Map();
+  for(const p of it.prs.filter(p=>p.kind==="spec"&&p.state==="OPEN")){const m=p.branch.match(/API-\d{3}/i);if(m)refs.set(m[0].toUpperCase(),{id:m[0].toUpperCase(),ref:p.branch,pr:p})}
+  for(const m of String(d.body||"").matchAll(/API-\d{3}/gi)){const id=m[0].toUpperCase();if(refs.has(id))continue;const pr=S.gh.prs.find(p=>p.kind==="spec"&&p.state==="OPEN"&&p.branch.toUpperCase().includes(id));refs.set(id,pr?{id,ref:pr.branch,pr}:{id})}
+  if(!refs.size)return`<p class="muted">No spec yet. The architect writes one when the manager runs this story.${it.prs.length?" The work is on the Changes tab.":""}</p>`;
+  return[...refs.values()].map(r=>{const s=cached("spec",r.id+"@"+(r.ref||"main"),`/api/spec?id=${r.id}${r.ref?"&ref="+encodeURIComponent(r.ref):""}`);
+    return`<div style="margin-bottom:28px"><div class="row" style="margin-bottom:10px"><span class="tag gold">${esc(r.id)}</span><span class="tag">${r.pr?`In review · PR #${r.pr.number}`:"On main"}</span><span class="spacer"></span>${s?.url?`<a class="mono" href="${esc(s.url)}" target="_blank" rel="noopener">${esc(s.path)} ↗</a>`:""}</div>
+     ${!s?`<div class="skel"></div>`:s.error?`<p class="muted">${esc(s.error)}</p>`:s.missing?`<p class="muted">No file for ${esc(r.id)} on ${esc(r.ref||"main")}.</p>`:specBody(s.text)}</div>`}).join("");
+}
+// The spec's front matter becomes one quiet line; the rest reads as prose.
+function specBody(text){
+  const m=String(text).replace(/\r/g,"").match(/^---\n([\s\S]*?)\n---\n?/);
+  const meta=m?Object.fromEntries(m[1].split("\n").map(l=>l.match(/^(\w+):\s*(.*)$/)).filter(Boolean).map(x=>[x[1],x[2]])):{};
+  return`${m?`<p class="tag" style="margin:0 0 14px">${["status","version","depends_on"].filter(k=>meta[k]).map(k=>`${k.replace("_"," ")} ${esc(meta[k])}`).join(" · ")}</p>`:""}<div class="prose">${md(m?text.replace(/\r/g,"").slice(m[0].length):text)}</div>`;
+}
+function parsePatch(p){
+  const rows=[];if(!p)return rows;let o=0,n=0;
+  for(const l of p.split("\n")){
+    const h=l.match(/^@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@/);
+    if(h){o=+h[1];n=+h[2];rows.push({t:"hunk",text:l});continue}
+    if(l.startsWith("\\"))continue;
+    if(l.startsWith("+"))rows.push({t:"add",n:n++,text:l.slice(1)});
+    else if(l.startsWith("-"))rows.push({t:"del",o:o++,text:l.slice(1)});
+    else rows.push({t:"ctx",o:o++,n:n++,text:l.slice(1)});
+  }
+  return rows;
+}
+function changesTab(it){
+  const prs=[...it.prs].sort((a,b)=>(b.state==="OPEN")-(a.state==="OPEN")||b.number-a.number);
+  if(!ui.pr||!prs.some(p=>p.number===ui.pr))ui.pr=prs[0].number;
+  const p=prs.find(x=>x.number===ui.pr),d=cached("pr",p.number,"/api/pr/"+p.number);
+  let h=`<div class="row" style="margin-bottom:14px">${prs.length>1?`<div class="seg">${prs.map(x=>`<button data-act="pick-pr" data-pr="${x.number}" aria-pressed="${x.number===p.number}">${x.kind} #${x.number}</button>`).join("")}</div>`:""}<a href="${esc(p.url)}" target="_blank" rel="noopener">#${p.number} ${esc(p.title)} ↗</a><span class="tag">${p.state==="OPEN"?(p.draft?"draft":"open"):p.state.toLowerCase()}${p.ci?` · CI ${p.ci.toLowerCase()}`:""}</span></div>`;
+  if(!d)return h+`<div class="skel"></div>`;
+  if(d.error)return h+`<p class="muted">${esc(d.error)}</p>`;
+  if(!d.files.length)return h+`<p class="muted">No changed files.</p>`;
+  if(!ui.file||!d.files.some(f=>f.path===ui.file))ui.file=d.files[0].path;
+  const f=d.files.find(x=>x.path===ui.file),rows=parsePatch(f.patch);
+  const fc=d.comments.filter(c=>c.path===f.path),onLine=new Set(rows.filter(r=>r.n).map(r=>r.n)),loose=fc.filter(c=>c.outdated||!onLine.has(c.line));
+  const cmt=c=>`<div class="cmt"><div class="h">${esc(c.author)} · ${ago(c.at)}${c.outdated?" · outdated":""}</div><div class="prose">${md(c.body)}</div></div>`;
+  h+=`<p class="muted" style="font-size:13px;margin:0 0 10px">Click a line number to comment on that line. Comments go to the PR on GitHub; <em>Send back with my notes</em> hands them to the team.</p>
+   <div class="files" style="margin-bottom:12px">${d.files.map(x=>{const n=d.comments.filter(c=>c.path===x.path).length;return`<button data-act="file" data-path="${esc(x.path)}" aria-pressed="${x.path===f.path}">${esc(x.path.split("/").pop())}${n?` · ${n}`:""}</button>`}).join("")}</div>
+   <div class="mono muted" style="margin-bottom:6px">${esc(f.path)} · +${f.additions} −${f.deletions}</div>${loose.map(cmt).join("")}`;
+  if(!f.patch)return h+`<p class="muted">GitHub shows no diff for this file.</p>`;
+  return h+`<div class="code"><table><tbody>${rows.map(r=>{
+    if(r.t==="hunk")return`<tr class="hunk"><td class="ln"></td><td>${esc(r.text)}</td></tr>`;
+    const here=r.n?fc.filter(c=>!c.outdated&&c.line===r.n):[],sel=r.n&&ui.line===r.n;
+    return`<tr class="${r.t}"><td class="ln">${r.n?`<button data-act="line" data-line="${r.n}" aria-label="Comment on line ${r.n}">${r.n}</button>`:""}</td><td class="src">${esc(r.text)||" "}</td></tr>${here.length||sel?`<tr class="cm"><td colspan="2">${here.map(cmt).join("")}${sel?`<div class="say" style="margin-top:6px"><textarea data-draft="line" placeholder="What should change on line ${r.n}?">${esc(ui.drafts.line||"")}</textarea><div class="row"><button class="small gold" data-act="line-send">Comment on GitHub</button><button class="small quiet" data-act="line-cancel">Cancel</button></div></div>`:""}</td></tr>`:""}`}).join("")}</tbody></table></div>`;
+}
+function activityTab(it){
+  const rs=S.runs.filter(r=>r.issue===it.number);
+  const lg=S.log.filter(l=>l.issue===it.number);
+  return`${rs.length?`<div class="runs" style="margin-top:0">${rs.map(r=>`<div class="run" data-act="watch" data-run="${r.id}" tabindex="0"><span class="dot ${r.status==="running"?"on":r.status==="done"?"ok":r.status==="failed"?"crit":""}"></span><span class="l">${esc(r.label)}<small>${esc((r.agents||[]).map(a=>a.agent).join(" → ")||r.last||"")}</small></span><span class="age">${ago(r.startedAt)}</span></div>`).join("")}</div>`:`<p class="muted">No runs from the dashboard yet. Work from a Claude chat shows in the issue's comments.</p>`}
+   ${lg.length?`<div class="log" style="margin-top:18px">${lg.map(l=>`<div class="r"><span class="k">${clock(l.at)}</span><span class="k">${esc(l.who)}</span><span>${esc(l.msg)}</span></div>`).join("")}</div>`:""}`;
+}
+async function runDrawer(id){
+  let r;try{r=await api("/api/runs/"+id)}catch(e){toast(e.message);return}
+  if(ui.drawer?.run!==id)return;
+  const db=$("#db"),atEnd=db.scrollHeight-db.scrollTop-db.clientHeight<60;
+  $("#dh").innerHTML=`<div class="row"><span class="tag ${r.status==="running"?"gold":r.status==="failed"?"crit":""}">Manager run · ${esc(r.status)} · ${dur(r.startedAt,r.endedAt)}${r.cost!=null?` · $${r.cost.toFixed(2)}`:""}</span><span class="spacer"></span>${r.status==="running"||r.status==="queued"?`<button class="small" data-act="stop" data-run="${r.id}">Stop</button>`:""}<button class="quiet" data-act="close">Close</button></div><h2>${esc(r.label)}</h2>`;
+  db.innerHTML=`${r.issue?`<div class="row"><button class="small" data-act="open" data-n="${r.issue}">Open #${r.issue}</button></div>`:""}
+   ${r.sessionId?`<div class="mono muted">Continue it in a terminal: claude --resume ${esc(r.sessionId)}</div>`:""}
+   <details><summary class="muted" style="cursor:pointer">What the manager was asked</summary><div class="prose" style="margin-top:8px">${md(r.prompt)}</div></details>
+   <div class="log">${r.rows.map(x=>`<div class="r ${x.kind}"><span class="k">${clock(x.at)}</span><span class="k">${x.kind==="agent"?esc(x.agent):x.who==="sub"?"subagent":x.kind==="text"?"manager":x.kind}</span><span class="b">${x.kind==="text"||x.kind==="result"?`<div class="prose">${md(x.text)}</div>`:esc(x.text)}</span></div>`).join("")||`<span class="muted">${r.status==="queued"?"Waiting for the running story to finish.":"Starting…"}</span>`}</div>`;
+  if(atEnd)db.scrollTop=db.scrollHeight;
+}
+
+/* ---------- modal: message the manager, new story ---------- */
+function modal(kind){
+  const m=$("#modal");
+  if(kind==="chat")m.innerHTML=`<div class="modal" data-act="modal-close" data-self="1"><div class="box" role="dialog" aria-modal="true"><h3>Message the manager</h3><p class="muted" style="margin:0">Starts the manager in the repository with your words. Ask what's going on, or tell it what to do.</p><textarea id="mtext" rows="5" placeholder="What's blocking #17? / Split #13 into two stories / Write a case for custom domains"></textarea><div class="row"><span class="spacer"></span><button class="quiet" data-act="modal-close">Cancel</button><button class="gold" data-act="chat-send">Send</button></div></div></div>`;
+  if(kind==="new")m.innerHTML=`<div class="modal" data-act="modal-close" data-self="1"><div class="box" role="dialog" aria-modal="true"><h3>New story</h3><p class="muted" style="margin:0">A few lines are enough. pm writes it up as a story with acceptance criteria and puts it in Backlog.</p>
+    <label>What should an owner be able to do?<textarea id="mtext" rows="4" placeholder="Owners can reorder blocks on a page by dragging them."></textarea></label>
+    <label>Team<select id="mteam"><option value="">Let pm decide</option>${S.gh.labels.filter(l=>l.name.startsWith("team:")).map(l=>`<option value="${l.name.slice(5)}">${esc(teamName(l.name.slice(5)))}</option>`).join("")}</select></label>
+    <div class="row"><span class="spacer"></span><button class="quiet" data-act="modal-close">Cancel</button><button class="gold" data-act="new-send">Hand to pm</button></div></div></div>`;
+  setTimeout(()=>$("#mtext")?.focus(),0);
+}
+
+/* ================= actions ================= */
+async function act(body,msg){
+  try{
+    const r=await api("/api/action",body);
+    await loadRuns();
+    const queued=r.run&&S.runs.find(x=>x.id===r.run)?.status==="queued";
+    toast(r.run?(queued?"Queued: the manager starts it when the running story is done.":msg||"The manager is on it."):msg||"Done.");
+    if(body.issue)forget(body.issue);
+    await loadBoard(true);
+    return r;
+  }catch(e){toast(e.message);throw e}
+}
+async function send(n,pr,btn){
+  const k="say:"+n,text=(ui.drafts[k]||"").trim();
+  if(!text){toast("Write what you think first.");$(`[data-draft="${k}"]`)?.focus();return}
+  btn.disabled=true;
+  await act({action:"feedback",issue:n,pr:pr||null,text},"Sent. The manager is on it.");
+  delete ui.drafts[k];draw();
+}
+async function approve(n,pr,btn){
+  const it=S.items.get(n),k="say:"+n,text=(ui.drafts[k]||"").trim();
+  if(pr&&!confirm(`Squash-merge PR #${pr} and sync the board?`))return;
+  btn.disabled=true;
+  // Approving a spec lets the story go on; approving a case starts its stories.
+  const then=it.kind==="case"?"case":it.column==="Spec review"?"story":null;
+  await act({action:"approve",issue:n,pr:pr||null,text,then},pr?`PR #${pr} merged.`:"Case approved.");
+  delete ui.drafts[k];draw();
+}
+document.addEventListener("input",e=>{const k=e.target.dataset?.draft;if(k)ui.drafts[k]=e.target.value});
+document.addEventListener("keydown",e=>{
+  if(e.key==="Escape"){if($("#modal").innerHTML)$("#modal").innerHTML="";else if(ui.drawer)closeDrawer()}
+  if(e.key==="Enter"&&(e.ctrlKey||e.metaKey)&&e.target.dataset?.draft?.startsWith("say:"))e.target.closest(".say").querySelector('[data-act="send"]').click();
+  if(e.key==="Enter"&&e.target.matches("[tabindex][data-act]"))e.target.click();
+});
+document.addEventListener("change",e=>{const el=e.target;if(el.dataset.act==="move")act({action:"move",issue:+el.dataset.n,column:el.value},`#${el.dataset.n} → ${el.value}`).catch(()=>{})});
+document.addEventListener("click",async e=>{
+  const b=e.target.closest("[data-act]");if(!b||b.tagName==="SELECT")return;
+  if(b.dataset.self&&e.target!==b)return;
+  if(e.target.closest("a[href^='http']"))return;
+  const n=+b.dataset.n||null,pr=+b.dataset.pr||null;
+  if(b.tagName==="A")e.preventDefault();
+  try{switch(b.dataset.act){
+    case"toggle":ui.open=ui.open===n?null:n;draw();break;
+    case"open":ui.tab=b.dataset.tab||"issue";ui.pr=null;ui.file=null;openDrawer({n});break;
+    case"watch":openDrawer({run:b.dataset.run});break;
+    case"close":closeDrawer();break;
+    case"tab":ui.tab=b.dataset.tab;ui.line=null;drawerView();break;
+    case"pick-pr":ui.pr=pr;ui.file=null;ui.line=null;drawerView();break;
+    case"file":ui.file=b.dataset.path;ui.line=null;drawerView();break;
+    case"line":ui.line=+b.dataset.line;drawerView();setTimeout(()=>$('[data-draft="line"]')?.focus(),0);break;
+    case"line-cancel":ui.line=null;drawerView();break;
+    case"line-send":{const body=(ui.drafts.line||"").trim();if(!body)return;b.disabled=true;await act({action:"pr-comment",pr:ui.pr,path:ui.file,line:ui.line,body,issue:ui.drawer?.n},"Comment posted on GitHub.");delete C.pr[ui.pr];ui.line=null;ui.drafts.line="";drawerView();break}
+    case"send":await send(n,pr,b);break;
+    case"approve":await approve(n,pr,b);break;
+    case"run-story":await act({action:"run-story",issue:n});break;
+    case"run-next":await act({action:"run-next"});break;
+    case"stop":await api(`/api/runs/${b.dataset.run}/stop`,{});toast("Stopped.");await loadRuns();break;
+    case"sync":await act({action:"sync"},"Board synced.");break;
+    case"check-claude":await loadClaude(true);toast(S.claude.loggedIn?`Signed in${S.claude.email?" as "+S.claude.email:""}. The agents can run.`:"Still not signed in.");break;
+    case"chat":modal("chat");break;
+    case"new":modal("new");break;
+    case"modal-close":$("#modal").innerHTML="";break;
+    case"chat-send":{const t=$("#mtext").value.trim();if(!t)return;$("#modal").innerHTML="";await act({action:"ask",text:t});break}
+    case"new-send":{const t=$("#mtext").value.trim(),team=$("#mteam").value;if(!t)return;$("#modal").innerHTML="";await act({action:"ask",text:`Use the write-story skill to create this story on GitHub${team?` with the team:${team} label`:" (pick the right team: label)"} and put it on the board in Backlog:\n\n${t}`},"pm is writing it up.");break}
+  }}catch(err){console.error(err)}
+});
+
+/* ================= data ================= */
+async function loadClaude(fresh){try{S.claude=await api("/api/claude"+(fresh?"?fresh":""))}catch{}draw()}
+async function loadBoard(fresh){
+  try{S.gh=await api("/api/board"+(fresh?"?fresh":""));S.error=null}catch(e){S.error=e.message}
+  S.loaded=true;derive();draw();
+}
+async function loadRuns(){
+  try{
+    const [runs,log]=await Promise.all([api("/api/runs"),api("/api/log")]);
+    const was=new Set(S.runs.filter(r=>r.status==="running").map(r=>r.id));
+    S.runs=runs;S.log=log;
+    // A run that just ended has probably commented, moved cards or opened PRs.
+    const ended=runs.filter(r=>was.has(r.id)&&r.status!=="running");
+    if(ended.length){for(const r of ended)if(r.issue)forget(r.issue);await loadBoard(true)}
+    derive();draw();
+    if(ui.drawer?.run)runDrawer(ui.drawer.run);
+  }catch(e){console.error(e)}
+}
+(async function boot(){
+  route();
+  await Promise.all([loadBoard(),loadRuns(),loadClaude()]);
+  setInterval(()=>{if(document.visibilityState==="visible")loadClaude()},60e3);
+  // The board every minute while visible (about 2 GraphQL points a read);
+  // runs every 3 s while one is going or waiting, else every 20 s.
+  setInterval(()=>{if(document.visibilityState==="visible")loadBoard()},60e3);
+  setInterval(()=>{if(S.runs.some(r=>r.status==="running"||r.status==="queued"))loadRuns()},3e3);
+  setInterval(()=>{if(!S.runs.some(r=>r.status==="running"||r.status==="queued"))loadRuns()},20e3);
+  document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible"&&S.gh&&Date.now()-S.gh.at>60e3)loadBoard()});
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,6 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\Hivesite.Shared\Hivesite.Shared.csproj" />
+  </ItemGroup>
+</Project>

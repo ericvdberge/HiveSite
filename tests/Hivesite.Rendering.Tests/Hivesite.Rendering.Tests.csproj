@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <IsPackable>false</IsPackable>
+    <OutputType>Exe</OutputType>
+    <EnableMSTestRunner>true</EnableMSTestRunner>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="MSTest" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Modules\Rendering\Hivesite.Rendering\Hivesite.Rendering.csproj" />
+    <ProjectReference Include="..\Hivesite.Testing\Hivesite.Testing.csproj" />
+  </ItemGroup>
+</Project>

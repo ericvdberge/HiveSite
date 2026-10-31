@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <IsPackable>false</IsPackable>
+    <OutputType>Exe</OutputType>
+    <EnableMSTestRunner>true</EnableMSTestRunner>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
+    <PackageReference Include="MSTest" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Modules\Content\Hivesite.Content\Hivesite.Content.csproj" />
+    <ProjectReference Include="..\..\src\Hivesite.Host\Hivesite.Host.csproj" />
+    <ProjectReference Include="..\Hivesite.Testing\Hivesite.Testing.csproj" />
+  </ItemGroup>
+</Project>
