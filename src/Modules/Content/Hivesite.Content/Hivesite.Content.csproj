@@ -5,6 +5,20 @@
   </ItemGroup>
 
   <ItemGroup>
+    <InternalsVisibleTo Include="Hivesite.Content.Tests" />
+    <Using Include="Microsoft.AspNetCore.Http" />
+    <Using Include="Microsoft.AspNetCore.Routing" />
+    <Using Include="Microsoft.AspNetCore.Builder" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="EFCore.NamingConventions" />
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
+    <PackageReference Include="Riok.Mapperly" ExcludeAssets="runtime" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" PrivateAssets="all" IncludeAssets="runtime;build;native;contentfiles;analyzers" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\..\..\Hivesite.Shared\Hivesite.Shared.csproj" />
     <ProjectReference Include="..\Hivesite.Content.Contracts\Hivesite.Content.Contracts.csproj" />
   </ItemGroup>

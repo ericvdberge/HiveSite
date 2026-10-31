@@ -40,5 +40,5 @@ API-004 (link to specs/<domain>/API-004-*.md), or "none" for non-API work.
 
 - Every acceptance criterion is testable and names the spec item it covers.
 - Labels: exactly one `type:*` and one `team:*`. Add `needs-spec` when the spec does not exist or is not approved.
-- Split when the work spans more than one team or will exceed about 400 changed lines; link the parts with "Part of #N".
+- Split when the work spans more than one team or will exceed about 400 changed lines; link the parts with "Part of #N". Count shared plumbing (validation, paging, auth, test fixtures) too: the first story of a module pays for it.
 - Tasks that deserve their own tracking become their own issues with `type:task` that mention the parent.

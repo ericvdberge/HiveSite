@@ -85,7 +85,7 @@ public static class ModuleBoundaries
             Includes("PackageReference"));
     }
 
-    private static string RepositoryRoot()
+    internal static string RepositoryRoot()
     {
         var dir = new DirectoryInfo(AppContext.BaseDirectory);
         while (dir is not null && !File.Exists(Path.Combine(dir.FullName, "Hivesite.slnx")))

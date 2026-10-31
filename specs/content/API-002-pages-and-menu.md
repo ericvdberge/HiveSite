@@ -2,24 +2,22 @@
 id: API-002
 title: Pages and menu order
 domain: content
-status: approved
+status: built
 owner: api-architect
 stories: [13]
 depends_on: [API-001]
-version: 2
+version: 3
 ---
 
 ## Purpose
 A site owner can create, list, read, update and delete the pages of a site and set their order in the menu.
 
-Auth, ids, errors, validation, lists, idempotency, slugs and timestamps follow the shared conventions in API-001.
+Auth, ids, errors, validation, lists, slugs and timestamps follow the shared conventions in API-001.
 
 ## Endpoints
 
 ### POST /sites/{id}/pages
 Auth: site owner
-
-Headers: `Idempotency-Key` (optional)
 
 Request
 ```json
@@ -48,7 +46,6 @@ Errors
 - 400 `invalid_request`: body is not JSON, `title` or `slug` is missing, a field has the wrong type, an unknown field is present, or a value breaks a limit in Rules. The message names the field.
 - 400 `slug_taken`: another page of this site already uses this slug.
 - 400 `slug_reserved`: the slug is one of the reserved page slugs in Rules.
-- 400 `idempotency_key_reused`
 - 400 `too_many_pages`: the site already has 50 pages.
 - 401 `unauthenticated`
 - 404 `site_not_found`

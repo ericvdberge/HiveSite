@@ -1,6 +1,6 @@
 # Rendering module
 
-Themes from design tokens, block renderers and the draft preview. Owned by `dev-rendering`. Specs: API-010 to API-019 in `specs/rendering/`. Designs: `design/`.
+Themes from design tokens, block renderers and the draft preview. Owned by `dev-rendering`. Specs: API-010 to API-019 in `specs/rendering/`. Designs: `design/`. Endpoints, DTOs, validation and mapping follow [src/CLAUDE.md](../../CLAUDE.md); Rendering has no database layer.
 
 ## Layout
 - `Hivesite.Rendering/`: themes, renderers, endpoints. `RenderingModule` is the only entry point the Host calls.

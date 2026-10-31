@@ -1,6 +1,6 @@
 ---
 name: run-story
-description: The agent factory's playbook for taking one GitHub story from Ready to a pull request a human can merge. Use when asked to run, continue or check a story, or to run the next one on the board.
+description: The agent factory's playbook for taking GitHub stories from Ready to pull requests a human can merge, one at a time, until everything waits on a human. Use when asked to run, continue or check a story, or to run the next one on the board.
 ---
 
 # Run a story
@@ -43,6 +43,8 @@ Backlog ─(human)→ Ready → Spec review ─(human merges spec PR)→ Buildin
 - Move the story to **Building**.
 - Start the dev agent for the story's `team:*` label with `isolation: worktree`. Give it the issue number, the spec file, the branch name `story/<issue>-<slug>`, and the build and test commands.
 - The dev opens a **draft** PR that follows the PR template and says `Closes #<issue>` and `Spec: API-xxx`.
+- **First story of a module** (its folder has no entity built on the `src/CLAUDE.md` patterns yet): the dev first comments on the story with the files it will add and the public method signatures, and **stops**. Tell the human: "Check the sketch on #N." Build once they reply. It costs one short read and saves review rounds.
+- Before the PR, the dev reads its diff against `src/CLAUDE.md` once more and fixes what drifts.
 
 ### 4. Review (at most three rounds)
 - Move the story to **Agent review**.
@@ -54,6 +56,18 @@ Backlog ─(human)→ Ready → Spec review ─(human merges spec PR)→ Buildin
 - When review and tests pass: `gh pr ready <pr>`, move the story to **Ready to merge**, comment a summary with links, and **stop**.
 - The human merges and GitHub closes the issue. The card stays in **Ready to merge** until the next run's `sync` moves it to **Done**.
 
+## Keep going
+
+A **stop** in the steps ends work on that story, not the run. After each stop, and after a send back, pick the next story that can move and run it, until none can:
+
+1. `node scripts/board.mjs sync`, then read the board again.
+2. Pick, in this order:
+   - a story whose gate a human passed since its last manager comment: its spec or design PR was merged, or a human answered a sketch or a question;
+   - a story in **Building** or **Agent review** with no run going and no `needs-human` label;
+   - the top story in **Ready**.
+3. Skip stories that wait on a human: an open spec or design PR in **Spec review**, a sketch with no reply, **Ready to merge**, `needs-human`, or the review budget used. Never take a story from **Backlog**; humans move stories into Ready.
+4. Nothing left? End with one summary: each story you touched, where it stopped, and what the human must do, most urgent first.
+
 ## Send back a PR with human review comments
 
 A human who reviewed a PR that waits on them (spec, design or build) and left comments can send it back to its team. The Factory Floor's *Send back* button asks for this.
@@ -62,7 +76,7 @@ A human who reviewed a PR that waits on them (spec, design or build) and left co
 2. Pick the team from the branch: `spec/` → `api-architect`, `design/` → `designer`, `story/` → the dev agent for the story's `team:*` label. A `factory/` or `chore/` PR has no agent team: fix it in this session yourself.
 3. Start that agent on the same branch (dev agents with `isolation: worktree`) with the PR number, the story, and each comment quoted with its file and line. It fixes every comment or answers why not, pushes, and replies on the PR with one line per comment.
 4. Move the card: a spec or design PR stays in **Spec review**; a build PR goes to **Building**, then through step 4 again. Rounds a human asked for do not count toward the three.
-5. Comment on the story issue and **stop** at the same gate as before: `**Send back** — <team> fixed N comments on PR #N. Next: review again and merge.`
+5. Comment on the story issue and **stop** at the same gate as before: `**Send back** — <team> fixed N comments on PR #N. Next: review again and merge.` Then *Keep going*.
 
 ## Board commands
 
@@ -76,7 +90,7 @@ Move the card in the same step as the work it reports, before the issue comment.
 
 ## Guardrails
 
-- One story in flight. Finish or stop at a gate before starting another.
+- One story in flight. Finish it or stop it at a gate before starting another; then start another (*Keep going*).
 - Agents write only where their role allows (see each agent file). Spec PRs and build PRs are always separate.
 - No agent merges, approves a PR, pushes to `main`, or edits a spec's `status` to `approved`.
 - Budget: stop and ask the human once a story has used three review rounds or the dev agent has been started more than five times.

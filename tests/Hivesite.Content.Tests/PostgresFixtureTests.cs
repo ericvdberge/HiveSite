@@ -3,19 +3,28 @@ using Npgsql;
 
 namespace Hivesite.Content.Tests;
 
-public sealed class PostgresFixtureTests(PostgresFixture postgres) : IClassFixture<PostgresFixture>
+[TestClass]
+public sealed class PostgresFixtureTests
 {
-    [Fact]
+    private static readonly PostgresFixture Postgres = new();
+
+    [ClassInitialize]
+    public static Task InitializeAsync(TestContext context) => Postgres.InitializeAsync();
+
+    [ClassCleanup]
+    public static ValueTask CleanupAsync() => Postgres.DisposeAsync();
+
+    [TestMethod]
     public async Task The_fixture_serves_a_database_that_answers_queries()
     {
-        postgres.SkipIfUnavailable();
+        Postgres.SkipIfUnavailable();
 
-        await using var connection = new NpgsqlConnection(postgres.ConnectionString);
-        await connection.OpenAsync(TestContext.Current.CancellationToken);
+        await using var connection = new NpgsqlConnection(Postgres.ConnectionString);
+        await connection.OpenAsync();
         await using var command = new NpgsqlCommand("select 1", connection);
 
-        var result = await command.ExecuteScalarAsync(TestContext.Current.CancellationToken);
+        var result = await command.ExecuteScalarAsync();
 
-        Assert.Equal(1, result);
+        Assert.AreEqual(1, result);
     }
 }
