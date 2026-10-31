@@ -376,7 +376,7 @@ function turnView(){
   if(!list.length){
     const next=all().filter(x=>x.state==="queued"&&isLeaf(x)&&x.column==="Ready").sort((a,b)=>a.number-b.number)[0];
     h+=`<div class="calm">${next?`<p>Next up: #${next.number} ${esc(next.title)}</p><div class="row"><button class="gold" data-act="run-story" data-n="${next.number}" ${storyRunning()?"disabled":""}>Run it</button><button data-act="open" data-n="${next.number}">Read it first</button></div>`
-      :`<p>Nothing is ready. Move a story out of the backlog when you want the team to start.</p><div class="row"><a href="#board"><button>Open the board</button></a><button data-act="new">New story</button></div>`}</div>`;
+      :`<p>Nothing is ready. Run the factory and the manager takes the next story it can from the backlog.</p><div class="row"><button class="gold" data-act="run-next" ${storyRunning()?"disabled":""}>Run until my turn</button><a href="#board"><button>Open the board</button></a><button data-act="new">New story</button></div>`}</div>`;
     return h;
   }
   h+=`<div class="queue">${list.map((a,i)=>{const it=a.it,open=ui.open===it.number;

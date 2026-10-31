@@ -62,7 +62,7 @@ Work started from a Claude chat isn't shown as *working*. You see it in the issu
 | Column | `node scripts/board.mjs move` |
 | Sync board | `node scripts/board.mjs sync` |
 
-Every story run keeps going until everything waits on you. When a story stops at a gate (a spec, a design, a sketch, a merge or `needs-human`), the manager goes on with the next story that can move, and ends with a summary of what waits on you. It never takes a story from Backlog, and you can stop a run from its log.
+Every story run keeps going until everything waits on you. When a story stops at a gate (a spec, a design, a sketch, a merge or `needs-human`), the manager goes on with the next story that can move, and ends with a summary of what waits on you. When nothing in Ready can move, it promotes the next Backlog story an agent team can run (see run-story's *Promote from Backlog*). Move a story back to Backlog to park it. You can stop a run from its log.
 
 One story is worked at a time, as run-story asks. Anything else that would start a second story run waits in a queue and starts when the running one ends; you can stop it while it waits. Messages run alongside.
 
