@@ -99,3 +99,7 @@ A run's log shows its session, so you can continue it in a terminal with `claude
 - `index.html`: the page, in the Hivesite brand. It re-reads the board every minute while it's visible, after every action, and when a run ends.
 
 The server listens on 127.0.0.1 only and refuses POST requests from other origins.
+
+## From Claude
+
+Type `/dashboard` in a Claude session in this repository. The `dashboard` skill (`.claude/skills/dashboard`) starts the server if it isn't running and opens the page.
