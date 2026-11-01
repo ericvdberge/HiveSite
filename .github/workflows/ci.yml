@@ -32,3 +32,30 @@ jobs:
         run: dotnet build -warnaserror
       - if: steps.sln.outputs.found != ''
         run: dotnet test --no-build
+
+  studio:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web/studio
+    steps:
+      - uses: actions/checkout@v4
+      - id: app
+        working-directory: .
+        run: echo "found=$(test -f web/studio/package.json && echo yes)" >> "$GITHUB_OUTPUT"
+      - if: steps.app.outputs.found == 'yes'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: web/studio/package-lock.json
+      - if: steps.app.outputs.found == 'yes'
+        run: npm ci
+      - if: steps.app.outputs.found == 'yes'
+        run: npm run lint
+      - if: steps.app.outputs.found == 'yes'
+        run: npm run typecheck
+      - if: steps.app.outputs.found == 'yes'
+        run: npm test
+      - if: steps.app.outputs.found == 'yes'
+        run: npm run build
