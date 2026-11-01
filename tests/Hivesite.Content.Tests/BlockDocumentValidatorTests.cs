@@ -136,6 +136,22 @@ public sealed class BlockDocumentValidatorTests
     [DataRow("""{"type":"contact_form","attrs":{"action_url":"https://x.test/s","fields":[{"name":"a","label":"E","kind":"text","required":null}]}}""", "/content/0/attrs/fields/0/required")]
     [DataRow("""{"type":"embed","attrs":{"provider":"tiktok","url":"https://x.test/v","title":"F"}}""", "/content/0/attrs/provider")]
     [DataRow("""{"type":"embed","attrs":{"provider":"vimeo","url":"https://x.test/v"}}""", "/content/0/attrs")]
+    [DataRow("""{"type":"rich_text","attrs":{"x":1},"content":[{"type":"paragraph"}]}""", "/content/0/attrs")]
+    [DataRow("""{"type":"image","attrs":{"image":{"url":"https://x.test/a.png","alt":""},"foo":1}}""", "/content/0/attrs/foo")]
+    [DataRow("""{"type":"gallery","attrs":{"images":[{"url":"https://x.test/a.png","alt":""}],"foo":1}}""", "/content/0/attrs/foo")]
+    [DataRow("""{"type":"card_list","attrs":{"source":{"kind":"collection","entity_type":"page"},"foo":1}}""", "/content/0/attrs/foo")]
+    [DataRow("""{"type":"contact_form","attrs":{"action_url":"https://x.test/s","fields":[{"name":"a","label":"A","kind":"text"}],"foo":1}}""", "/content/0/attrs/foo")]
+    [DataRow("""{"type":"embed","attrs":{"provider":"vimeo","url":"https://x.test/v","title":"F","foo":1}}""", "/content/0/attrs/foo")]
+    [DataRow("""{"type":"rich_text","content":null}""", "/content/0/content")]
+    [DataRow("""{"type":"image","attrs":{"image":null}}""", "/content/0/attrs/image")]
+    [DataRow("""{"type":"gallery","attrs":{"images":null}}""", "/content/0/attrs/images")]
+    [DataRow("""{"type":"card_list","attrs":{"source":null}}""", "/content/0/attrs/source")]
+    [DataRow("""{"type":"embed","attrs":{"provider":"vimeo","url":"https://x.test/v","title":null}}""", "/content/0/attrs/title")]
+    [DataRow("""{"type":"rich_text"}""", "/content/0")]
+    [DataRow("""{"type":"gallery","attrs":{}}""", "/content/0/attrs")]
+    [DataRow("""{"type":"card_list","attrs":{}}""", "/content/0/attrs")]
+    [DataRow("""{"type":"contact_form","attrs":{}}""", "/content/0/attrs")]
+    [DataRow("""{"type":"embed","attrs":{"provider":"vimeo","url":"https://x.test/v","title":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}}""", "/content/0/attrs/title")]
     public void A_node_that_breaks_its_schema_is_invalid_block_with_the_pointer_AC9(string node, string field)
     {
         AssertFails(Doc(node), "invalid_block", field);
@@ -154,6 +170,34 @@ public sealed class BlockDocumentValidatorTests
     {
         Assert.IsTrue(Check(Doc($$$"""{"type":"hero","attrs":{"title":"{{{Repeat("😀", 80)}}}"}}""")).IsSuccess);
         AssertFails(Doc($$$"""{"type":"hero","attrs":{"title":"{{{Repeat("😀", 81)}}}"}}"""), "invalid_block", "/content/0/attrs/title");
+    }
+
+    [TestMethod]
+    public void The_card_list_example_of_API_003_is_valid_AC9()
+    {
+        var stored = Stored(Doc("""{"type":"card_list","attrs":{"heading":"Explore","layout":"grid","source":{"kind":"collection","entity_type":"page","sort":"natural","page_size":12}}}"""));
+
+        AssertJson("""{"heading":"Explore","layout":"grid","source":{"kind":"collection","entity_type":"page","sort":"natural","page_size":12}}""", stored["content"]![0]!["attrs"]);
+    }
+
+    [TestMethod]
+    public void Lengths_count_code_points_also_for_combining_marks_and_flags_AC9()
+    {
+        // "e" + U+0301 is one grapheme but two code points; a flag is one grapheme and two code points. 40 of either are 80 code points.
+        foreach (var unit in new[] { "e\u0301", "\U0001F1F3\U0001F1F1" })
+        {
+            Assert.IsTrue(Check(Doc($$$"""{"type":"hero","attrs":{"title":"{{{Repeat(unit, 40)}}}"}}""")).IsSuccess);
+            AssertFails(Doc($$$"""{"type":"hero","attrs":{"title":"{{{Repeat(unit, 41)}}}"}}"""), "invalid_block", "/content/0/attrs/title", "must be at most 80 characters");
+        }
+    }
+
+    [TestMethod]
+    public void The_text_of_a_text_node_is_limited_in_code_points_too_AC9()
+    {
+        string Paragraph(string text) => Doc($$$"""{"type":"rich_text","content":[{"type":"paragraph","content":[{"type":"text","text":"{{{text}}}"}]}]}""");
+
+        Assert.IsTrue(Check(Paragraph(Repeat("\U0001F1F3\U0001F1F1", 5000))).IsSuccess);
+        AssertFails(Paragraph(Repeat("\U0001F1F3\U0001F1F1", 5001)), "invalid_block", "/content/0/content/0/content/0/text", "must be at most 10000 characters");
     }
 
     [TestMethod]

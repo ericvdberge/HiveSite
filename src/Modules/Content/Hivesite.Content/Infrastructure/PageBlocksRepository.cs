@@ -22,10 +22,16 @@ internal sealed class PageBlocksRepository(ContentDbContext db)
     }
 
     /// <summary>
-    /// Writes the document, the next version and the page's <c>updated_at</c> in one transaction. With <paramref name="expectedVersion"/>
-    /// it writes only if that is the stored version; without, whatever is stored is overwritten. False when the version moved on.
+    /// Writes the document, the next version and the page's <c>updated_at</c> in one transaction, and returns the version written.
+    /// With <paramref name="expectedVersion"/> it writes only if that is the stored version (null result: it moved on). Without, whatever
+    /// is stored is overwritten (last write wins) and the result is never null.
     /// </summary>
-    public async Task<bool> SaveAsync(PageBlocks blocks, int? expectedVersion, DateTime updatedAt, CancellationToken ct)
+    public async Task<int?> SaveAsync(PageBlocks blocks, int? expectedVersion, DateTime updatedAt, CancellationToken ct) =>
+        // A first save that loses the race for the row starts again without If-Match: the row exists then, and the update finds it.
+        await TrySaveAsync(blocks, expectedVersion, updatedAt, ct)
+            ?? (expectedVersion is null ? await TrySaveAsync(blocks, null, updatedAt, ct) : null);
+
+    private async Task<int?> TrySaveAsync(PageBlocks blocks, int? expectedVersion, DateTime updatedAt, CancellationToken ct)
     {
         var dao = PageBlocksDaoMapper.ToDao(blocks);
         await using var transaction = await db.Database.BeginTransactionAsync(ct);
@@ -35,12 +41,14 @@ internal sealed class PageBlocksRepository(ContentDbContext db)
             .ExecuteUpdateAsync(s => s.SetProperty(b => b.Document, dao.Document).SetProperty(b => b.Version, b => b.Version + 1), ct);
         if (rows == 0 && !await AddFirstAsync(dao, expectedVersion, ct))
         {
-            return false;
+            return null;
         }
 
+        // This transaction holds the row, so this is the version this write made.
+        var version = await db.PageBlocks.Where(b => b.PageId == blocks.PageId).Select(b => b.Version).SingleAsync(ct);
         await db.Pages.Where(p => p.Id == blocks.PageId).ExecuteUpdateAsync(s => s.SetProperty(p => p.UpdatedAt, updatedAt), ct);
         await transaction.CommitAsync(ct);
-        return true;
+        return version;
     }
 
     /// <summary>The first save of a page: no row yet means version 1, so the row starts at 2. The primary key settles a race.</summary>

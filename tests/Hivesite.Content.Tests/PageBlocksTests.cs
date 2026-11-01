@@ -12,6 +12,8 @@ namespace Hivesite.Content.Tests;
 [TestClass]
 public sealed class PageBlocksTests
 {
+    private static readonly string[] TwoVersions = ["\"2\"", "\"3\""];
+
     private const string Empty = """{"type":"doc","content":[]}""";
     private const string Hero = """{"type":"hero","attrs":{"title":"T"}}""";
 
@@ -403,6 +405,30 @@ public sealed class PageBlocksTests
             CollectionAssert.AreEquivalent(new[] { HttpStatusCode.OK, HttpStatusCode.PreconditionFailed }, results.Select(r => r.Status).ToArray());
             Assert.AreEqual($"\"{int.Parse(version.Trim('"'), CultureInfo.InvariantCulture) + 1}\"", (await GetBlocksAsync(api, owner, id)).ETag);
             Assert.AreEqual(1, api.PageEvents.Pages.Count(e => e.PageId == id && e.Change == "blocks") - (round % 2));
+        }
+    }
+
+    [TestMethod]
+    public async Task Two_writes_without_If_Match_both_win_and_the_ETag_is_the_stored_version_AC16()
+    {
+        var api = await ContentApi.ReadyAsync();
+        var owner = ContentApi.NewOwner();
+        var siteId = (await api.CreateAsync(owner)).Text("id");
+
+        for (var round = 0; round < 5; round++)
+        {
+            var id = (await api.CreatePageAsync(owner, siteId)).Text("id");   // a fresh page: both writes race for the first row
+
+            var results = await Task.WhenAll(
+                PutAsync(api, owner, id, Doc("""{"type":"hero","attrs":{"title":"A"}}""")),
+                PutAsync(api, owner, id, Doc("""{"type":"hero","attrs":{"title":"B"}}""")));
+
+            Assert.IsTrue(results.All(r => r.Status == HttpStatusCode.OK), string.Join(',', results.Select(r => r.Status)));
+            CollectionAssert.AreEquivalent(TwoVersions, results.Select(r => r.ETag).ToArray());
+            var stored = await GetBlocksAsync(api, owner, id);
+            Assert.AreEqual("\"3\"", stored.ETag);
+            var last = results.Single(r => r.ETag == "\"3\"");
+            Assert.IsTrue(JsonNode.DeepEquals(JsonNode.Parse(last.Body.GetRawText()), JsonNode.Parse(stored.Body.GetRawText())));
         }
     }
 

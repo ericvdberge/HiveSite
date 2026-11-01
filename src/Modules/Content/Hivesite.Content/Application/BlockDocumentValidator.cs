@@ -132,7 +132,8 @@ internal sealed partial class BlockDocumentValidator
         switch (node)
         {
             case JsonValue value when value.TryGetValue(out string? text):
-                return (JsonValue.Create(text.Trim()), null);
+                text = text.Trim();
+                return (JsonValue.Create(text), CheckLength(text, schema, pointer));
             case JsonObject obj when schema["properties"] is JsonObject properties:
                 var rawText = obj["type"] is JsonValue t && t.TryGetValue(out string? kind) && kind == "text";
                 foreach (var (name, propertySchema) in properties)
@@ -141,7 +142,12 @@ internal sealed partial class BlockDocumentValidator
                     {
                         if (rawText && name == "text")
                         {
-                            continue;   // spaces between marked runs matter
+                            // Spaces between marked runs matter, so no trim; the length is still checked.
+                            if (current is JsonValue raw && raw.TryGetValue(out string? run) && CheckLength(run, block.Resolve(propertySchema!.AsObject()), $"{pointer}/text") is { } tooLong)
+                            {
+                                return (node, tooLong);
+                            }
+                            continue;
                         }
                         var (applied, error) = Apply(current, propertySchema!.AsObject(), block, $"{pointer}/{Escape(name)}");
                         if (error is not null)
@@ -176,6 +182,24 @@ internal sealed partial class BlockDocumentValidator
             default:
                 return (node, null);
         }
+    }
+
+    /// <summary>
+    /// <c>minLength</c> and <c>maxLength</c> count Unicode code points (API-001, API-003). JsonSchema.Net counts grapheme clusters, which is
+    /// more lenient, so the check is made here and the library's own length errors are ignored in <see cref="FirstError"/>.
+    /// </summary>
+    private static Error? CheckLength(string text, JsonObject schema, string pointer)
+    {
+        var length = text.EnumerateRunes().Count();
+        if (schema["maxLength"] is JsonValue max && length > max.GetValue<int>())
+        {
+            return new Error("invalid_block", $"{pointer}: must be at most {max} characters", pointer);
+        }
+        if (schema["minLength"] is JsonValue min && length < min.GetValue<int>())
+        {
+            return new Error("invalid_block", $"{pointer}: must be at least {min} characters", pointer);
+        }
+        return null;
     }
 
     /// <summary>The one branch the value can be, told apart by JSON kind and by a <c>const</c> property (<c>type</c>, <c>kind</c>); otherwise null.</summary>
@@ -227,7 +251,7 @@ internal sealed partial class BlockDocumentValidator
         // Parents only say that something below them failed ("properties", "items"); the failure itself is the entry with a message of its own.
         var failures = new[] { results }.Concat(results.Details ?? [])
             .Where(r => !r.IsValid)
-            .SelectMany(r => (r.Errors ?? []).Where(e => !Applicators.Contains(e.Key)).Select(e => (Result: r, e.Key, e.Value)))
+            .SelectMany(r => (r.Errors ?? []).Where(e => !Applicators.Contains(e.Key) && e.Key is not ("minLength" or "maxLength")).Select(e => (Result: r, e.Key, e.Value)))
             .ToList();
         var failure = failures.FirstOrDefault(f => !InsideBranch().IsMatch(f.Result.EvaluationPath.ToString()));
         if (failure.Result is null)

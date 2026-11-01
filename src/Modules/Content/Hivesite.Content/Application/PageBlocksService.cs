@@ -49,10 +49,11 @@ internal sealed class PageBlocksService(
         }
 
         var replaced = new PageBlocks { PageId = pageId, Document = valid.Value, Version = stored.Version + 1 };
-        if (!await blocks.SaveAsync(replaced, expectedVersion, time.UtcNow, ct))
+        if (await blocks.SaveAsync(replaced, expectedVersion, time.UtcNow, ct) is not { } version)
         {
             return PreconditionFailed;
         }
+        replaced.Version = version;   // what was written, also when another write came in between and there was no If-Match
 
         foreach (var handler in pageHandlers)
         {
