@@ -9,6 +9,18 @@ A block-based website builder, designed and built by a team of AI agents in Clau
 - **API specs:** [specs/](specs/README.md)
 - **Decisions:** [docs/adr/](docs/adr/)
 
+## Try it
+
+Needs Docker, .NET 10 and Node. From a fresh clone:
+
+```bash
+docker compose up -d                            # PostgreSQL 17 on localhost:5432
+dotnet run --project src/Hivesite.Host          # API on http://localhost:5000
+cd web/studio && npm ci && npm run dev          # studio on http://localhost:5173
+```
+
+Then open http://localhost:5173. In Development the Host migrates the database, seeds sample sites (`Dev:Seed`) and signs every request in as the seeded admin, until real sign-in lands ([ADR 4](docs/adr/0004-mvp-route.md)). `docker compose down -v` wipes the data.
+
 ## The agent factory
 
 | Agent | Job |

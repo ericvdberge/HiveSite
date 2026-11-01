@@ -130,7 +130,7 @@ Spoken through the list status line (`role="status"`).
 ## Accessibility
 
 - **`<h1>`:** "Pages", from the page list.
-- **Tab order per row.** Handle, title link, Move up, Move down, Delete. While a row is picked up, Tab drops nothing: it cancels the move and moves on.
+- **Tab order per row.** Handle, title link, Edit blocks, Move up, Move down, Delete (as in [page-list.md](page-list.md)). While a row is picked up, Tab drops nothing: it cancels the move and moves on.
 - **Keyboard paths.** Reorder by handle: Tab to the handle, Space, arrows (or Home, End), Space. Reorder by buttons: Tab to Move up or Move down, Enter or Space, once per place. Cancel: Escape.
 - The handle's name says the page and its position ("Reorder About, position 2 of 5"), and `reorder-help` gives the keys.
 - Every move is announced with its new position. A move that changes home says so.

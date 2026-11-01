@@ -12,7 +12,7 @@ public sealed class StudioCorsTests
     [TestMethod]
     public async Task A_preflight_from_a_listed_origin_passes_with_credentials()
     {
-        await using var factory = new WebApplicationFactory<Program>();
+        await using var factory = HostFactory.WithoutDatabase();
 
         using var response = await PreflightAsync(factory, StudioDevServer);
 
@@ -25,7 +25,7 @@ public sealed class StudioCorsTests
     [TestMethod]
     public async Task A_preflight_from_an_unlisted_origin_gets_no_cors_headers()
     {
-        await using var factory = new WebApplicationFactory<Program>();
+        await using var factory = HostFactory.WithoutDatabase();
 
         using var response = await PreflightAsync(factory, "https://evil.example");
 

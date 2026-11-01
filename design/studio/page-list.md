@@ -1,6 +1,6 @@
 # Page list
 
-The main view of a site screen: every page of the site in menu order, the home marker, the 50-page limit and the empty state. Covers #64 and #47 AC1 and AC4. Reordering is in [menu-reorder.md](menu-reorder.md), delete in [delete-confirm.md](delete-confirm.md), add and edit in [page-form.md](page-form.md). Shared rules are in [shell.md](shell.md); this note lists only what differs.
+The main view of a site screen: every page of the site in menu order, the home marker, the 50-page limit and the empty state. Covers #64 and #47 AC1 and AC4. Reordering is in [menu-reorder.md](menu-reorder.md), delete in [delete-confirm.md](delete-confirm.md), add and edit in [page-form.md](page-form.md), editing a page's blocks in [block-editor.md](block-editor.md). Shared rules are in [shell.md](shell.md); this note lists only what differs.
 
 ## Data
 
@@ -13,7 +13,7 @@ GET `/sites/{id}` for the site, then GET `/sites/{id}/pages?limit=50`, so one ca
 | page `title` | Row title, a link to the page form (edit) | 1 to 80 code points |
 | page `slug` | Path `/s/{site_slug}/{page_slug}`; the home page shows `/s/{site_slug}/` | 1 to 60 code points |
 | page `menu_order` | Position number ("1" for `menu_order` 0) and row order; `menu_order` 0 is home | 0 to 49 |
-| page `id` | Not shown. Row links, delete and the menu request. | UUIDv7 |
+| page `id` | Not shown. Row links (page form, block editor), delete and the menu request. | UUIDv7 |
 
 `created_at`, `updated_at` and `site_id` are not shown. The order is the server's (`menu_order` ascending); the studio never sorts the list itself.
 
@@ -48,6 +48,7 @@ GET `/sites/{id}` for the site, then GET `/sites/{id}/pages?limit=50`, so one ca
       <span class="hs-home">Home page</span>                    <!-- first row only -->
       <p class="hs-row__meta"><span class="hs-path">/s/atelier-noor/</span></p>
       <div class="hs-row__actions">
+        <a class="hs-button hs-button--quiet" href="/pages/{id}/blocks" aria-label="Edit blocks of Home">Edit blocks</a>   <!-- block-editor.md -->
         <button type="button" class="hs-button hs-button--quiet" aria-label="Move Home up">…</button>    <!-- menu-reorder.md -->
         <button type="button" class="hs-button hs-button--quiet" aria-label="Move Home down">…</button>
         <button type="button" class="hs-button hs-button--quiet" aria-label="Delete Home">Delete</button>
@@ -68,7 +69,7 @@ An ordered list, because the order is the menu.
 - Position: `font.label`, `font_size.label`, `letter_spacing.body`, `color.text_muted`, at least the width of two digits so titles line up. Hidden from screen readers; the list order already says it.
 - Title is the shared row title and a link to the edit form. The whole row is not linked, because the row holds several actions.
 - Meta: the path in the shared path style, `space.1` below the title.
-- Row actions: quiet buttons. "Delete" shows its word; move up and down are square quiet buttons with an arrow glyph at `font_size.body` (see Token gaps in shell.md) and an `aria-label` with the page title.
+- Row actions, in this order: "Edit blocks", Move up, Move down, "Delete". All use the quiet button look. "Edit blocks" is a link, because it opens another screen; it shows its word and goes to `/pages/{id}/blocks`. "Delete" shows its word; move up and down are square quiet buttons with an arrow glyph at `font_size.body` (see Token gaps in shell.md) and an `aria-label` with the page title.
 
 **Home marker.** On the row with `menu_order` 0, after the title: the words "Home page" in label style (`font.label`, `font_size.label`, `font_weight.label`, `letter_spacing.label`, uppercase), `color.text`, inside an edge of `border_width.hairline` solid `color.border_strong`, `radius.control`, `padding-inline: space.2`, `padding-block: space.1`. It is text, so home is never marked by color alone. Its path also shows the site root.
 
@@ -89,7 +90,7 @@ An ordered list, because the order is the menu.
 | Error on a field | Cannot happen: this screen has no fields. A failed load shows the list error: a form message block "Error: We couldn't load the pages of this site." with a secondary "Try again" `space.4` below it. | `color.surface`, `color.error`, `border_width.focus`, `color.text` |
 | Limit reached (50 pages) | "50 of 50 pages"; "Add page" unavailable with its reason. | `color.text`, `color.text_muted`, `color.border` |
 | Server says `too_many_pages` | On the add form; see [page-form.md](page-form.md). The list reloads when the owner returns. | |
-| One page | One row with the home marker; move controls are not shown, because there is nothing to move. | `color.text`, `color.border_strong` |
+| One page | One row with the home marker and "Edit blocks"; move controls are not shown, because there is nothing to move. | `color.text`, `color.border_strong` |
 | Row hover, focus | Title underlines on hover; shared focus ring on each control. The row background stays, since the row is not one link. | `color.focus`, `border_width.focus` |
 | Reordering, deleting | See [menu-reorder.md](menu-reorder.md) and [delete-confirm.md](delete-confirm.md). | |
 
@@ -111,11 +112,11 @@ An ordered list, because the order is the menu.
 ## Accessibility
 
 - **`<h1>`:** "Pages". The eyebrow gives the site name; the document title is "Pages · Atelier Noor · Hivesite Studio".
-- **Tab order.** Shell items, "Add page" (or the empty-state button), then per row: handle, title link, Move up, Move down, Delete; then the next row.
-- **Keyboard paths.** Edit a page: Tab to its title, Enter. Add: "Add page", Enter. Delete: Tab to the row's "Delete", Enter or Space opens the confirm. Reorder: see [menu-reorder.md](menu-reorder.md).
+- **Tab order.** Shell items, "Add page" (or the empty-state button), then per row: handle, title link, Edit blocks, Move up, Move down, Delete; then the next row.
+- **Keyboard paths.** Edit a page: Tab to its title, Enter. Edit its blocks: Tab to the row's "Edit blocks", Enter; focus goes to the block editor's `<h1>`, as on any screen change. Add: "Add page", Enter. Delete: Tab to the row's "Delete", Enter or Space opens the confirm. Reorder: see [menu-reorder.md](menu-reorder.md).
 - The list is an `<ol>` labelled by the `<h1>`, so screen readers announce "list, 5 items" and each position.
 - The home marker reads "Home page" as part of the row; the home title link has `aria-describedby` pointing at it.
-- Row buttons carry the page title in their names ("Delete About", "Move About up").
+- Row actions carry the page title in their names ("Edit blocks of About", "Delete About", "Move About up").
 - The unavailable "Add page" reads its reason. The list status line is `role="status"`.
 - Shared focus ring (`border_width.focus`, `color.focus`); every row control is at least `control.min_height` on each side.
 

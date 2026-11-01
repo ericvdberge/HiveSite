@@ -12,7 +12,8 @@ builder.Services
     .AddRenderingModule()
     .AddPublishingModule()
     .AddStudioCors(builder.Configuration)
-    .AddHivesiteOpenApi();
+    .AddHivesiteOpenApi()
+    .AddDevelopmentHost(builder.Environment);
 
 var app = builder.Build();
 
