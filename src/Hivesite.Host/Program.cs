@@ -9,9 +9,15 @@ builder.Services
     .AddSharedServices()
     .AddContentModule()
     .AddRenderingModule()
-    .AddPublishingModule();
+    .AddPublishingModule()
+    .AddHivesiteOpenApi();
 
 var app = builder.Build();
+
+if (app.Environment.IsDevelopment())
+{
+    app.MapOpenApi();
+}
 
 app.UseExceptionHandler();
 app.UseAuthentication();
