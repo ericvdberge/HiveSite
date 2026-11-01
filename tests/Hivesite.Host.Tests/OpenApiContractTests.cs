@@ -31,6 +31,7 @@ public sealed partial class OpenApiContractTests
 
     [TestMethod]
     [DataRow("API-001-sites.md", "POST /sites,GET /sites,GET /sites/{id},PATCH /sites/{id}")]
+    [DataRow("API-002-pages-and-menu.md", "POST /sites/{id}/pages,GET /sites/{id}/pages,GET /pages/{id},PATCH /pages/{id},DELETE /pages/{id},PUT /sites/{id}/menu")]
     public void The_spec_is_read_whole(string specFile, string expected)
     {
         var read = SpecExamples.Read(specFile).Select(e => $"{e.Method} {e.Path}");
@@ -40,6 +41,7 @@ public sealed partial class OpenApiContractTests
 
     [TestMethod]
     [DataRow("API-001-sites.md")]
+    [DataRow("API-002-pages-and-menu.md")]
     public void Every_spec_example_body_validates_against_the_document(string specFile)
     {
         var checkedBodies = 0;
@@ -58,6 +60,7 @@ public sealed partial class OpenApiContractTests
 
     [TestMethod]
     [DataRow("API-001-sites.md")]
+    [DataRow("API-002-pages-and-menu.md")]
     public void Every_spec_error_is_documented_on_its_operation(string specFile)
     {
         foreach (var endpoint in SpecExamples.Read(specFile))
@@ -76,6 +79,7 @@ public sealed partial class OpenApiContractTests
 
     [TestMethod]
     [DataRow("API-001-sites.md")]
+    [DataRow("API-002-pages-and-menu.md")]
     public void Every_spec_operation_has_a_name_and_one_tag(string specFile)
     {
         foreach (var endpoint in SpecExamples.Read(specFile))
@@ -93,11 +97,6 @@ public sealed partial class OpenApiContractTests
         {
             foreach (var (method, operation) in item!.AsObject())
             {
-                if (operation!["operationId"] is null)
-                {
-                    continue;   // not described yet: the page routes get their turn in #63
-                }
-
                 var declared = (operation!["parameters"]?.AsArray() ?? []).Where(p => p!["in"]!.GetValue<string>() == "path").ToDictionary(p => p!["name"]!.GetValue<string>(), p => p!);
                 foreach (Match variable in PathTemplate().Matches(path))
                 {

@@ -248,11 +248,65 @@
     "/sites/{id}/pages": {
       "post": {
         "tags": [
-          "Hivesite.Host"
+          "Pages"
         ],
+        "summary": "Create a page",
+        "description": "Errors: 400 `invalid_request`, 400 `slug_taken`, 400 `slug_reserved`, 400 `too_many_pages`, 401 `unauthenticated`, 404 `site_not_found`.",
+        "operationId": "CreatePage",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PagePostDto"
+              }
+            }
+          },
+          "required": true
+        },
         "responses": {
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PageDto"
+                }
+              }
+            }
+          },
           "404": {
             "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
             "content": {
               "application/json": {
                 "schema": {
@@ -265,11 +319,77 @@
       },
       "get": {
         "tags": [
-          "Hivesite.Host"
+          "Pages"
+        ],
+        "summary": "List the pages of a site",
+        "description": "Errors: 400 `invalid_request`, 400 `invalid_cursor`, 401 `unauthenticated`, 404 `site_not_found`.",
+        "operationId": "ListPages",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "How many items to return, 1 to 100.",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32",
+              "default": 20
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "description": "The `next_cursor` of the previous page. Leave out for the first page.",
+            "schema": {
+              "type": "string"
+            }
+          }
         ],
         "responses": {
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PageDtoList"
+                }
+              }
+            }
+          },
           "404": {
             "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
             "content": {
               "application/json": {
                 "schema": {
@@ -284,11 +404,65 @@
     "/sites/{id}/menu": {
       "put": {
         "tags": [
-          "Hivesite.Host"
+          "Pages"
         ],
+        "summary": "Replace the order of the menu",
+        "description": "Errors: 400 `invalid_request`, 400 `menu_mismatch`, 401 `unauthenticated`, 404 `site_not_found`.",
+        "operationId": "ReplaceMenu",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MenuPutDto"
+              }
+            }
+          },
+          "required": true
+        },
         "responses": {
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MenuDto"
+                }
+              }
+            }
+          },
           "404": {
             "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
             "content": {
               "application/json": {
                 "schema": {
@@ -303,9 +477,43 @@
     "/pages/{id}": {
       "get": {
         "tags": [
-          "Hivesite.Host"
+          "Pages"
+        ],
+        "summary": "Get a page",
+        "description": "Errors: 401 `unauthenticated`, 404 `page_not_found`.",
+        "operationId": "GetPage",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
         ],
         "responses": {
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PageDto"
+                }
+              }
+            }
+          },
           "404": {
             "description": "Not Found",
             "content": {
@@ -320,11 +528,65 @@
       },
       "patch": {
         "tags": [
-          "Hivesite.Host"
+          "Pages"
         ],
+        "summary": "Update a page",
+        "description": "Errors: 400 `invalid_request`, 400 `slug_taken`, 400 `slug_reserved`, 401 `unauthenticated`, 404 `page_not_found`.",
+        "operationId": "UpdatePage",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PagePatchDto"
+              }
+            }
+          },
+          "required": true
+        },
         "responses": {
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PageDto"
+                }
+              }
+            }
+          },
           "404": {
             "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
             "content": {
               "application/json": {
                 "schema": {
@@ -337,9 +599,36 @@
       },
       "delete": {
         "tags": [
-          "Hivesite.Host"
+          "Pages"
+        ],
+        "summary": "Delete a page",
+        "description": "Errors: 401 `unauthenticated`, 404 `page_not_found`.",
+        "operationId": "DeletePage",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
         ],
         "responses": {
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "204": {
+            "description": "No Content"
+          },
           "404": {
             "description": "Not Found",
             "content": {
@@ -694,10 +983,7 @@
       "name": "Sites"
     },
     {
-      "name": "PageEndpoints"
-    },
-    {
-      "name": "Hivesite.Host"
+      "name": "Pages"
     }
   ]
 }
