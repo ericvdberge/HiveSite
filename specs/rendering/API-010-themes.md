@@ -6,13 +6,15 @@ status: in review
 owner: api-architect
 stories: [16]
 depends_on: [API-001]
-version: 1
+version: 2
 ---
 
 ## Purpose
-An owner can list the three themes with their design tokens, and anyone can load a theme's stylesheet and fonts. A site's chosen theme and style choices are its brand styling. Brand styling comes from the `brand_styling` entity (API-005, in review on `spec/API-005-entities`); this spec defines what its values mean in tokens.
+An owner can list Hivesite's three themes and pick one for a site. Anyone can load a theme's stylesheet and fonts. The theme is a site setting, `settings.theme` (API-001 v4), as ADR 4 decides for the MVP.
 
 Auth, ids, errors, validation, lists and timestamps follow the shared conventions in API-001.
+
+Version 2 follows ADR 4. It replaces version 1's `brand_styling` entity (API-005) with one site setting, drops the full token set from the response, and has the default Vue template (API-011) produce the theme assets.
 
 ## Endpoints
 
@@ -21,7 +23,9 @@ Auth: owner
 
 Operation: `ListThemes`
 
-Query: `limit` (1 to 100, default 20), `cursor`.
+Query: `limit` (1 to 100, default 20), `cursor` (from `next_cursor` of the previous page).
+
+Themes have no id. Their key is `key`, so `next_cursor` is the `key` of the last item on the page, or `null` on the last page, as API-003 does for block types.
 
 Request
 ```
@@ -30,7 +34,7 @@ GET /themes
 
 Response 200
 
-All three themes, in the order of the table in Themes below. The first item is shown in full, with the values of `design/tokens.json`. The other two have the same shape and the same token names; only the values differ.
+All three themes, in the order of the table in Themes below. Values are from `design/tokens.json`.
 ```json
 {
   "items": [
@@ -40,121 +44,42 @@ All three themes, in the order of the table in Themes below. The first item is s
       "description": "Dark and warm. Ivory on ink, champagne accents, a serif display.",
       "color_scheme": "dark",
       "version": 1,
-      "tokens": {
-        "color": {
-          "background": "#100E0B",
-          "surface": "#17140F",
-          "surface_sunk": "#1E1A14",
-          "text": "#F5F1E8",
-          "text_muted": "#A69D8C",
-          "accent": "#CDAE74",
-          "accent_text": "#CDAE74",
-          "on_accent": "#100E0B",
-          "rule": "#94733A",
-          "border": "#2C2820",
-          "border_strong": "#7A7262",
-          "focus": "#CDAE74",
-          "error": "#E8A08C",
-          "image_scrim": "rgba(16, 14, 11, 0.72)",
-          "on_image": "#F5F1E8",
-          "placeholder_media": "#221F19"
-        },
-        "font": {
-          "display": "\"Cormorant Garamond\", \"Iowan Old Style\", Georgia, serif",
-          "text": "\"Hanken Grotesk\", ui-sans-serif, system-ui, sans-serif",
-          "label": "\"IBM Plex Mono\", ui-monospace, Menlo, monospace"
-        },
-        "font_weight": {
-          "display": "500",
-          "display_strong": "600",
-          "text": "400",
-          "text_strong": "600",
-          "label": "500"
-        },
-        "font_size": {
-          "display_xl": "clamp(2.75rem, 1.75rem + 4.4vw, 5.25rem)",
-          "display_l": "clamp(2rem, 1.6rem + 1.8vw, 2.875rem)",
-          "display_m": "1.5rem",
-          "body_l": "1.1875rem",
-          "body": "1.0625rem",
-          "body_s": "0.875rem",
-          "label": "0.75rem"
-        },
-        "line_height": {
-          "display": "1.08",
-          "heading": "1.2",
-          "body": "1.65",
-          "label": "1.4"
-        },
-        "letter_spacing": {
-          "display": "-0.01em",
-          "body": "0",
-          "label": "0.18em"
-        },
-        "space": {
-          "0": "0",
-          "1": "0.25rem",
-          "2": "0.5rem",
-          "3": "0.75rem",
-          "4": "1rem",
-          "5": "1.5rem",
-          "6": "2rem",
-          "7": "3rem",
-          "8": "4rem",
-          "9": "6rem"
-        },
-        "layout": {
-          "content_width": "42rem",
-          "wide_width": "72rem",
-          "measure": "68ch",
-          "gutter": "clamp(1rem, 0.5rem + 2.5vw, 2.5rem)",
-          "section_y": "clamp(4rem, 2.5rem + 5vw, 7rem)",
-          "grid_gap": "1.5rem",
-          "stack_gap": "1rem"
-        },
-        "radius": {
-          "control": "2px",
-          "card": "4px",
-          "media": "2px"
-        },
-        "border_width": {
-          "hairline": "1px",
-          "control": "1px",
-          "focus": "2px",
-          "focus_offset": "3px"
-        },
-        "control": {
-          "min_height": "2.75rem",
-          "padding_x": "1.25rem",
-          "padding_y": "0.75rem"
-        },
-        "media": {
-          "hero_min_height": "min(80vh, 44rem)",
-          "card_ratio": "3 / 2",
-          "list_thumb_width": "9rem",
-          "gallery_ratio": "4 / 3",
-          "image_max_height": "80vh"
-        },
-        "motion": {
-          "duration_base": "300ms",
-          "duration_slow": "500ms",
-          "duration_slower": "800ms",
-          "stagger": "70ms",
-          "easing_standard": "cubic-bezier(0.65, 0, 0.35, 1)",
-          "easing_enter": "cubic-bezier(0.22, 0.8, 0.24, 1)",
-          "rise_distance": "8px",
-          "reduced_duration": "0ms",
-          "reduced_rise_distance": "0px"
-        },
-        "breakpoint": {
-          "sm": "37.5rem",
-          "md": "60rem",
-          "lg": "80rem"
-        }
+      "sample": {
+        "background": "#100E0B",
+        "surface": "#17140F",
+        "text": "#F5F1E8",
+        "accent": "#CDAE74",
+        "display_font": "\"Cormorant Garamond\", \"Iowan Old Style\", Georgia, serif"
       }
     },
-    { "key": "ivory", "name": "Ivory", "description": "Light and warm. Ink on ivory, bronze accents, a serif display.", "color_scheme": "light", "version": 1, "tokens": { "…": "same names, values from design/tokens.json" } },
-    { "key": "studio", "name": "Studio", "description": "Light and spare. Ink on paper, square corners, a grotesk display.", "color_scheme": "light", "version": 1, "tokens": { "…": "same names, values from design/tokens.json" } }
+    {
+      "key": "ivory",
+      "name": "Ivory",
+      "description": "Light and warm. Ink on ivory, bronze accents, a serif display.",
+      "color_scheme": "light",
+      "version": 1,
+      "sample": {
+        "background": "#F5F1E8",
+        "surface": "#FBF8F2",
+        "text": "#1B1813",
+        "accent": "#7A5C2A",
+        "display_font": "\"Cormorant Garamond\", \"Iowan Old Style\", Georgia, serif"
+      }
+    },
+    {
+      "key": "studio",
+      "name": "Studio",
+      "description": "Light and spare. Ink on paper, square corners, a grotesk display.",
+      "color_scheme": "light",
+      "version": 1,
+      "sample": {
+        "background": "#FAF8F4",
+        "surface": "#FFFFFF",
+        "text": "#100E0B",
+        "accent": "#100E0B",
+        "display_font": "\"Hanken Grotesk\", ui-sans-serif, system-ui, sans-serif"
+      }
+    }
   ],
   "next_cursor": null
 }
@@ -162,7 +87,7 @@ All three themes, in the order of the table in Themes below. The first item is s
 
 Errors
 - 400 `invalid_request`: `limit` is not an integer from 1 to 100. `field` is `limit`.
-- 400 `invalid_cursor`: `cursor` is not a cursor this endpoint returned. `field` is `cursor`. With three themes and the default `limit`, `next_cursor` is always `null`.
+- 400 `invalid_cursor`: `cursor` is not the `key` of one of the three themes. `field` is `cursor`.
 - 401 `unauthenticated`
 
 ### GET /themes/{key}/assets/{file}
@@ -170,7 +95,7 @@ Auth: none (public)
 
 Operation: `GetThemeAsset`
 
-The theme's stylesheet and font files, for the draft preview. Published sites carry their own copy in each release (API-020, API-021).
+The theme's stylesheet and font files, for the draft preview (API-011). Published sites carry their own copy in each release (API-011 Release files).
 
 Request
 ```
@@ -182,8 +107,9 @@ Response 200
 Headers: `Content-Type: text/css; charset=utf-8`, `Cache-Control: public, max-age=31536000, immutable`, `X-Content-Type-Options: nosniff`
 ```css
 :root{--hs-color-background:#100E0B;--hs-color-surface:#17140F;--hs-color-surface-sunk:#1E1A14;…}
-:root[data-display-font="grotesk"]{--hs-font-display:"Hanken Grotesk", ui-sans-serif, system-ui, sans-serif}
-:root[data-corners="square"]{--hs-radius-control:0;--hs-radius-card:0;--hs-radius-media:0}
+@font-face{font-family:"Cormorant Garamond";font-weight:500;font-display:swap;src:url(cormorant-garamond-500.8c1d0b7e.woff2) format("woff2")}
+…
+.hs-hero{padding-block:var(--hs-layout-section-y);…}
 …
 ```
 
@@ -198,80 +124,67 @@ Errors
 | `ivory` | Ivory | `light` | Ink on Ivory, deep Bronze accent, Cormorant Garamond display, soft corners. |
 | `studio` | Studio | `light` | Ink on paper, square corners, Hanken Grotesk display, Ink buttons. |
 
-Token values for all three are the ones in `design/tokens.json` (#9). The file is the source; when it changes, the theme's `version` goes up and this example follows in the next version of this spec.
+`design/tokens.json` is the source of every value: `name`, `description`, `color_scheme` and all tokens. When the file changes, the response follows at the next deploy.
 
-## Brand styling
-Brand styling comes from the `brand_styling` entity (API-005). It picks a theme and may change two things on top of it. The field names below are the ones this spec needs; API-005 defines the entity type and owns them (see Open questions). Each choice names tokens that already exist in `design/tokens.json`; none adds a color or a size.
-
-| Field | Value | Tokens used |
-|---|---|---|
-| `theme` | `atelier`, `ivory`, `studio` | All tokens of that theme. |
-| `display_font` | `from_theme` | The theme's `font.display`. |
-| | `serif` | `font.display` of `atelier` (Cormorant Garamond). |
-| | `grotesk` | `font.display` of `studio` (Hanken Grotesk). |
-| `corners` | `from_theme` | The theme's `radius.*`. |
-| | `square` | `radius.*` of `studio`. |
-| | `subtle` | `radius.*` of `atelier`. |
-| | `round` | `radius.*` of `ivory`. |
-
-- Only the tokens named in the table change. All other tokens, including font sizes, letter spacing and every color, stay the theme's.
-- No choice touches a color, so every contrast rule in Tokens holds for every combination.
-- The registry's themes match the allowed values of the `theme` field of the `brand_styling` entity type (API-005) one to one. A test checks it.
-- In HTML, a choice other than `from_theme` becomes an attribute on `<html>`: `data-display-font="serif"`, `data-corners="round"` (API-011). `from_theme` adds no attribute.
+## How a site stores its theme
+- The theme is the site setting `settings.theme` (API-001 v4): one of `atelier`, `ivory`, `studio`. A new site gets `atelier`, the `default_theme` of `design/tokens.json`.
+- The owner changes it with `PATCH /sites/{id}`:
+  ```json
+  { "settings": { "theme": "ivory" } }
+  ```
+  `settings` is merged one level deep (API-001), so `language` and `description` keep their values. Any other value returns 400 `invalid_request` with `field` `/settings/theme`.
+- The draft preview (API-011) uses the new theme at once. The live site gets it at the next publish (API-020).
+- Content validates the value against its own copy of the three keys. Content cannot read Rendering's registry (ADR 1). A Content test and a Rendering test each check their keys against the theme keys in `design/tokens.json`.
 
 ## Rules
 
 ### The registry
-- The set of themes is fixed in code: exactly the three above. There is no endpoint to add, change or remove a theme.
-- `key` is the stable name a site refers to. It is `snake_case`, pattern `^[a-z][a-z0-9_]{1,29}$`, and never changes.
-- `version` is an integer, 1 for every theme in this spec. A change to a theme's tokens or stylesheet raises its `version`. Published releases keep the theme as it was when they were published.
-- The response is the same for every owner and changes only when the code is deployed.
-- Rendering stores nothing. It has no database and no site state; brand styling comes from the `brand_styling` entity (API-005).
+- The set of themes is fixed: exactly the three above. There is no endpoint to add, change or remove a theme.
+- `key` is the stable name a site refers to. It matches `^[a-z][a-z0-9_]{1,29}$` and never changes.
+- `version` is the top-level `version` of `design/tokens.json`, 1 today, the same for all three themes. Publishing records it on each release (API-020).
+- `sample` holds five values for a theme picker, each copied from the theme's tokens: `background` is `color.background`, `surface` is `color.surface`, `text` is `color.text`, `accent` is `color.accent`, `display_font` is `font.display`. The full token set is not served over HTTP: only the default template (API-011) reads it, at its own build time.
+- The response is the same for every owner and changes only when Hivesite is deployed.
+- Rendering stores nothing and has no database. It reads the registry from the manifest the default template build writes (API-011 Tooling).
 
 ### Tokens
-- `tokens` is an object of groups. Each group is an object of token name → value. Every value is a string that is valid CSS as written: colors as uppercase `#RRGGBB` or `rgba()`, font stacks, lengths, `clamp()` and `min()` expressions, unitless numbers, ratios such as `3 / 2`, durations in `ms` and easing functions.
-- Every theme has exactly the groups and names in the example above: 16 colors, 3 fonts, 5 font weights, 7 font sizes, 4 line heights, 3 letter spacings, 10 spaces (`0` to `9`), 7 layout, 3 radii, 4 border widths, 3 control, 5 media, 9 motion and 3 breakpoint tokens. Renderers (API-011) use only these names; adding or renaming one needs a new version of this spec and of `design/tokens.json`.
-- Each token is published to CSS as a custom property: `--hs-` plus its path joined with `-`, with `_` turned into `-`. `color.text_muted` is `--hs-color-text-muted`, `space.5` is `--hs-space-5`, `motion.duration_base` is `--hs-motion-duration-base`.
-- `breakpoint.*` cannot be used inside `@media`, so the stylesheet build writes their values into media queries from the tokens. They are never literals in code.
-- Contrast follows the color roles in `design/README.md`, all WCAG 2.2 AA: `text`, `text_muted` and `error` at least 4.5:1 on `background`, `surface` and `surface_sunk`; `accent_text` at least 4.5:1 on `background` and `surface`; `on_accent` on `accent` at least 4.5:1; `border_strong` and `focus` at least 3:1 on `background`, `surface` and `surface_sunk`; `on_image` at least 4.5:1 on `image_scrim` over white. `rule` and `border` are decorative and have no rule. A test checks every theme.
-- Every `motion.duration_*` is at least 300 ms (brand rule: nothing faster than 300 ms). `motion.stagger` is a delay between starts, not a duration. `motion.reduced_duration` and `motion.reduced_rise_distance` apply only under `prefers-reduced-motion: reduce`.
-- `color_scheme` is `dark` or `light`. It becomes the page's `color-scheme`.
+- Token groups and names are those of `design/tokens.json`. Adding or renaming one is a change to that file, made in all three themes in the same PR (`design/README.md`).
+- Each token reaches CSS as a custom property: `--hs-` plus its path joined with `-`, with `_` turned into `-`. `color.text_muted` is `--hs-color-text-muted`, `space.5` is `--hs-space-5`.
+- `breakpoint.*` cannot be used inside `@media`, so the stylesheet build writes their values into the media queries from the tokens. They are never literals in code.
+- Contrast follows the color roles in `design/README.md`, all WCAG 2.2 AA. A test runs `design/check-contrast.mjs` on every theme.
+- Every `motion.duration_*` is at least 300 ms. `motion.reduced_*` apply under `prefers-reduced-motion: reduce`.
+- `color_scheme` becomes the page's `<meta name="color-scheme">` (API-011).
 
 ### Assets
-- Each theme has one stylesheet and at most 6 font files (`woff2`). Names are `{base}.{hash}.{ext}`, where `hash` is the first 8 hex digits of the SHA-256 of the file. A changed file gets a new name, so a name always means the same bytes and can be cached forever.
-- Names match `^[a-z0-9-]+\.[0-9a-f]{8}\.(css|woff2)$`. Anything else, including a path with `/`, `..` or a query that changes the name, returns 404 `asset_not_found`.
-- The stylesheet holds, in this order: the theme's tokens as custom properties on `:root`; one rule per brand styling choice other than `from_theme` (`:root[data-display-font="…"]`, `:root[data-corners="…"]`) that sets only the tokens in the Brand styling table; `@font-face` rules; the block styles from `design/blocks/`. It is at most 64 KB. It contains no `url()` to another host.
-- Every theme's font files cover Cormorant Garamond, Hanken Grotesk and IBM Plex Mono in the weights its `font_weight` tokens use, so any `display_font` works in any theme. Browsers download only the fonts a page uses.
-- Fonts are served from Hivesite, never from a third party, so published sites make no requests to font services.
+- Each theme has one stylesheet and at most 6 font files (`woff2`). The default template build writes them (API-011 Tooling).
+- Names are `{base}.{hash}.{ext}`, where `hash` is the first 8 hex digits of the SHA-256 of the file. A changed file gets a new name, so a name always means the same bytes and can be cached forever.
+- Names match `^[a-z0-9-]+\.[0-9a-f]{8}\.(css|woff2)$`. Anything else, including a path with `/` or `..`, returns 404 `asset_not_found`.
+- The stylesheet holds, in this order: the theme's tokens as custom properties on `:root`, the `@font-face` rules, and the block styles of `@hivesite/blocks` (API-011), which use only `var(--hs-…)`. It is at most 128 KB.
+- `@font-face` rules point to the font files by bare file name (`url(cormorant-garamond-500.8c1d0b7e.woff2)`). The fonts sit next to the stylesheet, so the same file works under `/themes/{key}/assets/` and under a release's `assets/`. The stylesheet has no `url()` to another host.
+- A theme's font files cover the families and weights its own `font.*` and `font_weight.*` tokens use. Fonts are served from Hivesite, never from a font service.
 - Content types: `.css` is `text/css; charset=utf-8`, `.woff2` is `font/woff2`.
 
 ### Contracts
-- `Hivesite.Rendering.Contracts` offers the theme registry (keys, names, `color_scheme`, `version`, tokens and asset files), so Publishing (API-020) can render and store a release without calling HTTP.
-- This spec raises no events. A change to brand styling is a change to the `brand_styling` entity and raises that entity's event (API-005).
+- `Hivesite.Rendering.Contracts` offers `ListThemes`: the same items as `GET /themes`, plus each theme's asset file names. Publishing (API-020) reads `version` from it.
+- This spec raises no events. A theme change is a site change and raises `SiteChanged` (API-001).
 
 ### Operation names
-- Each endpoint has an operation name (`ListThemes`, `GetThemeAsset`). It becomes the `operationId` and the C# method name, and is the name a tool call uses. It never changes; renaming one is a breaking change.
+- Each endpoint has an operation name (`ListThemes`, `GetThemeAsset`). It becomes the `operationId` and the C# method name, and is the name a tool call uses. Renaming one is a breaking change.
 
 ## Agent use
-An AI agent acting for an owner, through tool calls or an MCP server, can style a site with this spec and API-005 alone. This section adds no behaviour; it says how the endpoints are used.
-1. `ListThemes` gives every valid `theme` key with its `name`, `description`, `color_scheme` and tokens. An agent picks from this list and never guesses a key.
-2. `GET /sites/{id}/entity-types/brand_styling` (API-005) gives the JSON Schema of brand styling: the `enum` of every choice in Brand styling above and their defaults.
-3. `PATCH /sites/{id}/entities/brand_styling` (API-005) applies the choice. It sets values, so sending the same body again gives the same result and is safe to retry.
-
-- An invalid value fails with a 400 whose `code` and `field` name the value to change (STYLE.md). The agent fixes that field and sends again.
-- This spec stores nothing and changes nothing. `ListThemes` is read-only and safe to call any number of times.
-- To see the result before publishing, an agent needs a preview. The preview is held with API-011 (see Open questions).
+An AI agent acting for an owner, through tool calls or an MCP server, can style a site with this spec, API-001 and API-011. This section adds no behaviour.
+1. `ListThemes` gives every valid key with its `name`, `description`, `color_scheme` and `sample`. The agent picks from this list and never guesses a key.
+2. `PATCH /sites/{id}` with `{ "settings": { "theme": "{key}" } }` applies it. It sets a value, so sending it again gives the same result and is safe to retry.
+3. `GET /pages/{id}/preview` (API-011) shows the result before publishing. `?theme={key}` shows another theme without saving it.
 
 ## Decisions
-- **Themes are a fixed registry with a `key`, like block types (API-003).** They are not stored resources, so they have no UUID.
-- **A site's theme is part of its brand styling, and brand styling comes from the `brand_styling` entity (API-005).** The owner chose this: brand styling is a built-in entity with default values, so it uses the same architecture as the rest of the content. Rendering keeps no table and stays pure; it reads brand styling through `Hivesite.Content.Contracts`. The plan's `PUT /sites/{id}/theme` is dropped; the owner sets the theme through the entity endpoints of API-005.
-- **`GET /themes/{key}/assets/{file}` is added** for the preview's stylesheet and fonts. It is public: theme files hold no owner data.
-- **Theme keys and token names are those of `design/tokens.json` (#9):** `atelier`, `ivory` and `studio`, and the file's groups and names. The theme metadata field is `color_scheme`, as in the file.
-- **Brand styling choices are attribute selectors in the theme stylesheet,** not inline styles. The page's CSP allows no inline style (API-011), and HTML carries no values.
-- **The draft uses new brand styling at once; the live site at the next publish.** Rollback (API-020) brings back, on the live site, the styling a release was published with; it does not change the `brand_styling` entity.
+- **The theme is a site setting, `settings.theme`, not the `brand_styling` entity** (ADR 4). This needs API-001 v4, in this same spec PR. `PATCH /sites/{id}` already merges `settings`, so no new endpoint is needed. The plan's `PUT /sites/{id}/theme` stays dropped. API-005 stays the plan for brand styling after the MVP.
+- **Invalid theme keys are `invalid_request` with `field` `/settings/theme`,** like every other bad value in API-001. There is no separate `unknown_theme` code on the site.
+- **`GET /themes` returns a five-value `sample`, not the full token set.** The studio needs swatches for a picker. The full tokens are build input for the default template, not an API.
+- **`version` is the `version` of `design/tokens.json`.** One number, one source.
+- **`GET /themes/{key}/assets/{file}` is public.** Theme files hold no owner data.
+- **Fonts sit next to the stylesheet and are referenced by bare file name,** so one stylesheet serves the preview and every release unchanged.
+- **Content keeps its own copy of the three keys,** checked by a test against `design/tokens.json`, so it does not depend on Rendering.
+- **Not in this version:** display font and corner choices on top of a theme (version 1's `display_font` and `corners`), an accent color or any owner color, owner-made themes, brand styling as an entity (API-005, ADR 3), and serving the full token set over HTTP.
 
 ## Open questions
-- Which fields does the `brand_styling` entity type have (API-005)? This spec assumes `theme`, `display_font` and `corners` with the values in the Brand styling table, each with a default (`atelier`, `from_theme`, `from_theme`). If API-005 names or shapes them differently, the table follows API-005.
-- Does the `brand_styling` entity get color fields (the owner's color picker field type)? Today no choice touches a color, so the contrast rules in Tokens hold for every combination. The API-005 draft adds `accent_color`, which fills `color.accent_text` and is checked for contrast on save. If that stays, the Brand styling table needs an `accent_color` row, "No choice touches a color" no longer holds, and this spec must say how a free color value reaches the page: an attribute selector cannot carry it, and API-011 allows no inline style.
-- Preview for agents and owners. An agent (and an owner) can only check a styling change before publishing through a preview. Preview is in API-011, which is held for ADR 3, and under ADR 3 it becomes an asynchronous build. Until a preview spec is approved, the only check is reading the `brand_styling` entity back.
-- ADR 3 (sandboxed Vue/Nuxt templates) may change how the stylesheet reaches the page. The `data-display-font` and `data-corners` attributes on `<html>` and the "no inline style" reason refer to the C# renderer in API-011, which is held. Keep the attribute selectors, or let templates read tokens another way?
+- none
