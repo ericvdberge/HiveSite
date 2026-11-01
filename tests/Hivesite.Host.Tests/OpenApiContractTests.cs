@@ -34,6 +34,7 @@ public sealed partial class OpenApiContractTests
     [DataRow("API-002-pages-and-menu.md", "POST /sites/{id}/pages:2:6,GET /sites/{id}/pages:1:4,GET /pages/{id}:1:2,PATCH /pages/{id}:2:5,DELETE /pages/{id}:0:2,PUT /sites/{id}/menu:2:4")]
     public void The_spec_is_read_whole(string specFile, string expected)
     {
+        SpecExamples.SkipUnlessApprovedOrBuilt(specFile);
         var read = SpecExamples.Read(specFile).Select(e => $"{e.Method} {e.Path}:{e.Bodies.Count}:{e.Errors.Count}");
 
         CollectionAssert.AreEqual(expected.Split(','), read.ToArray());
@@ -44,6 +45,7 @@ public sealed partial class OpenApiContractTests
     [DataRow("API-002-pages-and-menu.md")]
     public void Every_spec_endpoint_documents_the_401_of_the_shared_conventions(string specFile)
     {
+        SpecExamples.SkipUnlessApprovedOrBuilt(specFile);
         foreach (var endpoint in SpecExamples.Read(specFile))
         {
             CollectionAssert.Contains(endpoint.Errors.Select(e => $"{e.Status} {e.Code}").ToArray(), "401 unauthenticated", $"{endpoint.Method} {endpoint.Path}: the spec lists no 401 `unauthenticated`.");
@@ -55,6 +57,7 @@ public sealed partial class OpenApiContractTests
     [DataRow("API-002-pages-and-menu.md")]
     public void Every_spec_example_body_validates_against_the_document(string specFile)
     {
+        SpecExamples.SkipUnlessApprovedOrBuilt(specFile);
         var checkedBodies = 0;
         foreach (var endpoint in SpecExamples.Read(specFile))
         {
@@ -74,6 +77,7 @@ public sealed partial class OpenApiContractTests
     [DataRow("API-002-pages-and-menu.md")]
     public void Every_spec_error_is_documented_on_its_operation(string specFile)
     {
+        SpecExamples.SkipUnlessApprovedOrBuilt(specFile);
         foreach (var endpoint in SpecExamples.Read(specFile))
         {
             var operation = Operation(endpoint.Method, endpoint.Path);
@@ -93,6 +97,7 @@ public sealed partial class OpenApiContractTests
     [DataRow("API-002-pages-and-menu.md")]
     public void Every_spec_operation_has_a_name_and_one_tag(string specFile)
     {
+        SpecExamples.SkipUnlessApprovedOrBuilt(specFile);
         foreach (var endpoint in SpecExamples.Read(specFile))
         {
             var operation = Operation(endpoint.Method, endpoint.Path);

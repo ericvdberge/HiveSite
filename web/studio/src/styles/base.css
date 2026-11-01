@@ -123,3 +123,22 @@ a {
     clip-path: inset(50%);
     white-space: nowrap;
 }
+
+/* Error message block shared by the site list and the site form. */
+.hs-form-message {
+    padding: var(--hs-space-4);
+    background: var(--hs-color-surface);
+    border-inline-start: var(--hs-border-width-focus) solid var(--hs-color-error);
+    color: var(--hs-color-text);
+}
+
+.hs-form-message strong {
+    color: var(--hs-color-error);
+    font-weight: var(--hs-font-weight-text-strong);
+}
+
+/* A public path such as /s/atelier-noor. */
+.hs-path {
+    font-family: var(--hs-font-label);
+    letter-spacing: var(--hs-letter-spacing-body);
+}

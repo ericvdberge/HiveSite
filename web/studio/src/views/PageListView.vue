@@ -342,11 +342,6 @@ onBeforeUnmount(() => {
     overflow-wrap: anywhere;
 }
 
-.hs-path {
-    font-family: var(--hs-font-label);
-    letter-spacing: var(--hs-letter-spacing-body);
-}
-
 .hs-row__actions {
     grid-area: actions;
     display: flex;
@@ -395,18 +390,6 @@ onBeforeUnmount(() => {
 .hs-empty .hs-button {
     margin-block-start: var(--hs-space-5);
     inline-size: 100%;
-}
-
-.hs-form-message {
-    padding: var(--hs-space-4);
-    background: var(--hs-color-surface);
-    border-inline-start: var(--hs-border-width-focus) solid var(--hs-color-error);
-    color: var(--hs-color-text);
-}
-
-.hs-form-message strong {
-    color: var(--hs-color-error);
-    font-weight: var(--hs-font-weight-text-strong);
 }
 
 .hs-load-error .hs-button {

@@ -361,11 +361,6 @@ onBeforeUnmount(() => controller.abort())
     overflow-wrap: anywhere;
 }
 
-.hs-path {
-    font-family: var(--hs-font-label);
-    letter-spacing: var(--hs-letter-spacing-body);
-}
-
 /* New rows fade in together, as one shape. Reduced motion shortens it via the duration token. */
 .hs-row--new {
     animation: hs-rows-in var(--hs-motion-duration-base) var(--hs-motion-easing-enter) both;
@@ -433,19 +428,7 @@ onBeforeUnmount(() => controller.abort())
     inline-size: 100%;
 }
 
-/* List error: a form message block, then Try again. */
-.hs-form-message {
-    padding: var(--hs-space-4);
-    background: var(--hs-color-surface);
-    border-inline-start: var(--hs-border-width-focus) solid var(--hs-color-error);
-    color: var(--hs-color-text);
-}
-
-.hs-form-message strong {
-    color: var(--hs-color-error);
-    font-weight: var(--hs-font-weight-text-strong);
-}
-
+/* List error: a form message block (base.css), then Try again. */
 .hs-load-error .hs-button {
     margin-block-start: var(--hs-space-4);
 }
