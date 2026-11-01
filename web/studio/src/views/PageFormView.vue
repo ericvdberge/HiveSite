@@ -510,8 +510,7 @@ input[aria-invalid='true'] {
     animation: hs-fade var(--hs-motion-duration-base) var(--hs-motion-easing-standard) both;
 }
 
-.hs-field__error strong,
-.hs-form-message strong {
+.hs-field__error strong {
     font-weight: var(--hs-font-weight-text-strong);
     color: var(--hs-color-error);
 }
@@ -537,12 +536,6 @@ input[aria-invalid='true'] {
     overflow-wrap: anywhere;
 }
 
-.hs-path {
-    font-family: var(--hs-font-label);
-    letter-spacing: var(--hs-letter-spacing-body);
-}
-
-.hs-form-message,
 .hs-note {
     padding: var(--hs-space-4);
     background: var(--hs-color-surface);
