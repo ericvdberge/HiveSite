@@ -1,0 +1,156 @@
+{
+  "url": { "type": "string", "maxLength": 2048, "pattern": "^https://[^\\s]+$" },
+  "link": { "type": "string", "maxLength": 2048, "pattern": "^(https://[^\\s]+|mailto:[^\\s]+|/(?:[a-z0-9-]+(?:/[a-z0-9-]+)*)?)$" },
+  "heading": { "type": "string", "maxLength": 120 },
+  "image": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["url", "alt"],
+    "properties": {
+      "url": { "$ref": "#/$defs/url" },
+      "alt": { "type": "string", "maxLength": 200 }
+    }
+  },
+  "action": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["label", "href"],
+    "properties": {
+      "label": { "type": "string", "minLength": 1, "maxLength": 30 },
+      "href": { "$ref": "#/$defs/link" }
+    }
+  },
+  "paragraph": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["type"],
+    "properties": {
+      "type": { "const": "paragraph" },
+      "content": { "$ref": "#/$defs/inline_content" }
+    }
+  },
+  "heading_node": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["type", "attrs"],
+    "properties": {
+      "type": { "const": "heading" },
+      "attrs": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["level"],
+        "properties": { "level": { "enum": [2, 3] } }
+      },
+      "content": { "$ref": "#/$defs/inline_content" }
+    }
+  },
+  "bullet_list": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["type", "content"],
+    "properties": {
+      "type": { "const": "bulletList" },
+      "content": { "type": "array", "minItems": 1, "maxItems": 100, "items": { "$ref": "#/$defs/list_item" } }
+    }
+  },
+  "ordered_list": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["type", "content"],
+    "properties": {
+      "type": { "const": "orderedList" },
+      "attrs": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "start": { "type": "integer", "minimum": 1, "maximum": 9999, "default": 1 },
+          "type": { "type": ["string", "null"], "maxLength": 10, "default": null }
+        }
+      },
+      "content": { "type": "array", "minItems": 1, "maxItems": 100, "items": { "$ref": "#/$defs/list_item" } }
+    }
+  },
+  "list_item": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["type", "content"],
+    "properties": {
+      "type": { "const": "listItem" },
+      "content": {
+        "type": "array",
+        "minItems": 1,
+        "maxItems": 20,
+        "items": {
+          "oneOf": [
+            { "$ref": "#/$defs/paragraph" },
+            { "$ref": "#/$defs/bullet_list" },
+            { "$ref": "#/$defs/ordered_list" }
+          ]
+        }
+      }
+    }
+  },
+  "inline_content": {
+    "type": "array",
+    "maxItems": 500,
+    "items": { "oneOf": [{ "$ref": "#/$defs/text" }, { "$ref": "#/$defs/hard_break" }] }
+  },
+  "text": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["type", "text"],
+    "properties": {
+      "type": { "const": "text" },
+      "text": { "type": "string", "minLength": 1, "maxLength": 10000 },
+      "marks": {
+        "type": "array",
+        "minItems": 1,
+        "maxItems": 3,
+        "items": {
+          "oneOf": [
+            { "$ref": "#/$defs/bold" },
+            { "$ref": "#/$defs/italic" },
+            { "$ref": "#/$defs/link_mark" }
+          ]
+        }
+      }
+    }
+  },
+  "hard_break": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["type"],
+    "properties": { "type": { "const": "hardBreak" } }
+  },
+  "bold": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["type"],
+    "properties": { "type": { "const": "bold" } }
+  },
+  "italic": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["type"],
+    "properties": { "type": { "const": "italic" } }
+  },
+  "link_mark": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["type", "attrs"],
+    "properties": {
+      "type": { "const": "link" },
+      "attrs": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["href"],
+        "properties": {
+          "href": { "$ref": "#/$defs/link" },
+          "target": { "type": ["string", "null"], "maxLength": 20, "default": null },
+          "rel": { "type": ["string", "null"], "maxLength": 100, "default": null },
+          "class": { "type": ["string", "null"], "maxLength": 100, "default": null }
+        }
+      }
+    }
+  }
+}

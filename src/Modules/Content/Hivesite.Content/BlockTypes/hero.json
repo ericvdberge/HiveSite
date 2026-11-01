@@ -1,0 +1,19 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["type", "attrs"],
+  "properties": {
+    "type": { "const": "hero" },
+    "attrs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["title"],
+      "properties": {
+        "title": { "type": "string", "minLength": 1, "maxLength": 80 },
+        "subtitle": { "type": "string", "maxLength": 160, "default": "" },
+        "image": { "oneOf": [{ "$ref": "#/$defs/image" }, { "type": "null" }], "default": null },
+        "cta": { "oneOf": [{ "$ref": "#/$defs/action" }, { "type": "null" }], "default": null }
+      }
+    }
+  }
+}

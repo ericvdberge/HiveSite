@@ -1,0 +1,56 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["type", "attrs"],
+  "properties": {
+    "type": { "const": "card_list" },
+    "attrs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source"],
+      "properties": {
+        "heading": { "$ref": "#/$defs/heading", "default": "" },
+        "layout": { "enum": ["grid", "list"], "default": "grid" },
+        "source": {
+          "oneOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["kind", "cards"],
+              "properties": {
+                "kind": { "const": "manual" },
+                "cards": {
+                  "type": "array",
+                  "minItems": 1,
+                  "maxItems": 12,
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": ["title"],
+                    "properties": {
+                      "title": { "type": "string", "minLength": 1, "maxLength": 80 },
+                      "body": { "type": "string", "maxLength": 300, "default": "" },
+                      "image": { "oneOf": [{ "$ref": "#/$defs/image" }, { "type": "null" }], "default": null },
+                      "action": { "oneOf": [{ "$ref": "#/$defs/action" }, { "type": "null" }], "default": null }
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["kind", "entity_type"],
+              "properties": {
+                "kind": { "const": "collection" },
+                "entity_type": { "enum": ["page"] },
+                "sort": { "enum": ["natural", "newest", "title"], "default": "natural" },
+                "page_size": { "type": "integer", "minimum": 1, "maximum": 50, "default": 12 }
+              }
+            }
+          ]
+        }
+      }
+    }
+  }
+}

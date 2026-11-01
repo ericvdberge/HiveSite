@@ -1,6 +1,7 @@
 using Hivesite.Content.Application;
 using Hivesite.Shared;
 using Microsoft.AspNetCore.Http.HttpResults;
+using Microsoft.AspNetCore.Http.Metadata;
 
 namespace Hivesite.Content.Endpoints;
 
@@ -8,16 +9,27 @@ namespace Hivesite.Content.Endpoints;
 internal static class SiteEndpoints
 {
     private static readonly ApiError SiteNotFound = ApiError.Of("site_not_found", "No site with this id.");
+    private static readonly ProducesResponseTypeMetadata Unauthenticated = new(StatusCodes.Status401Unauthorized, typeof(ApiError), ["application/json"]);   // RequireAuthorization answers it
 
     public static void MapSiteEndpoints(this IEndpointRouteBuilder endpoints)
     {
         var sites = endpoints.MapGroup("/sites").RequireAuthorization();
-        sites.MapPost("", CreateSite).Validate<SitePostValidator>();
-        sites.MapGet("", ListSites).Validate<PageQueryValidator>();
-        sites.MapGet("{id:guid}", GetSite);
-        sites.MapPatch("{id:guid}", UpdateSite).Validate<SitePatchValidator>();
-        // An id that is no UUID names no site: the same 404 as a missing one (API-001 Ids).
-        sites.MapMethods("{id}", [HttpMethods.Get, HttpMethods.Patch], () => TypedResults.NotFound(SiteNotFound));
+        sites.WithTags("Sites");
+        sites.WithMetadata(Unauthenticated);
+        sites.MapPost("", CreateSite).Validate<SitePostValidator>().WithName("CreateSite")
+            .WithSummary("Create a site")
+            .WithDescription("Errors: 400 `invalid_request`, 400 `slug_taken`, 400 `too_many_sites`, 401 `unauthenticated`.");
+        sites.MapGet("", ListSites).Validate<PageQueryValidator>().WithName("ListSites")
+            .WithSummary("List the owner's sites, newest first")
+            .WithDescription("Errors: 400 `invalid_request`, 400 `invalid_cursor`, 401 `unauthenticated`.");
+        sites.MapGet("{id:guid}", GetSite).WithName("GetSite")
+            .WithSummary("Get a site")
+            .WithDescription("Errors: 401 `unauthenticated`, 404 `site_not_found`.");
+        sites.MapPatch("{id:guid}", UpdateSite).Validate<SitePatchValidator>().WithName("UpdateSite")
+            .WithSummary("Update a site")
+            .WithDescription("Errors: 400 `invalid_request`, 400 `slug_taken`, 401 `unauthenticated`, 404 `site_not_found`.");
+        // An id that is no UUID names no site: the same 404 as a missing one (API-001 Ids). Not part of the document: GetSite and UpdateSite say it.
+        sites.MapMethods("{id}", [HttpMethods.Get, HttpMethods.Patch], () => TypedResults.NotFound(SiteNotFound)).ExcludeFromDescription();
     }
 
     private static async Task<Results<Created<SiteDto>, BadRequest<ApiError>>> CreateSite(SitePostDto dto, SiteService service, CancellationToken ct)
