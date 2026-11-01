@@ -4,6 +4,7 @@ import { createMemoryHistory } from 'vue-router'
 import App from '../src/App.vue'
 import { createStudioRouter } from '../src/router'
 import { dismissToast, useToast } from '../src/composables/useToast'
+import { readFileSync } from 'node:fs'
 
 // The typed client captures fetch when it is created, so the stub is installed before imports run.
 const fetchMock = vi.hoisted(() => {
@@ -207,7 +208,7 @@ describe('site list: AC1 lists sites newest first and loads more with next_curso
         expect(rows(w)).toHaveLength(2)
         expect(moreButton(w).text()).toBe('Try again')
         expect(w.get('.hs-more__status').text()).toBe("Error: We couldn't load more sites.")
-        expect(useToast().message.value).toContain('Something went wrong on our side')
+        expect(useToast().message.value).toBeNull()
 
         await moreButton(w).trigger('click')
         await flushPromises()
@@ -244,14 +245,17 @@ describe('site list: AC1 lists sites newest first and loads more with next_curso
         expect(w.find('#site-count').exists()).toBe(false)
     })
 
-    it('AC1: a failed first load shows the list error with Try again, and the toast', async () => {
+    it('AC1: a failed first load shows the list error with Try again, and no toast', async () => {
         fetchMock
             .mockResolvedValueOnce(fail(500, 'internal_error'))
             .mockResolvedValueOnce(ok(sites(1, 1)))
         const w = await open()
 
         expect(w.get('.hs-form-message').text()).toBe("Error: We couldn't load your sites.")
-        expect(w.get('.hs-toast').text()).toContain('Something went wrong on our side')
+        expect(useToast().message.value).toBeNull()
+        expect(w.find('.hs-form-message').attributes('role')).toBeUndefined()
+        expect(w.findAll('[role="status"]')).toHaveLength(1)
+        expect(w.get('[role="status"]').text()).toBe("Error: We couldn't load your sites.")
         expect(w.text()).not.toContain('Server words.')
 
         await w.get('.hs-load-error button').trigger('click')
@@ -259,6 +263,86 @@ describe('site list: AC1 lists sites newest first and loads more with next_curso
         expect(rows(w)).toHaveLength(1)
         expect(w.find('.hs-form-message').exists()).toBe(false)
         expect(useToast().message.value).toBeNull()
+    })
+})
+
+describe('site list: live regions, sign-in, focus and motion', () => {
+    it('AC1: a 401 unauthenticated on first load shows no list error', async () => {
+        fetchMock.mockResolvedValueOnce(fail(401, 'unauthenticated'))
+        const w = await open()
+        expect(w.find('.hs-form-message').exists()).toBe(false)
+        expect(w.find('.hs-list').exists()).toBe(false)
+        expect(useToast().message.value).toBeNull()
+    })
+
+    it('AC1: a 401 unauthenticated on Load more shows no failed state', async () => {
+        fetchMock
+            .mockResolvedValueOnce(ok(sites(1, 2), 'c1'))
+            .mockResolvedValueOnce(fail(401, 'unauthenticated'))
+        const w = await open()
+        await moreButton(w).trigger('click')
+        await flushPromises()
+        expect(w.get('.hs-more__status').text()).not.toContain('Error')
+        expect(w.find('.hs-more__status--error').exists()).toBe(false)
+    })
+
+    it('AC1: one status element stays in the DOM across Load more states', async () => {
+        let resolve!: (r: Response) => void
+        fetchMock
+            .mockResolvedValueOnce(ok(sites(1, 2), 'c1'))
+            .mockReturnValueOnce(new Promise<Response>((r) => (resolve = r)))
+        const w = await open()
+        const el = w.get('.hs-more__status').element
+        await moreButton(w).trigger('click')
+        await flushPromises()
+        expect(w.get('.hs-more__status').element).toBe(el)
+        resolve(ok(sites(3, 3), null))
+        await flushPromises()
+        expect(w.get('.hs-more__status').element).toBe(el)
+        expect(w.findAll('[role="status"]')).toHaveLength(1)
+        expect(el.textContent?.trim()).toBe("1 more site loaded. That's all your sites.")
+    })
+
+    it('AC1: the end line is not repeated in the status on first load', async () => {
+        fetchMock.mockResolvedValueOnce(ok(sites(1, 2), null))
+        const w = await open()
+        expect(w.get('.hs-end').text()).toBe("That's all your sites.")
+        expect(w.get('.hs-more__status').text()).toBe('')
+    })
+
+    it('AC1: when Load more adds no rows and the button goes, focus moves to the first row link', async () => {
+        fetchMock
+            .mockResolvedValueOnce(ok(sites(1, 2), 'c1'))
+            .mockResolvedValueOnce(ok(sites(1, 2), null))
+        const w = await open()
+        ;(moreButton(w).element as HTMLElement).focus()
+        await moreButton(w).trigger('click')
+        await flushPromises()
+        expect(moreButton(w).exists()).toBe(false)
+        expect(document.activeElement).toBe(at(rows(w), 0).get('a').element)
+    })
+
+    it('AC1: a refresh that reaches the end moves focus to the first newly shown row link', async () => {
+        fetchMock
+            .mockResolvedValueOnce(ok(sites(1, 2), 'stale'))
+            .mockResolvedValueOnce(fail(400, 'invalid_cursor'))
+            .mockResolvedValueOnce(ok(sites(1, 4), null))
+        const w = await open()
+        ;(moreButton(w).element as HTMLElement).focus()
+        await moreButton(w).trigger('click')
+        await flushPromises()
+        expect(moreButton(w).exists()).toBe(false)
+        expect(document.activeElement).toBe(at(rows(w), 2).get('a').element)
+    })
+
+    it('Motion: the list fades and rises once with motion tokens', () => {
+        const src = readFileSync('src/views/SiteListView.vue', 'utf8')
+        expect(src).toMatch(
+            /\.hs-list \{[^}]*animation: hs-list-in var\(--hs-motion-duration-base\) var\(--hs-motion-easing-enter\)/,
+        )
+        expect(src).toMatch(
+            /@keyframes hs-list-in[\s\S]*opacity: 0[\s\S]*var\(--hs-motion-rise-distance\)/,
+        )
     })
 })
 

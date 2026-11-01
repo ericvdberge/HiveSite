@@ -3,7 +3,6 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 import ScreenHead from '../components/ScreenHead.vue'
 import { api, isApiError, type components } from '../api'
-import { dismissToast, showErrorToast, toastCopy } from '../composables/useToast'
 
 type Site = components['schemas']['SiteDto']
 type SiteList = components['schemas']['SiteDtoList']
@@ -21,6 +20,7 @@ const notice = ref('')
 const noticeKind = ref<'loaded' | 'refreshed' | ''>('')
 const newIds = ref(new Set<string>())
 const list = ref<HTMLElement | null>(null)
+const moreBtn = ref<HTMLElement | null>(null)
 
 // Aborted on unmount: a cancel is not a failure and shows nothing.
 const controller = new AbortController()
@@ -59,6 +59,8 @@ function dedupe(existing: Site[], incoming: Site[]): Site[] {
 /** First load, and the reload after `invalid_cursor`. Replaces the list. */
 async function loadFromStart(refreshed = false): Promise<void> {
     if (!refreshed) phase.value = 'loading'
+    const hadFocus = refreshed && isFocused(moreBtn.value)
+    const shownBefore = new Set(sites.value.map((s) => s.id))
     try {
         const page = await fetchPage(null)
         sites.value = dedupe([], page.items)
@@ -68,20 +70,34 @@ async function loadFromStart(refreshed = false): Promise<void> {
         more.value = 'idle'
         notice.value = refreshed ? 'The list was refreshed.' : ''
         noticeKind.value = refreshed ? 'refreshed' : ''
-        dismissToast()
+        if (hadFocus) {
+            await nextTick()
+            focusAfterMore(sites.value.filter((s) => !shownBefore.has(s.id)))
+        }
     } catch (error) {
         if (isAbort(error)) return
+        // Sign-in owns a 401 (shell.md); the list shows nothing of its own.
+        if (isApiError(error) && error.code === 'unauthenticated') return
         if (refreshed) more.value = 'failed'
         else phase.value = 'failed'
-        // The copy is ours, never the server's message (shell.md). The studio cannot tell a
-        // dead network from a 5xx (both reach us as one code), so one line covers both.
-        showErrorToast(toastCopy.server)
     }
+}
+
+function isFocused(el: HTMLElement | null): boolean {
+    return el !== null && document.activeElement === el
+}
+
+/** Focus the first newly shown row link, or the first row link when none were added. */
+function focusAfterMore(added: Site[]): void {
+    const target = added[0] ?? sites.value[0]
+    if (!target) return
+    list.value?.querySelector<HTMLElement>(`[data-site-id="${target.id}"] a`)?.focus()
 }
 
 async function loadMore(): Promise<void> {
     // One Load more request at a time; the busy button does nothing.
     if (more.value === 'loading' || nextCursor.value === null) return
+    const hadFocus = isFocused(moreBtn.value)
     more.value = 'loading'
     notice.value = ''
     noticeKind.value = ''
@@ -97,25 +113,23 @@ async function loadMore(): Promise<void> {
         const n = added.length
         notice.value = `${n} more ${n === 1 ? 'site' : 'sites'} loaded.`
         noticeKind.value = 'loaded'
-        dismissToast()
         await nextTick()
-        const first = added[0]
-        if (first) list.value?.querySelector<HTMLElement>(`[data-site-id="${first.id}"] a`)?.focus()
+        if (added.length > 0 || (hadFocus && nextCursor.value === null)) focusAfterMore(added)
     } catch (error) {
         if (isAbort(error)) return
+        if (isApiError(error) && error.code === 'unauthenticated') return
         if (isApiError(error) && error.code === 'invalid_cursor') {
             await loadFromStart(true)
             return
         }
         more.value = 'failed'
-        showErrorToast(toastCopy.server)
     }
 }
 
 const statusText = computed(() => {
     if (more.value === 'loading') return 'Loading more sites…'
     const end =
-        atEnd.value && count.value > 0 && noticeKind.value !== 'refreshed'
+        atEnd.value && count.value > 0 && noticeKind.value === 'loaded'
             ? "That's all your sites."
             : ''
     return [notice.value, end].filter(Boolean).join(' ')
@@ -168,8 +182,12 @@ onBeforeUnmount(() => controller.abort())
         </template>
     </ScreenHead>
 
+    <!-- One status region while the list is not ready; its text changes, the element stays. -->
+    <p v-if="phase !== 'ready'" class="hs-visually-hidden" role="status">
+        {{ phase === 'failed' ? "Error: We couldn't load your sites." : 'Loading sites…' }}
+    </p>
+
     <div v-if="phase === 'loading'" class="hs-placeholder" aria-busy="true">
-        <p class="hs-visually-hidden" role="status">Loading sites…</p>
         <div v-for="n in 3" :key="n" class="hs-placeholder__row" aria-hidden="true">
             <span class="hs-placeholder__line hs-placeholder__line--title" />
             <span class="hs-placeholder__line hs-placeholder__line--meta" />
@@ -177,9 +195,7 @@ onBeforeUnmount(() => controller.abort())
     </div>
 
     <div v-else-if="phase === 'failed'" class="hs-load-error">
-        <p class="hs-form-message" role="alert">
-            <strong>Error:</strong> We couldn't load your sites.
-        </p>
+        <p class="hs-form-message"><strong>Error:</strong> We couldn't load your sites.</p>
         <button type="button" class="hs-button hs-button--secondary" @click="loadFromStart()">
             Try again
         </button>
@@ -219,6 +235,7 @@ onBeforeUnmount(() => controller.abort())
         <div class="hs-more">
             <button
                 v-if="nextCursor !== null"
+                ref="moreBtn"
                 type="button"
                 class="hs-button hs-button--secondary"
                 :aria-disabled="more === 'loading' ? 'true' : undefined"
@@ -229,19 +246,17 @@ onBeforeUnmount(() => controller.abort())
                 }}
             </button>
             <p
-                v-if="more === 'failed'"
-                class="hs-more__status hs-more__status--error"
-                role="status"
-            >
-                <strong>Error:</strong> We couldn't load more sites.
-            </p>
-            <p
-                v-else
                 class="hs-more__status"
-                :class="{ 'hs-visually-hidden': statusHidden }"
+                :class="{
+                    'hs-more__status--error': more === 'failed',
+                    'hs-visually-hidden': more !== 'failed' && statusHidden,
+                }"
                 role="status"
             >
-                {{ statusText }}
+                <template v-if="more === 'failed'">
+                    <strong>Error:</strong> We couldn't load more sites.
+                </template>
+                <template v-else>{{ statusText }}</template>
             </p>
             <p v-if="atEnd" class="hs-end">That's all your sites.</p>
         </div>
@@ -266,6 +281,12 @@ onBeforeUnmount(() => controller.abort())
     gap: var(--hs-space-2);
 }
 
+@media (width >= breakpoint(md)) {
+    .hs-new {
+        align-items: flex-end;
+    }
+}
+
 .hs-new__reason {
     font-size: var(--hs-font-size-body-s);
     color: var(--hs-color-text-muted);
@@ -277,6 +298,15 @@ onBeforeUnmount(() => controller.abort())
     padding: 0;
     list-style: none;
     border-block-start: var(--hs-border-width-hairline) solid var(--hs-color-border);
+    /* After first load the list fades and rises as one shape. Reduced motion zeroes the tokens. */
+    animation: hs-list-in var(--hs-motion-duration-base) var(--hs-motion-easing-enter) both;
+}
+
+@keyframes hs-list-in {
+    from {
+        opacity: 0;
+        transform: translateY(var(--hs-motion-rise-distance));
+    }
 }
 
 .hs-row {
