@@ -21,7 +21,7 @@ Use the `review-pr` skill. In short:
 2. **Story.** Every acceptance criterion is met and has a test.
 3. **Boundaries.** Files changed are inside the developer's module; other modules are used only through their `.Contracts` project.
 4. **Rules.** The project and module `CLAUDE.md` rules hold.
-5. **Patterns.** The code follows `src/CLAUDE.md`. A PR that meets the spec but breaks the patterns is `CHANGES NEEDED`.
+5. **Patterns.** The code follows `src/CLAUDE.md`; a studio PR (`web/studio`) follows the rules in `.claude/agents/dev-frontend.md` and the layout notes in `design/studio/`. A PR that meets the spec but breaks the patterns is `CHANGES NEEDED`.
 
 ## Rules
 
