@@ -29,13 +29,18 @@ public sealed partial class OpenApiContractTests
         document = JsonNode.Parse(await client.GetStringAsync(new Uri("/openapi/v1.json", UriKind.Relative)))!.AsObject();
     }
 
+    /// <summary>The endpoints of the spec that are built. API-004 PATCH comes with its own story (#128) and joins then.</summary>
+    private static IEnumerable<SpecEndpoint> Built(string specFile) =>
+        SpecExamples.Read(specFile).Where(e => !(specFile.StartsWith("API-004", StringComparison.Ordinal) && e.Method == "PATCH"));
+
     [TestMethod]
     [DataRow("API-001-sites.md", "POST /sites:2:4,GET /sites:1:3,GET /sites/{id}:1:2,PATCH /sites/{id}:2:4")]
     [DataRow("API-002-pages-and-menu.md", "POST /sites/{id}/pages:2:6,GET /sites/{id}/pages:1:4,GET /pages/{id}:1:2,PATCH /pages/{id}:2:5,DELETE /pages/{id}:0:2,PUT /sites/{id}/menu:2:4")]
+    [DataRow("API-004-page-blocks.md", "GET /pages/{id}/blocks:1:2,PUT /pages/{id}/blocks:1:9")]
     public void The_spec_is_read_whole(string specFile, string expected)
     {
         SpecExamples.SkipUnlessApprovedOrBuilt(specFile);
-        var read = SpecExamples.Read(specFile).Select(e => $"{e.Method} {e.Path}:{e.Bodies.Count}:{e.Errors.Count}");
+        var read = Built(specFile).Select(e => $"{e.Method} {e.Path}:{e.Bodies.Count}:{e.Errors.Count}");
 
         CollectionAssert.AreEqual(expected.Split(','), read.ToArray());
     }
@@ -43,10 +48,11 @@ public sealed partial class OpenApiContractTests
     [TestMethod]
     [DataRow("API-001-sites.md")]
     [DataRow("API-002-pages-and-menu.md")]
+    [DataRow("API-004-page-blocks.md")]
     public void Every_spec_endpoint_documents_the_401_of_the_shared_conventions(string specFile)
     {
         SpecExamples.SkipUnlessApprovedOrBuilt(specFile);
-        foreach (var endpoint in SpecExamples.Read(specFile))
+        foreach (var endpoint in Built(specFile))
         {
             CollectionAssert.Contains(endpoint.Errors.Select(e => $"{e.Status} {e.Code}").ToArray(), "401 unauthenticated", $"{endpoint.Method} {endpoint.Path}: the spec lists no 401 `unauthenticated`.");
         }
@@ -55,11 +61,12 @@ public sealed partial class OpenApiContractTests
     [TestMethod]
     [DataRow("API-001-sites.md")]
     [DataRow("API-002-pages-and-menu.md")]
+    [DataRow("API-004-page-blocks.md")]
     public void Every_spec_example_body_validates_against_the_document(string specFile)
     {
         SpecExamples.SkipUnlessApprovedOrBuilt(specFile);
         var checkedBodies = 0;
-        foreach (var endpoint in SpecExamples.Read(specFile))
+        foreach (var endpoint in Built(specFile))
         {
             foreach (var body in endpoint.Bodies)
             {
@@ -75,10 +82,11 @@ public sealed partial class OpenApiContractTests
     [TestMethod]
     [DataRow("API-001-sites.md")]
     [DataRow("API-002-pages-and-menu.md")]
+    [DataRow("API-004-page-blocks.md")]
     public void Every_spec_error_is_documented_on_its_operation(string specFile)
     {
         SpecExamples.SkipUnlessApprovedOrBuilt(specFile);
-        foreach (var endpoint in SpecExamples.Read(specFile))
+        foreach (var endpoint in Built(specFile))
         {
             var operation = Operation(endpoint.Method, endpoint.Path);
             var description = operation["description"]?.GetValue<string>() ?? "";
@@ -95,10 +103,11 @@ public sealed partial class OpenApiContractTests
     [TestMethod]
     [DataRow("API-001-sites.md")]
     [DataRow("API-002-pages-and-menu.md")]
+    [DataRow("API-004-page-blocks.md")]
     public void Every_spec_operation_has_a_name_and_one_tag(string specFile)
     {
         SpecExamples.SkipUnlessApprovedOrBuilt(specFile);
-        foreach (var endpoint in SpecExamples.Read(specFile))
+        foreach (var endpoint in Built(specFile))
         {
             var operation = Operation(endpoint.Method, endpoint.Path);
             Assert.IsFalse(string.IsNullOrEmpty(operation["operationId"]?.GetValue<string>()), $"{endpoint.Method} {endpoint.Path}: no operationId.");
