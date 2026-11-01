@@ -10,7 +10,7 @@ const firstScreenShown = new WeakSet<Router>()
 import { onMounted, ref, watchEffect } from 'vue'
 import { useRouter } from 'vue-router'
 
-const props = defineProps<{ title: string; eyebrow?: string }>()
+const props = defineProps<{ title: string; eyebrow?: string; documentTitle?: string }>()
 const heading = ref<HTMLElement | null>(null)
 const router = useRouter()
 
@@ -18,6 +18,10 @@ const APP_NAME = 'Hivesite Studio'
 
 // The document title follows the h1.
 watchEffect(() => {
+    if (props.documentTitle) {
+        document.title = props.documentTitle
+        return
+    }
     document.title = props.title === APP_NAME ? APP_NAME : `${props.title} · ${APP_NAME}`
 })
 onMounted(() => {

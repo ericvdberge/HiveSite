@@ -5,6 +5,7 @@ import NotFoundScreen from '../components/NotFoundScreen.vue'
 import ScreenHead from '../components/ScreenHead.vue'
 import { api, isApiError, listAll, type components } from '../api'
 import { takeAddedPage } from '../composables/useAddedPage'
+import { clearSiteNav, setSiteNav } from '../composables/useSiteNav'
 
 type Site = components['schemas']['SiteDto']
 type PageItem = components['schemas']['PageDto']
@@ -18,6 +19,7 @@ const siteId = String(route.params.id)
 const site = ref<Site | null>(null)
 const pages = ref<PageItem[]>([])
 const phase = ref<'loading' | 'ready' | 'failed' | 'missing'>('loading')
+const addedPage = takeAddedPage()
 const added = ref('')
 const addedId = ref('')
 const list = ref<HTMLElement | null>(null)
@@ -75,6 +77,7 @@ async function load(): Promise<void> {
     try {
         const [loadedSite, all] = await Promise.all([fetchSite(), fetchPagesRestarting()])
         site.value = loadedSite
+        setSiteNav({ id: loadedSite.id, name: loadedSite.name })
         pages.value = all
         phase.value = 'ready'
         await announceAdded()
@@ -83,13 +86,13 @@ async function load(): Promise<void> {
         // Sign-in owns a 401 (shell.md); the list shows nothing of its own.
         if (isApiError(error) && error.code === 'unauthenticated') return
         phase.value = isApiError(error) && error.code === 'site_not_found' ? 'missing' : 'failed'
+        if (phase.value === 'missing') clearSiteNav()
     }
 }
 
 /** After add: say where the page landed and focus its title link. */
 async function announceAdded(): Promise<void> {
-    const page = takeAddedPage()
-    const row = page ? pages.value.find((p) => p.id === page.id) : undefined
+    const row = addedPage ? pages.value.find((p) => p.id === addedPage.id) : undefined
     if (!row) return
     addedId.value = row.id
     added.value = `${row.title} added at position ${position(row)} of ${count.value}.`
@@ -97,6 +100,9 @@ async function announceAdded(): Promise<void> {
     list.value?.querySelector<HTMLElement>(`[data-page-id="${row.id}"] .hs-row__title`)?.focus()
 }
 
+const documentTitle = computed(() =>
+    site.value ? `Pages · ${site.value.name} · Hivesite Studio` : undefined,
+)
 const statusText = computed(() => {
     if (phase.value === 'loading') return 'Loading pages…'
     if (phase.value === 'failed') return "Error: We couldn't load the pages of this site."
@@ -106,13 +112,16 @@ const statusText = computed(() => {
 onMounted(() => {
     void load()
 })
-onBeforeUnmount(() => controller.abort())
+onBeforeUnmount(() => {
+    controller.abort()
+    clearSiteNav()
+})
 </script>
 
 <template>
     <NotFoundScreen v-if="phase === 'missing'" code="site_not_found" />
     <template v-else>
-        <ScreenHead title="Pages" :eyebrow="site?.name">
+        <ScreenHead title="Pages" :eyebrow="site?.name" :document-title="documentTitle">
             <template v-if="phase === 'ready'" #lead>
                 <span id="page-count" class="hs-count" :class="{ 'hs-count--limit': atLimit }">{{
                     countText
@@ -186,18 +195,24 @@ onBeforeUnmount(() => controller.abort())
                 :data-page-id="page.id"
             >
                 <span class="hs-row__pos" aria-hidden="true">{{ position(page) }}</span>
-                <RouterLink
-                    class="hs-row__title"
-                    :to="`/pages/${page.id}/edit`"
-                    :aria-describedby="isHome(page) ? `home-${page.id}` : undefined"
-                    >{{ page.title }}</RouterLink
-                >
-                <span v-if="isHome(page)" :id="`home-${page.id}`" class="hs-home">Home page</span>
-                <p class="hs-row__meta">
-                    <span class="hs-path"
-                        >/s/{{ site?.slug }}/{{ isHome(page) ? '' : page.slug }}</span
-                    >
-                </p>
+                <div class="hs-row__main">
+                    <div class="hs-row__head">
+                        <RouterLink
+                            class="hs-row__title"
+                            :to="`/pages/${page.id}/edit`"
+                            :aria-describedby="isHome(page) ? `home-${page.id}` : undefined"
+                            >{{ page.title }}</RouterLink
+                        >
+                        <span v-if="isHome(page)" :id="`home-${page.id}`" class="hs-home"
+                            >Home page</span
+                        >
+                    </div>
+                    <p class="hs-row__meta">
+                        <span class="hs-path"
+                            >/s/{{ site?.slug }}/{{ isHome(page) ? '' : page.slug }}</span
+                        >
+                    </p>
+                </div>
                 <div class="hs-row__actions">
                     <RouterLink
                         class="hs-button hs-button--quiet"
@@ -229,6 +244,12 @@ onBeforeUnmount(() => controller.abort())
     gap: var(--hs-space-2);
 }
 
+@media (width >= breakpoint(md)) {
+    .hs-new {
+        align-items: flex-end;
+    }
+}
+
 .hs-new__reason {
     font-size: var(--hs-font-size-body-s);
     color: var(--hs-color-text-muted);
@@ -252,16 +273,33 @@ onBeforeUnmount(() => controller.abort())
 }
 
 .hs-row {
-    display: flex;
-    flex-wrap: wrap;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-areas:
+        'pos main'
+        'actions actions';
     align-items: center;
-    gap: var(--hs-space-3);
+    column-gap: var(--hs-space-3);
+    row-gap: var(--hs-space-2);
     padding-block: var(--hs-space-4);
     padding-inline: var(--hs-space-3);
     border-block-end: var(--hs-border-width-hairline) solid var(--hs-color-border);
 }
 
+.hs-row__main {
+    grid-area: main;
+    min-inline-size: 0;
+}
+
+.hs-row__head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--hs-space-3);
+}
+
 .hs-row__pos {
+    grid-area: pos;
     min-inline-size: 2ch;
     font-family: var(--hs-font-label);
     font-size: var(--hs-font-size-label);
@@ -298,8 +336,7 @@ onBeforeUnmount(() => controller.abort())
 }
 
 .hs-row__meta {
-    flex-basis: 100%;
-    margin: 0;
+    margin: var(--hs-space-1) 0 0;
     font-size: var(--hs-font-size-body-s);
     color: var(--hs-color-text-muted);
     overflow-wrap: anywhere;
@@ -311,9 +348,17 @@ onBeforeUnmount(() => controller.abort())
 }
 
 .hs-row__actions {
+    grid-area: actions;
     display: flex;
+    justify-content: flex-end;
     gap: var(--hs-space-2);
-    margin-inline-start: auto;
+}
+
+@media (width >= breakpoint(sm)) {
+    .hs-row {
+        grid-template-columns: auto minmax(0, 1fr) auto;
+        grid-template-areas: 'pos main actions';
+    }
 }
 
 /* A new row fades in as the one moving shape. Reduced motion shortens it via the token. */

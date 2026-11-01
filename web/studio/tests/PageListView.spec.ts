@@ -229,6 +229,30 @@ describe('page list: empty state', () => {
     })
 })
 
+describe('page list: site navigation and document title', () => {
+    it('shows the site name and its links in the side nav, and leaves them on unmount', async () => {
+        serve([{ items: [page(1, 'Home')], next_cursor: null }])
+        const w = await open()
+
+        const nav = w.get('nav')
+        expect(nav.get('.hs-nav__site').text()).toBe('Atelier Noor')
+        const hrefs = nav.findAll('a').map((a) => [a.text(), a.attributes('href')])
+        expect(hrefs).toContainEqual(['Pages', `/sites/${SITE_ID}/pages`])
+        expect(hrefs).toContainEqual(['Site settings', `/sites/${SITE_ID}/edit`])
+
+        await w.vm.$router.push('/nowhere')
+        await flushPromises()
+        expect(w.find('.hs-nav__site').exists()).toBe(false)
+    })
+
+    it('sets the document title to "Pages · {site} · Hivesite Studio"', async () => {
+        serve([{ items: [page(1, 'Home')], next_cursor: null }])
+        await open()
+
+        expect(document.title).toBe('Pages · Atelier Noor · Hivesite Studio')
+    })
+})
+
 describe('page list: after add', () => {
     it('says where the new page landed and focuses its title link', async () => {
         serve([
