@@ -5,7 +5,7 @@ using Microsoft.OpenApi;
 
 /// <summary>
 /// The public HTTP document the studio's client is generated from, served at <c>/openapi/v1.json</c> in Development only.
-/// A copy is committed at <c>openapi/hivesite.v1.json</c>; <c>tests/Hivesite.Host.Tests</c> fails when it drifts.
+/// <c>dotnet build</c> also writes it to <c>openapi/hivesite.json</c> (git-ignored), which the studio generates its types from.
 /// </summary>
 internal static class HostOpenApi
 {
