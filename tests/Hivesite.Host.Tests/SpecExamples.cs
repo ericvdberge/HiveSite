@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text.RegularExpressions;
+using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace Hivesite.Host.Tests;
 
@@ -25,6 +26,35 @@ internal static partial class SpecExamples
 
     [GeneratedRegex(@"^- \d{3}\b")]
     private static partial Regex ErrorLike();
+
+    [GeneratedRegex(@"^status:\s*(\S.*?)\s*$")]
+    private static partial Regex StatusLine();
+
+    /// <summary>The <c>status</c> in the spec's front matter, e.g. <c>approved</c> or <c>in review</c>.</summary>
+    public static string Status(string specFile)
+    {
+        foreach (var line in File.ReadLines(SpecPath(specFile)).Skip(1).TakeWhile(l => l != "---"))
+        {
+            if (StatusLine().Match(line) is { Success: true } m)
+            {
+                return m.Groups[1].Value;
+            }
+        }
+        throw new FormatException($"{specFile}: no status in the front matter.");
+    }
+
+    /// <summary>
+    /// The contract tests check approved and built specs against the running Host. A spec in review or draft
+    /// describes code that is not built yet (a spec PR merges before its build PR), so it is skipped until then.
+    /// </summary>
+    public static void SkipUnlessApprovedOrBuilt(string specFile)
+    {
+        var status = Status(specFile);
+        if (status is not ("approved" or "built"))
+        {
+            Assert.Inconclusive($"{specFile} is '{status}': its build PR sets it to built, and then these checks run.");
+        }
+    }
 
     public static IReadOnlyList<SpecEndpoint> Read(string specFile)
     {
