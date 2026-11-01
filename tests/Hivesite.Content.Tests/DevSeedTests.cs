@@ -48,6 +48,7 @@ public sealed class DevSeedTests
         {
             builder.UseEnvironment(environment);
             builder.UseSetting("ConnectionStrings:Content", connection);
+            builder.UseSetting("Dev:Seed", "false");   // the Host's startup seed (#118) is tested in Hivesite.Host.Tests
         });
         await factory.Services.MigrateContentDatabaseAsync();
         return factory;
