@@ -10,7 +10,7 @@ A block-based website builder, designed and built by a team of AI agents. Owners
 - FluentValidation for requests, Mapperly for DTO mapping, and one repository and one service per entity. The C# patterns are in [src/CLAUDE.md](src/CLAUDE.md).
 
 ## Commands
-- Build: `dotnet build -warnaserror`
+- Build: `dotnet build -warnaserror` (also writes the public OpenAPI document to `openapi/hivesite.json`; it is git-ignored, never commit or edit it)
 - Test: `dotnet test`
 - Format: `dotnet format`
 - Spec index: `node scripts/spec-index.mjs` (CI runs it with `--check`)
