@@ -30,13 +30,24 @@ public sealed partial class OpenApiContractTests
     }
 
     [TestMethod]
-    [DataRow("API-001-sites.md", "POST /sites,GET /sites,GET /sites/{id},PATCH /sites/{id}")]
-    [DataRow("API-002-pages-and-menu.md", "POST /sites/{id}/pages,GET /sites/{id}/pages,GET /pages/{id},PATCH /pages/{id},DELETE /pages/{id},PUT /sites/{id}/menu")]
+    [DataRow("API-001-sites.md", "POST /sites:2:4,GET /sites:1:3,GET /sites/{id}:1:2,PATCH /sites/{id}:2:4")]
+    [DataRow("API-002-pages-and-menu.md", "POST /sites/{id}/pages:2:6,GET /sites/{id}/pages:1:4,GET /pages/{id}:1:2,PATCH /pages/{id}:2:5,DELETE /pages/{id}:0:2,PUT /sites/{id}/menu:2:4")]
     public void The_spec_is_read_whole(string specFile, string expected)
     {
-        var read = SpecExamples.Read(specFile).Select(e => $"{e.Method} {e.Path}");
+        var read = SpecExamples.Read(specFile).Select(e => $"{e.Method} {e.Path}:{e.Bodies.Count}:{e.Errors.Count}");
 
         CollectionAssert.AreEqual(expected.Split(','), read.ToArray());
+    }
+
+    [TestMethod]
+    [DataRow("API-001-sites.md")]
+    [DataRow("API-002-pages-and-menu.md")]
+    public void Every_spec_endpoint_documents_the_401_of_the_shared_conventions(string specFile)
+    {
+        foreach (var endpoint in SpecExamples.Read(specFile))
+        {
+            CollectionAssert.Contains(endpoint.Errors.Select(e => $"{e.Status} {e.Code}").ToArray(), "401 unauthenticated", $"{endpoint.Method} {endpoint.Path}: the spec lists no 401 `unauthenticated`.");
+        }
     }
 
     [TestMethod]
