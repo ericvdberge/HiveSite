@@ -14,6 +14,9 @@ namespace Hivesite.Content;
 /// <summary>Wires the Content module into the host. Connection string: <c>ConnectionStrings:Content</c>.</summary>
 public static class ContentModule
 {
+    /// <summary>The seeded admin owner. Until real sign-in lands, the Host signs every Development request in as this owner (ADR 4).</summary>
+    public const string DevelopmentOwnerId = DevSeeder.OwnerA;
+
     public static IServiceCollection AddContentModule(this IServiceCollection services)
     {
         services.AddDbContext<ContentDbContext>((sp, options) =>
@@ -47,7 +50,7 @@ public static class ContentModule
 
     /// <summary>
     /// Seeds sample sites and pages for local work, only when the environment is Development; otherwise it writes nothing.
-    /// Run it on demand after <see cref="MigrateContentDatabaseAsync"/>. It never runs at startup. Safe to repeat.
+    /// Run it after <see cref="MigrateContentDatabaseAsync"/>; the Host does so at startup in Development when <c>Dev:Seed</c> is true. Safe to repeat.
     /// </summary>
     public static async Task SeedContentDevelopmentDataAsync(this IServiceProvider services, CancellationToken cancellationToken = default)
     {

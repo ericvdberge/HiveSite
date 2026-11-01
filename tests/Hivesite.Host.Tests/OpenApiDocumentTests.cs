@@ -17,7 +17,7 @@ public sealed class OpenApiDocumentTests
     [TestMethod]
     public async Task The_build_output_is_what_the_running_Host_serves()
     {
-        await using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(b => b.UseEnvironment("Development"));
+        await using var factory = HostFactory.WithoutDatabase();
         using var client = factory.CreateClient();
 
         var served = Normalize(await client.GetStringAsync(new Uri(DocumentPath, UriKind.Relative)));
@@ -32,7 +32,7 @@ public sealed class OpenApiDocumentTests
     [DataRow("Staging")]
     public async Task The_document_is_not_served_outside_Development(string environment)
     {
-        await using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(b => b.UseEnvironment(environment));
+        await using var factory = HostFactory.WithoutDatabase(environment);
         using var client = factory.CreateClient();
 
         using var response = await client.GetAsync(new Uri(DocumentPath, UriKind.Relative));
