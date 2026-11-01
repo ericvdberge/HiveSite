@@ -9,6 +9,7 @@ Run from `web/studio`, with Node 22.22+ or 24.
 | Command                | What it does                                                     |
 | ---------------------- | ---------------------------------------------------------------- |
 | `npm ci`               | Install the locked dependencies                                  |
+| `npm run tokens`       | Regenerate `src/styles/tokens.css` from `design/tokens.json`     |
 | `npm run dev`          | Start the dev server on http://localhost:5173                    |
 | `npm run build`        | Build to `dist/`                                                 |
 | `npm run lint`         | ESLint                                                           |
@@ -18,6 +19,15 @@ Run from `web/studio`, with Node 22.22+ or 24.
 | `npm run generate:api` | Regenerate `src/api/schema.d.ts` from `openapi/hivesite.json`    |
 
 CI runs `npm ci`, `lint`, `typecheck`, `test` and `build`.
+
+## Design tokens
+
+The studio uses the `atelier` theme of `design/tokens.json`, with no theme switch. `npm run tokens` generates `src/styles/tokens.css` (custom properties named `--hs-<group>-<name>`, for example `--hs-color-text-muted`). Commit the output; a test fails if it drifts from `tokens.json`. Never write a hex, px, rem or ms value in a component: a test fails on those too.
+
+- **Breakpoints.** Media queries cannot read custom properties, so write `@media (width >= breakpoint(md))`. A small PostCSS plugin (`scripts/tokens.mjs`, wired in `vite.config.ts`) swaps `breakpoint(sm|md|lg)` for the token value at build time.
+- **Token gaps.** Values `shell.md` lists under Token gaps (overlay color, nav width, ...) are emitted as aliases of real tokens at the end of `tokens.css`. When a token lands in `tokens.json`, the alias stops being emitted.
+- **Reduced motion.** `src/styles/base.css` points every `--hs-motion-duration-*` and the rise distance at their `reduced_*` tokens under `prefers-reduced-motion: reduce`.
+- **Fonts.** Self-hosted with `@fontsource` (Cormorant Garamond 500 and 600, Hanken Grotesk 400 and 600, IBM Plex Mono 500; latin subset), imported in `src/main.ts`. No third-party request at runtime.
 
 ## Reaching the Host
 

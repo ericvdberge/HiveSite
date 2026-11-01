@@ -1,0 +1,125 @@
+/* Global studio rules. Every value is a token from tokens.css (design/studio/shell.md). */
+
+/* Reduced motion: every duration and distance becomes its reduced token. */
+@media (prefers-reduced-motion: reduce) {
+    :root {
+        --hs-motion-duration-base: var(--hs-motion-reduced-duration);
+        --hs-motion-duration-slow: var(--hs-motion-reduced-duration);
+        --hs-motion-duration-slower: var(--hs-motion-reduced-duration);
+        --hs-motion-stagger: var(--hs-motion-reduced-duration);
+        --hs-motion-rise-distance: var(--hs-motion-reduced-rise-distance);
+    }
+}
+
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    background: var(--hs-color-background);
+    color: var(--hs-color-text);
+    font-family: var(--hs-font-text);
+    font-size: var(--hs-font-size-body);
+    font-weight: var(--hs-font-weight-text);
+    line-height: var(--hs-line-height-body);
+}
+
+h1,
+h2,
+p,
+ul {
+    margin: 0;
+}
+
+a {
+    color: inherit;
+}
+
+/* Focus ring on every control. Never removed. */
+:focus-visible {
+    outline: var(--hs-border-width-focus) solid var(--hs-color-focus);
+    outline-offset: var(--hs-border-width-focus-offset);
+}
+
+/* Programmatic focus targets (the h1, main) are not controls: no ring (shell.md). */
+[tabindex='-1']:focus-visible {
+    outline: none;
+}
+
+.hs-eyebrow,
+.hs-label {
+    font-family: var(--hs-font-label);
+    font-size: var(--hs-font-size-label);
+    font-weight: var(--hs-font-weight-label);
+    line-height: var(--hs-line-height-label);
+    letter-spacing: var(--hs-letter-spacing-label);
+    text-transform: uppercase;
+}
+
+.hs-eyebrow {
+    color: var(--hs-color-accent-text);
+}
+
+/* Buttons */
+.hs-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-block-size: var(--hs-control-min-height);
+    padding: var(--hs-control-padding-y) var(--hs-control-padding-x);
+    border: var(--hs-border-width-control) solid transparent;
+    border-radius: var(--hs-radius-control);
+    background: var(--hs-color-accent);
+    color: var(--hs-color-on-accent);
+    font-family: var(--hs-font-text);
+    font-size: var(--hs-font-size-body-s);
+    font-weight: var(--hs-font-weight-text-strong);
+    line-height: var(--hs-line-height-body);
+    text-decoration: none;
+    cursor: pointer;
+    transition:
+        background-color var(--hs-motion-duration-base) var(--hs-motion-easing-standard),
+        border-color var(--hs-motion-duration-base) var(--hs-motion-easing-standard),
+        color var(--hs-motion-duration-base) var(--hs-motion-easing-standard);
+}
+
+.hs-button:hover {
+    text-decoration: underline;
+}
+
+.hs-button--secondary {
+    background: transparent;
+    border-color: var(--hs-color-border-strong);
+    color: var(--hs-color-text);
+}
+
+.hs-button--quiet {
+    background: transparent;
+    border-color: transparent;
+    color: var(--hs-color-text);
+}
+
+.hs-button--quiet:hover {
+    background: var(--hs-color-surface);
+}
+
+.hs-button[aria-disabled='true'] {
+    background: transparent;
+    border-color: var(--hs-color-disabled-border);
+    color: var(--hs-color-disabled-text);
+    cursor: default;
+}
+
+.hs-visually-hidden {
+    position: absolute;
+    inline-size: var(--hs-border-width-hairline);
+    block-size: var(--hs-border-width-hairline);
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+}
