@@ -2,15 +2,17 @@
 id: API-001
 title: Sites
 domain: content
-status: built
+status: in review
 owner: api-architect
-stories: [12]
+stories: [12, 16]
 depends_on: []
-version: 3
+version: 4
 ---
 
 ## Purpose
 An owner can create, list, read and update their own sites.
+
+Version 4 adds the site setting `settings.theme` (ADR 4, API-010 v2). Nothing else changes.
 
 ## Endpoints
 
@@ -24,12 +26,13 @@ Request
   "slug": "atelier-noor",
   "settings": {
     "language": "nl",
-    "description": "Handmade ceramics from Utrecht."
+    "description": "Handmade ceramics from Utrecht.",
+    "theme": "atelier"
   }
 }
 ```
 
-`settings` and each of its fields are optional. Defaults: `language` `"en"`, `description` `""`.
+`settings` and each of its fields are optional. Defaults: `language` `"en"`, `description` `""`, `theme` `"atelier"`.
 
 Response 201
 
@@ -41,7 +44,8 @@ Headers: `Location: /sites/01a181c9-b7ca-70bc-abf5-a9e81e300af7`
   "slug": "atelier-noor",
   "settings": {
     "language": "nl",
-    "description": "Handmade ceramics from Utrecht."
+    "description": "Handmade ceramics from Utrecht.",
+    "theme": "atelier"
   },
   "created_at": "2026-10-28T09:14:03Z",
   "updated_at": "2026-10-28T09:14:03Z"
@@ -74,7 +78,8 @@ Response 200
       "slug": "atelier-noor",
       "settings": {
         "language": "nl",
-        "description": "Handmade ceramics from Utrecht."
+        "description": "Handmade ceramics from Utrecht.",
+        "theme": "atelier"
       },
       "created_at": "2026-10-28T09:14:03Z",
       "updated_at": "2026-10-28T09:14:03Z"
@@ -85,7 +90,8 @@ Response 200
       "slug": "studio-verhaal",
       "settings": {
         "language": "en",
-        "description": ""
+        "description": "",
+        "theme": "studio"
       },
       "created_at": "2026-10-27T16:40:51Z",
       "updated_at": "2026-10-28T08:02:17Z"
@@ -116,7 +122,8 @@ Response 200
   "slug": "atelier-noor",
   "settings": {
     "language": "nl",
-    "description": "Handmade ceramics from Utrecht."
+    "description": "Handmade ceramics from Utrecht.",
+    "theme": "atelier"
   },
   "created_at": "2026-10-28T09:14:03Z",
   "updated_at": "2026-10-28T09:14:03Z"
@@ -137,7 +144,8 @@ Request
 {
   "name": "Atelier Noor Ceramics",
   "settings": {
-    "description": "Handmade ceramics and glazes from Utrecht."
+    "description": "Handmade ceramics and glazes from Utrecht.",
+    "theme": "ivory"
   }
 }
 ```
@@ -150,7 +158,8 @@ Response 200
   "slug": "atelier-noor",
   "settings": {
     "language": "nl",
-    "description": "Handmade ceramics and glazes from Utrecht."
+    "description": "Handmade ceramics and glazes from Utrecht.",
+    "theme": "ivory"
   },
   "created_at": "2026-10-28T09:14:03Z",
   "updated_at": "2026-10-28T10:21:45Z"
@@ -171,9 +180,10 @@ Errors
 - `slug`: 3 to 40 characters, pattern `^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$`. Required on create. Unique across all sites of all owners, because it is the public path `/s/{slug}`. Compared exactly; the pattern already rules out case.
 - `settings.language`: a BCP 47 language tag, 2 to 35 characters, pattern `^[a-z]{2,3}(-[A-Za-z0-9]{2,8})*$`. Default `"en"`.
 - `settings.description`: 0 to 160 characters. Default `""`. Used as the site's meta description.
+- `settings.theme`: one of `atelier`, `ivory`, `studio`, the theme keys of API-010. Default `"atelier"`. Any other value, including `""`, returns 400 `invalid_request` with `field` `/settings/theme`. Sites created before version 4 get `"atelier"`.
 - `created_at`, `updated_at`: RFC 3339 timestamps in UTC, second precision. `updated_at` changes on every PATCH that changes a value.
 - Every field is always present in responses. No field is ever `null`.
-- The theme is not a site field. It is set through Rendering (`PUT /sites/{id}/theme`). Release state is owned by Publishing.
+- Release state is not a site field. It is owned by Publishing.
 
 ### Limits
 - Max 10 sites per owner. Creating the 11th returns 400 `too_many_sites`. The count is checked before the insert, without a lock, so two requests at the same moment can both pass it. This is accepted for now.
@@ -200,7 +210,8 @@ Errors
 - **Authentication is out of scope.** The Host resolves an owner id from the request or returns 401 `unauthenticated`. How owners sign up and sign in belongs to a later spec.
 - **A site's slug can change at any time**, also after the site is published. Content does not track releases. How a new slug reaches the live site, and whether the old path redirects, belongs to the Publishing specs (API-020, API-021).
 - **Errors name the failing input in `field`.** See Errors in Shared conventions.
-- **`language` and `description` are the only site settings** in this version. More (favicon, social links, footer text) come with their own stories.
+- **`language`, `description` and `theme` are the only site settings** in this version. More (favicon, social links, footer text) come with their own stories.
+- **The theme is a site setting (v4).** ADR 4 puts the MVP's theme choice on the site, not in the `brand_styling` entity (API-005). Content checks the value against its own copy of the three keys; a test checks that copy against `design/tokens.json` (API-010). A change raises `SiteChanged` with `change` `updated`, like any other setting.
 
 - **The first build is kept simple (v3).** No idempotency keys, `null` in a PATCH means "not sent", the site limit is not race-safe, and the cursor is the last site's id instead of a signed token. Each can return with its own story when it is needed.
 

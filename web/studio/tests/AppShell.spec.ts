@@ -1,6 +1,6 @@
 import { readFileSync, readdirSync, statSync } from 'node:fs'
 import { join } from 'node:path'
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
 import { createMemoryHistory } from 'vue-router'
 import App from '../src/App.vue'
@@ -8,6 +8,11 @@ import AppShell from '../src/components/AppShell.vue'
 import StudioNav from '../src/components/StudioNav.vue'
 import { createStudioRouter } from '../src/router'
 import { dismissToast, showErrorToast } from '../src/composables/useToast'
+
+// The site list (the "/" screen) loads on mount. The typed client captured fetch at import.
+vi.hoisted(() => {
+    globalThis.fetch = (() => new Promise<Response>(() => {})) as typeof fetch
+})
 
 function sourceFiles(dir: string, out: string[] = []): string[] {
     for (const name of readdirSync(dir)) {
@@ -94,7 +99,7 @@ describe('layout shell', () => {
     it('Layout: each screen has exactly one h1 and the document title follows it', async () => {
         const { wrapper } = await mountApp('/')
         expect(wrapper.findAll('h1')).toHaveLength(1)
-        expect(document.title).toBe('Hivesite Studio')
+        expect(document.title).toBe('Your sites · Hivesite Studio')
         wrapper.unmount()
     })
 

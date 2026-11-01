@@ -86,6 +86,8 @@ public sealed record ApiResponse(HttpStatusCode Status, JsonElement Body, HttpRe
 
     public string? ErrorField => Body.GetProperty("error").TryGetProperty("field", out var f) ? f.GetString() : null;
 
+    public string? ETag => Raw.Headers.ETag?.Tag;
+
     public string ErrorCode => Body.GetProperty("error").GetProperty("code").GetString()!;
 }
 
@@ -127,6 +129,7 @@ public sealed class ContentApi : IAsyncDisposable
             api._factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
             {
                 builder.UseSetting("ConnectionStrings:Content", Postgres.ConnectionString);
+                builder.UseSetting("Dev:Seed", "false");   // the seed tests run it themselves
                 builder.ConfigureServices(services =>
                 {
                     services.AddAuthentication("Test").AddScheme<AuthenticationSchemeOptions, HeaderAuthenticationHandler>("Test", null);
@@ -147,8 +150,13 @@ public sealed class ContentApi : IAsyncDisposable
 
     public int RaisedFor(string siteId) => Events.Raised.Count(e => e.SiteId == siteId);
 
-    public async Task<ApiResponse> SendAsync(
-        HttpMethod method, string path, string? owner, string? json = null, params (string Name, string Value)[] headers)
+    public Task<ApiResponse> SendAsync(
+        HttpMethod method, string path, string? owner, string? json = null, params (string Name, string Value)[] headers) =>
+        SendContentAsync(method, path, owner, json is null ? null : new StringContent(json, Encoding.UTF8, "application/json"), headers);
+
+    /// <summary>Like <see cref="SendAsync"/> with any body, for the tests of media types and sizes.</summary>
+    public async Task<ApiResponse> SendContentAsync(
+        HttpMethod method, string path, string? owner, HttpContent? content, params (string Name, string Value)[] headers)
     {
         using var client = _factory!.CreateClient();
         using var request = new HttpRequestMessage(method, path);
@@ -160,10 +168,7 @@ public sealed class ContentApi : IAsyncDisposable
         {
             request.Headers.TryAddWithoutValidation(name, value);
         }
-        if (json is not null)
-        {
-            request.Content = new StringContent(json, Encoding.UTF8, "application/json");
-        }
+        request.Content = content;
         var response = await client.SendAsync(request);
         var text = await response.Content.ReadAsStringAsync();
         var body = text.Length == 0 ? default : JsonDocument.Parse(text).RootElement.Clone();

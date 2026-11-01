@@ -13,5 +13,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Hivesite.Host\Hivesite.Host.csproj" />
+    <ProjectReference Include="..\Hivesite.Testing\Hivesite.Testing.csproj" />
   </ItemGroup>
 </Project>
