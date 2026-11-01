@@ -300,15 +300,23 @@ onBeforeUnmount(() => controller.abort())
             </template>
         </ScreenHead>
 
+        <!-- One status region while the site is not ready; its text changes, the element stays. -->
+        <p
+            v-if="phase === 'loading' || phase === 'failed'"
+            class="hs-visually-hidden"
+            role="status"
+        >
+            {{ phase === 'failed' ? "Error: We couldn't load this site." : 'Loading site…' }}
+        </p>
+
         <div v-if="phase === 'loading'" class="hs-form" aria-busy="true">
-            <p class="hs-visually-hidden" role="status">Loading site…</p>
             <div v-for="n in 4" :key="n" class="hs-skeleton" aria-hidden="true">
                 <span class="hs-skeleton__shape hs-skeleton__shape--label" />
                 <span class="hs-skeleton__shape hs-skeleton__shape--control" />
             </div>
         </div>
 
-        <div v-else-if="phase === 'failed'" class="hs-form">
+        <div v-else-if="phase === 'failed'" class="hs-load-error">
             <p class="hs-form-message"><strong>Error:</strong> We couldn't load this site.</p>
             <button type="button" class="hs-button hs-button--secondary" @click="load()">
                 Try again
@@ -540,6 +548,17 @@ textarea[aria-invalid='true'] {
 .hs-note strong {
     font-weight: var(--hs-font-weight-text-strong);
     color: var(--hs-color-accent-text);
+}
+
+.hs-load-error {
+    display: flex;
+    flex-direction: column;
+    gap: var(--hs-space-4);
+    max-inline-size: var(--hs-layout-content-width);
+}
+
+.hs-load-error .hs-button {
+    align-self: flex-start;
 }
 
 @keyframes hs-fade {
