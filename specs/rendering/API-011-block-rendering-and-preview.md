@@ -237,7 +237,7 @@ Rendering runs the default template's build with Node, once per call:
 | Files in the result | 1 | 3,000, including assets |
 | Bytes in the result | 2 MB | 50 MB (52,428,800), including assets |
 
-A release over its file or byte limit fails with `build_too_large`; API-020 returns it as 400 `release_too_large`. Output over a stdout or HTML file limit is `build_failed`. With the limits of API-002 to API-004 a site has at most 51 HTML files and the theme's 7 assets, so these limits only catch a bug.
+A release over its file or byte limit fails with `build_too_large`; API-020 passes it through unchanged as 400 `build_too_large`. Output over a stdout or HTML file limit is `build_failed`. With the limits of API-002 to API-004 a site has at most 51 HTML files and the theme's 7 assets, so these limits only catch a bug.
 
 ## Modes
 
