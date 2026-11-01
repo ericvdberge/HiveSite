@@ -5,14 +5,16 @@ A block-based website builder, designed and built by a team of AI agents. Owners
 ## Stack
 - C# .NET 10, ASP.NET Core minimal APIs, modular monolith ([ADR 1](docs/adr/0001-modular-monolith.md))
 - PostgreSQL with EF Core, one schema per module ([ADR 2](docs/adr/0002-postgresql.md))
+- Studio (owner web app): Vue 3, Vite, TypeScript (strict), Vitest, in `web/studio`.
 - Modules: Content, Rendering, Publishing. They talk only through `*.Contracts` projects.
 - FluentValidation for requests, Mapperly for DTO mapping, and one repository and one service per entity. The C# patterns are in [src/CLAUDE.md](src/CLAUDE.md).
 
 ## Commands
-- Build: `dotnet build -warnaserror`
+- Build: `dotnet build -warnaserror` (also writes the public OpenAPI document to `openapi/hivesite.json`; it is git-ignored, never commit or edit it)
 - Test: `dotnet test`
 - Format: `dotnet format`
 - Spec index: `node scripts/spec-index.mjs` (CI runs it with `--check`)
+- Studio (from `web/studio`): `npm ci`, `npm run dev`, `npm run lint`, `npm run typecheck`, `npm test`, `npm run build`
 - Board: `node scripts/board.mjs list [Column]`, `node scripts/board.mjs move <issue> "<Column>"`, `node scripts/board.mjs sync` (closed issues → Done; run it after you merge)
 
 ## Factory
@@ -23,6 +25,7 @@ Work is run by the agents in `.claude/agents/` following `.claude/skills/run-sto
 | `team:content` | `dev-content` | `src/Modules/Content`, its tests |
 | `team:rendering` | `dev-rendering` | `src/Modules/Rendering`, its tests |
 | `team:publishing` | `dev-publishing` | `src/Modules/Publishing`, its tests |
+| `team:frontend` | `dev-frontend` | `web/studio`, its tests |
 | `team:design` | `designer` | `design/` |
 | specs | `api-architect` | `specs/` |
 | `team:factory` | a human with Claude | `.claude/`, `scripts/`, `.github/` |

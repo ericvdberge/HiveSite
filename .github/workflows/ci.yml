@@ -32,3 +32,44 @@ jobs:
         run: dotnet build -warnaserror
       - if: steps.sln.outputs.found != ''
         run: dotnet test --no-build
+
+  studio:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web/studio
+    steps:
+      - uses: actions/checkout@v4
+      - id: app
+        working-directory: .
+        run: echo "found=$(test -f web/studio/package.json && echo yes)" >> "$GITHUB_OUTPUT"
+      - if: steps.app.outputs.found == 'yes'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: web/studio/package-lock.json
+      - if: steps.app.outputs.found == 'yes'
+        run: npm ci
+      - id: client
+        if: steps.app.outputs.found == 'yes'
+        run: |
+          echo "found=$(node -p "require('./package.json').scripts?.['generate:api'] ? 'yes' : ''")" >> "$GITHUB_OUTPUT"
+      - if: steps.client.outputs.found == 'yes'
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - name: Studio API types match the API
+        if: steps.client.outputs.found == 'yes'
+        run: |
+          dotnet build ../../src/Hivesite.Host
+          npm run generate:api
+          git diff --exit-code -- src/api || { echo "::error::Run dotnet build, then npm run generate:api in web/studio, and commit src/api."; exit 1; }
+      - if: steps.app.outputs.found == 'yes'
+        run: npm run lint
+      - if: steps.app.outputs.found == 'yes'
+        run: npm run typecheck
+      - if: steps.app.outputs.found == 'yes'
+        run: npm test
+      - if: steps.app.outputs.found == 'yes'
+        run: npm run build

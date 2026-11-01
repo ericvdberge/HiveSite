@@ -16,7 +16,7 @@ Backlog ─(manager or human)→ Ready → Spec review ─(human merges spec PR)
 | Backlog | `pm`, manager | story issue | the manager promotes it (see *Promote from Backlog*), or a human moves it to **Ready** |
 | Ready | manager | — | manager starts it |
 | Spec review | `api-architect` | spec PR (`spec/...` branch) | **a human merges the spec PR** with `status: approved` |
-| Building | `pm`, then the module's dev agent | task list, draft build PR | dev pushes a PR that builds and passes tests locally |
+| Building | `pm`, then the team's dev agent | task list, draft build PR | dev pushes a PR that builds and passes tests locally |
 | Agent review | `pr-review-toolkit:code-reviewer`, `reviewer`, `tester` | PR comments | all three pass, or three rounds used |
 | Ready to merge | human | merge | **a human merges** |
 
@@ -41,9 +41,9 @@ Backlog ─(manager or human)→ Ready → Spec review ─(human merges spec PR)
 
 ### 3. Build
 - Move the story to **Building**.
-- Start the dev agent for the story's `team:*` label with `isolation: worktree`. Give it the issue number, the spec file, the branch name `story/<issue>-<slug>`, and the build and test commands.
+- Start the dev agent for the story's `team:*` label with `isolation: worktree`. Give it the issue number, the spec file, the branch name `story/<issue>-<slug>`, and the build and test commands (for `team:frontend`, the studio commands, run from `web/studio`).
 - The dev opens a **draft** PR that follows the PR template and says `Closes #<issue>` and `Spec: API-xxx`.
-- **First story of a module** (its folder has no entity built on the `src/CLAUDE.md` patterns yet): the dev first comments on the story with the files it will add and the public method signatures, and **stops**. Tell the human: "Check the sketch on #N." Build once they reply. It costs one short read and saves review rounds.
+- **First story of a module** (its folder has no entity built on the `src/CLAUDE.md` patterns yet; for the studio, `web/studio` does not exist yet): the dev first comments on the story with the files it will add and the public method signatures, and **stops**. Tell the human: "Check the sketch on #N." Build once they reply. It costs one short read and saves review rounds.
 - Before the PR, the dev reads its diff against `src/CLAUDE.md` once more and fixes what drifts.
 
 ### 4. Review (at most three rounds)
@@ -73,7 +73,7 @@ A **stop** in the steps ends work on that story, not the run. After each stop, a
 
 When nothing in **Ready** can move, take work from **Backlog** yourself instead of stopping. `node scripts/board.mjs list Backlog`, lowest issue number first.
 
-1. Promote only an item an agent team can finish: `type:story` or `type:task` with a `team:content`, `team:rendering`, `team:publishing` or `team:design` label. Skip `type:case` (a human approves cases), parents with open sub-issues (run the children), `team:factory` and items with no team label (both are human work), and `needs-human`.
+1. Promote only an item an agent team can finish: `type:story` or `type:task` with a `team:content`, `team:rendering`, `team:publishing`, `team:frontend` or `team:design` label. Skip `type:case` (a human approves cases), parents with open sub-issues (run the children), `team:factory` and items with no team label (both are human work), and `needs-human`.
 2. Skip it when it depends on open work: its body says "Depends on #N", "Blocked by #N" or "after #N" and #N is not closed, or it needs a spec that waits on an open spec PR.
 3. No acceptance criteria yet? Start `pm` to refine it with the write-story skill first. If pm can't write testable criteria from what's there, add `needs-human`, comment the question, and skip it.
 4. Move it to **Ready** and comment: `**Promote** — moved from Backlog: <one line why it can move>. Next: spec.` Then run it from step 1.

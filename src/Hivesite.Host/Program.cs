@@ -1,4 +1,5 @@
 using Hivesite.Content;
+using Hivesite.Host;
 using Hivesite.Publishing;
 using Hivesite.Rendering;
 using Hivesite.Shared;
@@ -9,11 +10,19 @@ builder.Services
     .AddSharedServices()
     .AddContentModule()
     .AddRenderingModule()
-    .AddPublishingModule();
+    .AddPublishingModule()
+    .AddStudioCors(builder.Configuration)
+    .AddHivesiteOpenApi();
 
 var app = builder.Build();
 
+if (app.Environment.IsDevelopment())
+{
+    app.MapOpenApi();
+}
+
 app.UseExceptionHandler();
+app.UseCors(StudioCors.Policy);
 app.UseAuthentication();
 app.UseAuthorization();
 
