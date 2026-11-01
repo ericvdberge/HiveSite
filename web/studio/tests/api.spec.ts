@@ -133,4 +133,26 @@ describe('typed client', () => {
         })
         await expect(api.GET('/sites')).rejects.toMatchObject({ code: 'unknown_error' })
     })
+    it('passes an aborted request through as an AbortError, not an ApiError', async () => {
+        const controller = new AbortController()
+        const api = createApiClient({
+            baseUrl: 'http://host.test',
+            fetch: () => Promise.reject(new DOMException('aborted', 'AbortError')),
+        })
+        controller.abort()
+        const error = await api
+            .GET('/sites', { signal: controller.signal })
+            .catch((e: unknown) => e)
+        expect(error).toBeInstanceOf(DOMException)
+        expect(error).not.toBeInstanceOf(ApiError)
+    })
+    it('turns a 2xx with a non-JSON body into an ApiError with code unknown_error', async () => {
+        const api = createApiClient({
+            baseUrl: 'http://host.test',
+            fetch: () => Promise.resolve(new Response('<html>', { status: 200 })),
+        })
+        const error = await api.GET('/sites').catch((e: unknown) => e)
+        expect(error).toBeInstanceOf(ApiError)
+        expect((error as ApiError).code).toBe('unknown_error')
+    })
 })

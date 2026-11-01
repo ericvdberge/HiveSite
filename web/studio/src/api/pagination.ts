@@ -1,3 +1,5 @@
+import { ApiError, UNKNOWN_ERROR_CODE } from './errors'
+
 export interface Page<T> {
     items: T[]
     next_cursor?: string | null
@@ -15,7 +17,7 @@ export async function listAll<T>(
         items.push(...page.items)
         if (page.next_cursor == null) return items
         if (seen.has(page.next_cursor)) {
-            throw new Error('The list cursor did not advance.')
+            throw new ApiError(UNKNOWN_ERROR_CODE, 'Something went wrong. Try again.')
         }
         seen.add(page.next_cursor)
         cursor = page.next_cursor
