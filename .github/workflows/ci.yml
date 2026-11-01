@@ -53,7 +53,8 @@ jobs:
         run: npm ci
       - id: client
         if: steps.app.outputs.found == 'yes'
-        run: echo "found=$(node -p "require('./package.json').scripts?.['generate:api'] ? 'yes' : ''")" >> "$GITHUB_OUTPUT"
+        run: |
+          echo "found=$(node -p "require('./package.json').scripts?.['generate:api'] ? 'yes' : ''")" >> "$GITHUB_OUTPUT"
       - if: steps.client.outputs.found == 'yes'
         uses: actions/setup-dotnet@v4
         with:
