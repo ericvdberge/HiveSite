@@ -72,9 +72,11 @@ describe('cursor helper', () => {
         expect(fetchPage).toHaveBeenCalledTimes(1)
     })
     it('throws when the cursor does not advance', async () => {
-        await expect(
-            listAll(() => Promise.resolve({ items: [1], next_cursor: 'same' })),
-        ).rejects.toThrow()
+        const failure = await listAll(() =>
+            Promise.resolve({ items: [1], next_cursor: 'same' }),
+        ).catch((e: unknown) => e)
+        expect(failure).toBeInstanceOf(ApiError)
+        expect(failure).toMatchObject({ code: 'unknown_error' })
     })
 })
 
