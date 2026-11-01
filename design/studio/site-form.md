@@ -8,7 +8,7 @@ One form for creating a site and for editing its name, slug and settings. Covers
 |---|---|---|---|---|
 | Name | text input, required | `name` | 1 to 80 code points after trimming | yes, "n of 80" |
 | Slug | text input, required | `slug` | 3 to 40 code points, slug pattern | yes, "n of 40" |
-| Language | text input, required in the form, prefilled `en` on create | `settings.language` | 2 to 35 code points, language tag pattern | yes, "n of 35" |
+| Language | text input, optional, prefilled `en` on create | `settings.language` | 2 to 35 code points, language tag pattern | yes, "n of 35" |
 | Description | `textarea`, optional | `settings.description` | 0 to 160 code points | yes, "n of 160" |
 
 Read for edit: GET `/sites/{id}` gives every field above plus `updated_at` (shown) and `id`, `created_at` (not shown).
@@ -17,9 +17,9 @@ Read for edit: GET `/sites/{id}` gives every field above plus `updated_at` (show
 
 **Language pattern in words.** Two or three lowercase letters, then optional parts of 2 to 8 letters or digits, each after a hyphen. For example `en`, `nl` or `pt-BR`.
 
-**Create.** POST `/sites` with `name`, `slug` and `settings` holding `language` and `description`. On 201 the studio opens the new site's pages screen ([page-list.md](page-list.md)).
+**Create.** POST `/sites` with `name`, `slug` and `settings` holding `language` and `description`. Defaults: with Language untouched or empty, create sends `language` `en`; with Description empty, it sends `description` `""`. On 201 the studio opens the new site's pages screen ([page-list.md](page-list.md)).
 
-**Edit.** PATCH `/sites/{id}` with only the fields whose trimmed value differs from the saved one. `settings` holds only its changed keys, because the server merges it one level deep. When nothing differs, no call is made.
+**Edit.** PATCH `/sites/{id}` with only the fields whose trimmed value differs from the saved one. `settings` holds only its changed keys, because the server merges it one level deep. An emptied Language is left out, so the saved value stays. When nothing differs, no call is made.
 
 **Slug suggestion (create only).** While the owner has not typed in Slug, it follows Name: lowercase, accents dropped (é becomes e), every run of other characters turned into one hyphen, hyphens trimmed from both ends, cut to 40 and trimmed again. When the result is shorter than 3, Slug stays empty for the owner to fill. Typing in Slug stops the suggestion; clearing Slug starts it again. Edit never suggests.
 
@@ -34,7 +34,7 @@ Client checks run first, with the same rules as the server. Their copy:
 | Slug | under 3 | Use at least 3 characters. |
 | Slug | over 40 | Use 40 characters or fewer. |
 | Slug | pattern | Use lowercase letters, digits and hyphens, starting and ending with a letter or digit. |
-| Language | length or pattern | Use a language tag such as en, nl or pt-BR. |
+| Language | not empty, and length or pattern | Use a language tag such as en, nl or pt-BR. |
 | Description | over 160 | Use 160 characters or fewer. |
 
 Server errors:

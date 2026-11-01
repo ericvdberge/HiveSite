@@ -4,7 +4,7 @@ The main view of a site screen: every page of the site in menu order, the home m
 
 ## Data
 
-GET `/sites/{id}` for the site, then GET `/sites/{id}/pages`, following `next_cursor` until it is `null` (at most 50 pages). The list shows only when every page has loaded, because the count, the home marker and the menu order need the whole set.
+GET `/sites/{id}` for the site, then GET `/sites/{id}/pages?limit=50`, so one call returns every page (a site holds at most 50). As a fallback the studio still follows `next_cursor` until it is `null`. The list shows only when every page has loaded, because the count, the home marker and the menu order need the whole set.
 
 | Field | Shown as | Limit (API-001, API-002) |
 |---|---|---|
@@ -23,7 +23,7 @@ GET `/sites/{id}` for the site, then GET `/sites/{id}/pages`, following `next_cu
 |---|---|
 | `site_not_found` | Not-found screen, site variant. |
 | `invalid_cursor` | The studio reloads the list from the start once; a second failure shows the list error. |
-| `invalid_request` (`limit`) | Cannot happen: the studio sends the default. If it does, the list error. |
+| `invalid_request` (`limit`) | Cannot happen: the studio always sends 50, within 1 to 100. If it does, the list error. |
 | network or server failure on any page of the list | The list error. A half-loaded list is never shown. |
 | `too_many_pages` | Shown on the add form ([page-form.md](page-form.md)). |
 
