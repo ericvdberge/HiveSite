@@ -8,8 +8,11 @@
     "/sites": {
       "post": {
         "tags": [
-          "SiteEndpoints"
+          "Sites"
         ],
+        "summary": "Create a site",
+        "description": "Errors: 400 `invalid_request`, 400 `slug_taken`, 400 `too_many_sites`, 401 `unauthenticated`.",
+        "operationId": "CreateSite",
         "requestBody": {
           "content": {
             "application/json": {
@@ -21,6 +24,16 @@
           "required": true
         },
         "responses": {
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
           "201": {
             "description": "Created",
             "content": {
@@ -45,8 +58,11 @@
       },
       "get": {
         "tags": [
-          "SiteEndpoints"
+          "Sites"
         ],
+        "summary": "List the owner's sites, newest first",
+        "description": "Errors: 400 `invalid_request`, 400 `invalid_cursor`, 401 `unauthenticated`.",
+        "operationId": "ListSites",
         "parameters": [
           {
             "name": "limit",
@@ -72,6 +88,16 @@
           }
         ],
         "responses": {
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
           "200": {
             "description": "OK",
             "content": {
@@ -98,9 +124,43 @@
     "/sites/{id}": {
       "get": {
         "tags": [
-          "Hivesite.Host"
+          "Sites"
+        ],
+        "summary": "Get a site",
+        "description": "Errors: 401 `unauthenticated`, 404 `site_not_found`.",
+        "operationId": "GetSite",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
         ],
         "responses": {
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SiteDto"
+                }
+              }
+            }
+          },
           "404": {
             "description": "Not Found",
             "content": {
@@ -115,11 +175,65 @@
       },
       "patch": {
         "tags": [
-          "Hivesite.Host"
+          "Sites"
         ],
+        "summary": "Update a site",
+        "description": "Errors: 400 `invalid_request`, 400 `slug_taken`, 401 `unauthenticated`, 404 `site_not_found`.",
+        "operationId": "UpdateSite",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SitePatchDto"
+              }
+            }
+          },
+          "required": true
+        },
         "responses": {
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SiteDto"
+                }
+              }
+            }
+          },
           "404": {
             "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
             "content": {
               "application/json": {
                 "schema": {
@@ -577,13 +691,13 @@
   },
   "tags": [
     {
-      "name": "SiteEndpoints"
-    },
-    {
-      "name": "Hivesite.Host"
+      "name": "Sites"
     },
     {
       "name": "PageEndpoints"
+    },
+    {
+      "name": "Hivesite.Host"
     }
   ]
 }
