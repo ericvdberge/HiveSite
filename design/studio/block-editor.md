@@ -6,7 +6,7 @@ The editor form is not the rendered block. How a block looks on the published si
 
 ## Data
 
-Route: `/pages/{id}/blocks`. The nav marks "Pages" as current.
+Route: `/pages/{id}/blocks`. The nav marks "Pages" as current. Owners reach it from the "Edit blocks" row action on the page list ([page-list.md](page-list.md)) and the "Edit blocks" link on the page form in edit mode ([page-form.md](page-form.md)).
 
 On open, three calls at once, then one more:
 
@@ -19,9 +19,21 @@ On open, three calls at once, then one more:
 
 The screen shows only when the first three have answered, because the list needs both the document and the type names.
 
-**Editing is local.** Adding, changing, moving and removing blocks change a working copy in the studio. Nothing is sent until the owner presses "Save blocks".
+**Editing is local.** Adding, changing, moving and removing blocks change a working copy in the studio. Nothing is sent until the owner presses "Save blocks". The working copy also keeps values that are never sent, so a choice can be undone without retyping: the fields of an unchecked optional object and the fields of the card list source not chosen.
 
-**Save.** PUT `/pages/{id}/blocks` with `Content-Type: application/json`, `If-Match` set to the last `ETag`, and the whole document: `{ "type": "doc", "content": [ … ] }` with every block in the order the list shows. Plain strings are sent trimmed. On 200 the working copy becomes the response document (defaults filled in) and its `ETag` the new one. When the working copy equals the last saved document, no call is made. PATCH is not used.
+**The document to send.** Built from the working copy by one rule, and the only thing the studio sends, measures or compares:
+- `{ "type": "doc", "content": [ … ] }` with every block in the order the list shows.
+- Plain strings trimmed.
+- An unchecked optional object (`image`, `cta`, a card's `image` or `action`) as `null`; its kept fields are left out.
+- For `card_list`, only the chosen `source` branch.
+- Every `alt` always present, as `""` when empty (it is required in `$defs/image` and in gallery items).
+- Rich text `content` as Tiptap emits it; an unsupported block (Versions) exactly as it was loaded.
+
+Two documents are equal when they hold the same keys and values; key order does not count.
+
+**Save.** PUT `/pages/{id}/blocks` with `Content-Type: application/json`, `If-Match` set to the last `ETag`, and the document to send as the body. On 200 the working copy becomes the response document (defaults filled in) and its `ETag` the new one. When the document to send equals the last saved document, no call is made and the status line says "No changes to save." PATCH is not used.
+
+**Unsaved changes.** The screen has unsaved changes while the document to send differs from the last saved document. That drives the status line and the leave guard. Checking an optional object and unchecking it again, or moving a block away and back, leaves nothing unsaved.
 
 **Overwrite.** Only from the changed-elsewhere dialog (412 below): the same PUT without `If-Match`, so the owner's copy replaces what is stored.
 
@@ -29,7 +41,7 @@ The screen shows only when the first three have answered, because the list needs
 
 **Count.** "n of 40 blocks", where n is the number of blocks in the working copy.
 
-**Size.** The studio measures the working copy as compact UTF-8 JSON, the same measure as the server. From 200 KB it shows "Page size: 231 of 256 KB" under the count. Over 256 KB (262,144 bytes) Save makes no call and shows the size form message.
+**Size.** The studio measures the document to send as compact UTF-8 JSON, the same measure as the server. From 200 KB it shows "Page size: 231 of 256 KB" under the count. Over 256 KB (262,144 bytes) Save makes no call and shows the size form message.
 
 ### Field controls by schema type
 
@@ -41,20 +53,20 @@ Each attribute in API-003 gets the control for its schema type. Every control fo
 | `string` with `maxLength` above 120 | `textarea`, `rows="3"` | "n of max" | `resize: vertical`. |
 | `$defs/url` | `input type="url"`, `inputmode="url"`, `autocapitalize="none"`, `spellcheck="false"` | "n of 2048" | Hint: "Starts with https://." |
 | `$defs/link` | text input, `inputmode="url"`, `autocapitalize="none"`, `spellcheck="false"` | "n of 2048" | Hint: "A page path such as /about, an address starting with https://, or mailto: and an email address." `type="url"` would refuse paths. |
-| `$defs/image` (object) | `fieldset` with a `legend`, holding URL (`$defs/url`, required) and Alt text (string, 200, `textarea`) | per field | Alt hint: "Describe the image for people who can't see it. Leave empty if it is only decoration." |
-| `$defs/action` (object) | `fieldset` with Label (string 1 to 30) and Link (`$defs/link`, required) | per field | |
-| `oneOf` with `null` (optional object) | a checkbox that shows or hides the object's `fieldset` | | Unchecked sends `null`. Unchecking keeps the typed values until the screen closes, so checking again restores them. |
+| `$defs/image` (object) | `fieldset` with a `legend`, holding URL (`$defs/url`, required, sent as `url`) and Alt text (string, 200, `textarea`, sent as `alt`) | per field | `alt` is always sent, as `""` when empty. Alt hint: "Describe the image for people who can't see it. Leave empty if it is only decoration." |
+| `$defs/action` (object) | `fieldset` with Label (string 1 to 30, required, sent as `label`) and Link (`$defs/link`, required, sent as `href`) | per field | |
+| `oneOf` with `null` (optional object) | a checkbox that shows or hides the object's `fieldset` | | Unchecked sends `null` (see The document to send). Unchecking keeps the typed values until the screen closes, so checking again restores them. |
 | `enum` of up to 4 values, at block level | radio group in a `fieldset` | | Each option has a word label, never the raw value. |
 | `enum` inside a repeated item | `select` | | Keeps each item short. |
 | `enum` with one value (`entity_type`) | no control; read-only text | | Sent as its one value. |
 | `integer` with a range of up to 3 values | radio group | | `columns` 2 to 4. |
 | `integer` with a wider range | `input type="number"`, `inputmode="numeric"`, `step="1"`, `min`, `max` | | Hint states the range in words. |
 | `boolean` | checkbox | | |
-| `oneOf` with a `const` discriminator (`card_list` `source`) | radio group that switches between two `fieldset`s | | Only the chosen branch is sent. The other branch's values stay until the screen closes. |
+| `oneOf` with a `const` discriminator (`card_list` `source`) | radio group that switches between two `fieldset`s | | Only the chosen branch is sent (see The document to send). The other branch's values stay until the screen closes. |
 | `array` of objects | repeated group (see Layout) | "n of max" in the group head | Add, Move up, Move down, Remove per item. |
 | rich text `content` | rich text field (see Layout) | "n of 10,000" characters | Tiptap with StarterKit and Link, everything else off (API-003). |
 
-A field whose schema has a `default` starts with it on a new block. Required fields start empty, so a new block is invalid until the owner fills them; the client checks catch that before any call.
+A field whose schema has a `default` starts with it on a new block. Required fields without a `default` start empty, so a new block is invalid until the owner fills them; the client checks catch that before any call. One exception: a new contact form field's Kind starts on Short text (`text`), because a `select` has no empty choice.
 
 ### Forms by block type
 
@@ -96,9 +108,9 @@ The image fields sit directly in the form, not behind a checkbox: `image` is req
 |---|---|---|---|
 | Heading | text input | `attrs.heading` | 0 to 120, default `""` |
 | Columns | radio group: 2, 3, 4 | `attrs.columns` | default 3 |
-| Images | repeated group "Image n": Image address (URL, required), Alt text (`textarea`), Caption (`textarea`) | `attrs.images` | 1 to 24 items; alt and caption 0 to 200 |
+| Images | repeated group "Image n": Image address (URL, required), Alt text (`textarea`), Caption (`textarea`) | `attrs.images`; per item `url`, `alt`, `caption` | 1 to 24 items; alt and caption 0 to 200 |
 
-A new gallery starts with one empty image item.
+A new gallery starts with one empty image item. Each item always sends `url` and `alt` (`alt` as `""` when empty), because both are required.
 
 #### Card list (`card_list`)
 
@@ -112,7 +124,7 @@ Written by hand (`manual`):
 
 | Label | Control | Sent as | Limit (API-003) |
 |---|---|---|---|
-| Cards | repeated group "Card n": Title (text input, required), Text (`textarea`), Show an image (checkbox, image `fieldset`), Show a link (checkbox, action `fieldset`) | `attrs.source.cards` | 1 to 12 items; title 1 to 80, text 0 to 300 |
+| Cards | repeated group "Card n": Title (text input, required), Text (`textarea`), Show an image (checkbox, image `fieldset`), Show a link (checkbox, action `fieldset`: Link label, Link) | `attrs.source.cards`; per item `title`, `body`, `image` (`url`, `alt`), `action` (`label`, `href`) | 1 to 12 items; title 1 to 80, text 0 to 300 |
 
 Pages of this site (`collection`):
 
@@ -121,6 +133,8 @@ Pages of this site (`collection`):
 | (read-only line) "Shows the pages of this site, except this one." | none | `attrs.source.entity_type` `page` | |
 | Order | radio group: Menu order, Newest first, Title A to Z | `attrs.source.sort` | `natural`, `newest`, `title`; default `natural` |
 | Cards per page | number input | `attrs.source.page_size` | 1 to 50, default 12 |
+
+In a card, Text is sent as `body`, Show an image as `image` and Show a link as `action`; in the action `fieldset`, Link label is sent as `label` and Link as `href`. Unchecked, `image` and `action` are `null`.
 
 A new card list starts on Written by hand with one empty card. Cards per page hint: "A whole number from 1 to 50. More pages follow when the site has more."
 
@@ -131,7 +145,7 @@ A new card list starts on Written by hand with one empty card. Cards per page hi
 | Heading | text input | `attrs.heading` | 0 to 120, default `""` |
 | Intro | `textarea` | `attrs.intro` | 0 to 300, default `""` |
 | Send to | URL input, required | `attrs.action_url` | `https://`, up to 2048 |
-| Fields | repeated group "Field n": Label (text input, required), Name (text input, required), Kind (`select`: Short text, Email, Phone, Long text), Visitors must fill this in (checkbox) | `attrs.fields` | 1 to 10 items; label 1 to 60; name pattern, unique; kind `text`, `email`, `phone`, `textarea`; required default `false` |
+| Fields | repeated group "Field n": Label (text input, required), Name (text input, required), Kind (`select`: Short text, Email, Phone, Long text; required, starts on Short text), Visitors must fill this in (checkbox) | `attrs.fields`; per item `label`, `name`, `kind`, `required` | 1 to 10 items; label 1 to 60; name pattern, unique; kind `text`, `email`, `phone`, `textarea`; required default `false` |
 | Button label | text input, required | `attrs.submit_label` | 1 to 30, default "Send" |
 
 Send to hint: "The https:// address of your form service. Hivesite doesn't store messages."
@@ -140,7 +154,7 @@ Send to hint: "The https:// address of your form service. Hivesite doesn't store
 
 **Name suggestion.** While the owner has not typed in Name, it follows Label: lowercase, accents dropped, every run of other characters turned into one underscore, underscores trimmed from both ends, cut to 40. A result that does not start with a letter gets `field_` in front. Typing in Name stops it; clearing Name starts it again.
 
-A new contact form starts with one empty field item.
+A new contact form starts with one field item: Label and Name empty, Kind Short text (`text`), the checkbox unchecked.
 
 #### Embed (`embed`)
 
@@ -165,6 +179,7 @@ Client checks run on blur after typing, and on every block when the owner presse
 | `$defs/link` pattern or no host | Use a page path such as /about, an address that starts with https://, or a mailto: address. |
 | contact field name pattern | Start with a lowercase letter, then use lowercase letters, digits and underscores, 40 at most. |
 | contact field name used twice | Another field in this form already uses this name. |
+| contact field kind missing or not one of the four (only from a stored document; a new field starts on Short text) | Choose a kind. |
 | embed provider not chosen | Choose a provider. |
 | embed address not of its provider | Use a YouTube address. / Use a Vimeo address. / Use a Google Maps embed address. |
 | cards per page outside 1 to 50 or not whole | Use a whole number from 1 to 50. |
@@ -291,7 +306,9 @@ Rich text field:
   <p class="hs-field__label" id="b2-text-label">Text</p>
   <p class="hs-field__hint" id="b2-text-hint">Headings, paragraphs and lists, with bold, italic and links.</p>
   <div role="toolbar" aria-label="Text format" aria-controls="b2-text">
-    <select aria-label="Text style">Paragraph / Heading / Subheading</select>
+    <button type="button" aria-pressed="true">Paragraph</button>
+    <button type="button" aria-pressed="false">Heading</button>
+    <button type="button" aria-pressed="false">Subheading</button>
     <button type="button" aria-pressed="false">Bold</button>
     <button type="button" aria-pressed="false">Italic</button>
     <button type="button">Link</button>
@@ -335,7 +352,7 @@ Add block dialog (shell dialog):
 
 The block list sits in a column of `layout.content_width`, under the screen head. Text in it never runs wider than `layout.measure`.
 
-**Screen head.** Shell screen head. The count and the page size line use the shell count look. Actions: "Back to pages" (secondary), then "Save blocks" (primary, the screen's one primary button), then the status line (`font_size.body_s`, `color.text_muted`): empty when saved, "Unsaved changes" after any change, "Saving…" while sending, "Blocks saved." after a save, "No changes to save." after a save with nothing changed. The words carry the state, not a color.
+**Screen head.** Shell screen head. The count and the page size line use the shell count look. Actions: "Back to pages" (secondary), then "Save blocks" (primary, the screen's one primary button), then the status line (`font_size.body_s`, `color.text_muted`): empty when saved, "Unsaved changes" while the document to send differs from the last saved one (Data), "Saving…" while sending, "Blocks saved." after a save, "No changes to save." after a save with nothing changed. The words carry the state, not a color.
 
 **Save shortcut.** Ctrl+S (Cmd+S on Mac) anywhere on the screen presses "Save blocks". The head scrolls with the page; a sticky save bar needs a stacking token (see Token gaps in shell.md).
 
@@ -370,7 +387,7 @@ The block list sits in a column of `layout.content_width`, under the screen head
 
 As menu-reorder.md, with these differences:
 
-- A move changes the working copy only; nothing is sent. The status line says "Unsaved changes".
+- A move changes the working copy only; nothing is sent. The status line says "Unsaved changes" unless the order is back to the saved one.
 - While a block is picked up or dragged, its body is hidden and only its head moves, so the moving shape is one row high. The body comes back after the drop if it was open.
 - Grab look: as in menu-reorder.md (`color.surface_sunk`, `border_width.hairline` solid `color.border_strong`). The position number turns `color.text_muted` while grabbed, because `color.accent_text` is not paired with `color.surface_sunk`.
 - Over look: the line of `border_width.focus` solid `color.accent` in the gap between panels.
@@ -422,7 +439,7 @@ Live-region text, through the list status line:
 
 ### Rich text field
 
-- **Toolbar.** A row on `color.surface`, `space.1` between controls, `space.2` below it. Buttons are square quiet buttons, `control.min_height` on each side, with word labels shown as glyphs where short ("B", "I", a link glyph, list glyphs) and the full name as their accessible name; see icon.size in Token gaps. Toggle buttons use `aria-pressed`; pressed: background `color.surface_sunk`, an edge of `border_width.hairline` solid `color.border_strong`, so the state is not color alone. The text style `select` follows the shell control look and offers Paragraph, Heading (`h2`) and Subheading (`h3`).
+- **Toolbar.** A row on `color.surface`, `space.1` between controls, `space.2` below it. The format buttons are square quiet buttons, `control.min_height` on each side, with word labels shown as glyphs where short ("B", "I", a link glyph, list glyphs) and the full name as their accessible name; see icon.size in Token gaps. Toggle buttons use `aria-pressed`; pressed: background `color.surface_sunk`, an edge of `border_width.hairline` solid `color.border_strong`, so the state is not color alone. The text style is three toggle buttons at the start of the toolbar, not a `select`: Paragraph, Heading (`h2`) and Subheading (`h3`). They show their words (not glyphs), each at least `control.min_height` tall with `padding-inline: control.padding_x`. The one that matches the block at the cursor has `aria-pressed="true"`; when the selection spans more than one style, none is pressed. Pressing Heading or Subheading turns the current block into it; pressing the pressed Heading or Subheading, or Paragraph, turns it back into a paragraph.
 - **Area.** The shell control look (`color.surface_sunk`, `border_width.control` solid `color.border_strong`, `radius.control`, `control.padding_x`, `control.padding_y`), at least as tall as four lines of `font_size.body` at `line_height.body` (see Token gaps), growing with its content. `font.text`, `font_size.body`, `color.text`.
 - **Inside the area.** Headings in `font.display`, `font_weight.display_strong`, `line_height.heading`: Heading at `font_size.display_m`, Subheading at `font_size.body_l`. Paragraphs `space.3` apart. Lists indented by `space.5`. Links in `color.text` with an underline of `border_width.hairline` (`color.accent_text` is not paired with `color.surface_sunk`). Bold in `font_weight.text_strong`.
 - **Link dialog.** From the Link button or Ctrl+K (Cmd+K) with text selected: a shell dialog "Add a link" with one Link field (`$defs/link` rule), actions Cancel, "Remove link" (secondary, only when the selection is already a link), "Add link" (primary). Without a selection the Link button is unavailable with "Select text to add a link." Only `href` is set; the studio sends `target`, `rel` and `class` as Tiptap emits them.
@@ -466,7 +483,7 @@ When any of the three opening calls fails: the shell form message "Error: We cou
 | Limit reached (items) | Counter "24 of 24"; Add item unavailable with its reason. At one item, Remove unavailable with its reason. | `color.text_muted`, `color.border` |
 | Limit reached (size) | "Page size: 256 of 256 KB" stays `color.text_muted`; over it turns `color.error` and Save shows the size form message. | `color.text_muted`, `color.error` |
 | Load error | Form message and "Try again". | `color.surface`, `color.error`, `border_width.focus`, `color.text` |
-| Unsaved | Status line "Unsaved changes"; the leave guard is on. | `color.text_muted`, `font_size.body_s` |
+| Unsaved | The document to send differs from the last saved one (Data). Status line "Unsaved changes"; the leave guard is on. | `color.text_muted`, `font_size.body_s` |
 | Sending | Every field `readonly`, every handle, move, add and remove control unavailable, "Save blocks" busy ("Saving…"), `aria-busy="true"` on the list. | `color.text_muted`, `color.border` |
 | Saved | Status "Blocks saved."; fields show the stored values. | `color.text_muted`, `font_size.body_s` |
 | Changed elsewhere | The 412 dialog. | `color.surface`, `color.border_strong`, `radius.card`, `color.image_scrim`, `color.error` |
@@ -497,7 +514,7 @@ When any of the three opening calls fails: the shell form message "Error: We cou
 - **`<h1>`:** "Blocks of {page title}", for example "Blocks of About". Document title "Blocks · About · Hivesite Studio". Each block's head is an `<h2>` ("1 Hero"), so the blocks can be reached by heading. Dialogs use `<h2>`.
 - **Tab order.** Shell items; Back to pages, Save blocks; form message (when shown, it gets focus); then per block: handle, toggle, Move up, Move down, Remove, then the body's fields in order when open (in a repeated item: its fields, then Move up, Move down, Remove; then the Add item button); after the last block, Add block.
 - **Keyboard paths.** Add: Tab to Add block, Enter, arrows in the type group, Tab to Place, Enter on "Add block". Reorder: on a handle Space, arrows (or Home, End), Space; or Enter on Move up or Move down. Remove: Enter on Remove, then Tab to "Remove block" and Enter, or Escape to cancel. Open or close a block: Enter or Space on its toggle. Save: Ctrl+S (Cmd+S), or Enter on "Save blocks". Enter in a text input does not submit the form, because a page has many blocks; it does nothing.
-- **Rich text keys.** Tab leaves the area; it never indents, so focus is never trapped. Ctrl+B (Cmd+B) bold, Ctrl+I (Cmd+I) italic, Ctrl+K (Cmd+K) link, Ctrl+] and Ctrl+[ (Cmd+] and Cmd+[) indent and outdent. The toolbar is one tab stop with a roving tabindex: arrows move between its controls, Home and End go to the ends.
+- **Rich text keys.** Tab leaves the area; it never indents, so focus is never trapped. Ctrl+B (Cmd+B) bold, Ctrl+I (Cmd+I) italic, Ctrl+K (Cmd+K) link, Ctrl+] and Ctrl+[ (Cmd+] and Cmd+[) indent and outdent. The toolbar is one tab stop with a roving tabindex. Every control in it is a button (the text style is three toggle buttons, not a `select`, so no control uses the arrow keys itself): Left and Right arrows move between them, Home and End go to the ends, Enter or Space presses. Change the text style: Tab to the toolbar, Left or Right to Paragraph, Heading or Subheading, Enter; then Tab returns to the area, which follows the toolbar. Pressing a toolbar button keeps focus on it.
 - **Focus.** On open, the `<h1>`. After add, the new block's first field. After a save, focus stays on "Save blocks" and the status line is read. On a save with errors, the first invalid field. Remove and dialogs as in Layout.
 - **Names.** The handle says the block and its place ("Reorder block 2, Rich text, position 2 of 5"); move and remove buttons say the block. Every field has a visible label; groups have a `legend`; the rich text area is labelled by its label and described by its hint, counter and error.
 - **Announcements.** Moves, adds and removes through the list status line, as in Reorder. Save results through the head status line.
