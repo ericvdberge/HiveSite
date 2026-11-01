@@ -24,7 +24,7 @@ public static class ContentModule
         services.AddScoped<PageService>();
         services.AddSingleton<BlockTypeRegistry>();
         services.AddScoped<BlockTypeService>();
-        services.AddScoped<IBlockTypeApi, BlockTypeModuleApi>();
+        services.AddScoped<IContentApi, ContentModuleApi>();
         return services;
     }
 

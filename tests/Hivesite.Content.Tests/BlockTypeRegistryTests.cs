@@ -216,7 +216,7 @@ public sealed class BlockTypeRegistryTests
         using var provider = services.BuildServiceProvider();
         using var scope = provider.CreateScope();
 
-        var api = scope.ServiceProvider.GetRequiredService<IBlockTypeApi>();
+        var api = scope.ServiceProvider.GetRequiredService<IContentApi>();
         var types = api.ListBlockTypesAsync().GetAwaiter().GetResult();
 
         CollectionAssert.AreEqual(BlockTypeSpec.Table.Select(t => t.Type).ToList(), types.Select(t => t.Type).ToList());

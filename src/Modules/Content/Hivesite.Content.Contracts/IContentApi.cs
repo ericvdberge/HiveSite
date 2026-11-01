@@ -3,7 +3,7 @@ using System.Text.Json;
 namespace Hivesite.Content.Contracts;
 
 /// <summary>The block type registry of API-003, for other modules. The same seven types and schemas as <c>GET /block-types</c>.</summary>
-public interface IBlockTypeApi
+public interface IContentApi
 {
     /// <summary>All block types in the fixed order of API-003.</summary>
     Task<IReadOnlyList<BlockTypeInfo>> ListBlockTypesAsync(CancellationToken cancellationToken = default);

@@ -8,9 +8,9 @@ Sites, pages, the menu, block types and block validation. Owned by `dev-content`
   - `Application/`: `SiteService`.
   - `Domain/`: `Site`, `SiteFilter`.
   - `Infrastructure/`: `ContentDbContext`, `SiteDao`, `SiteDaoMapper`, `SiteRepository`, `Migrations/`.
-  - Block types (API-003) have no database: `BlockTypes/*.json` (embedded schemas, copied verbatim from the spec, plus `defs.json`), `Infrastructure/BlockTypeRegistry` (singleton), `Application/BlockTypeService` and `BlockTypeModuleApi`, `Domain/BlockType`, `BlockTypeFilter`, `Endpoints/BlockTypeEndpoints`, `BlockTypeDtos`, `BlockTypeValidators`, `BlockTypeMapper`.
+  - Block types (API-003) have no database: `BlockTypes/*.json` (embedded schemas, copied verbatim from the spec, plus `defs.json`), `Infrastructure/BlockTypeRegistry` (singleton), `Application/BlockTypeService` and `ContentModuleApi` and `ContentApiMapper`, `Domain/BlockType`, `BlockTypeFilter`, `Endpoints/BlockTypeEndpoints`, `BlockTypeDtos`, `BlockTypeValidators`, `BlockTypeMapper`.
   - `ContentModule`: the only entry point the Host calls.
-- `Hivesite.Content.Contracts/`: what other modules may use. Interfaces (`IBlockTypeApi`), events (`SiteChanged`, `PageChanged`, `MenuChanged`) and their DTOs. Nothing else.
+- `Hivesite.Content.Contracts/`: what other modules may use. Interfaces (`IContentApi`), events (`SiteChanged`, `PageChanged`, `MenuChanged`) and their DTOs. Nothing else.
 - Tests: `tests/Hivesite.Content.Tests/`.
 
 ## Adding an entity (pages, menu, …)
