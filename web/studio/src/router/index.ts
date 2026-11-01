@@ -1,9 +1,14 @@
 import { createRouter, createWebHistory, type RouterHistory } from 'vue-router'
-import HomeView from '../views/HomeView.vue'
+import NewSiteView from '../views/NewSiteView.vue'
 import NotFoundView from '../views/NotFoundView.vue'
+import SiteListView from '../views/SiteListView.vue'
 
 export const routes = [
-    { path: '/', name: 'home', component: HomeView },
+    // The site list is the first screen. "/" is an alias, not a redirect, so the shell's
+    // links to "/" (wordmark, "Sites") stay the current page while the list is open.
+    { path: '/sites', alias: '/', name: 'sites', component: SiteListView },
+    // Placeholder until the create form (#61).
+    { path: '/sites/new', name: 'site-new', component: NewSiteView },
     // Catch-all: any address the studio does not know shows the not-found screen.
     { path: '/:pathMatch(.*)*', name: 'not-found', component: NotFoundView },
 ]
