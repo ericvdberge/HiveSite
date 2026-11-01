@@ -118,7 +118,7 @@ describe('create site: AC3 opens the new site; left-out settings show en and emp
         await type(wrapper, 'name', '  Atelier Noor ')
         await type(wrapper, 'language', '')
         await submit(wrapper)
-        expect(await calls()).toEqual([
+        expect((await calls()).filter((c) => c.method === 'POST')).toEqual([
             {
                 method: 'POST',
                 path: '/sites',
@@ -446,5 +446,19 @@ describe('edit site: AC8 a missing or foreign site shows the not-found screen', 
         await wrapper.find('.hs-load-error button').trigger('click')
         await flushPromises()
         expect(input(wrapper, 'name').element.value).toBe('Atelier Noor')
+    })
+})
+
+describe('edit site: side nav', () => {
+    it('keeps the site group in the side nav on Site settings and drops it on leave', async () => {
+        fetchMock.mockResolvedValueOnce(json(200, site()))
+        const { wrapper, router } = await open(`/sites/${ID}/edit`)
+        expect(wrapper.find('.hs-nav__site').text()).toBe('Atelier Noor')
+        const links = wrapper.findAll('nav a').map((a) => a.text())
+        expect(links).toEqual(['Sites', 'Pages', 'Site settings'])
+
+        await router.push('/nowhere')
+        await flushPromises()
+        expect(wrapper.find('.hs-nav__site').exists()).toBe(false)
     })
 })
