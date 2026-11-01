@@ -44,7 +44,8 @@ const limitNote = ref('')
 const slugEdited = ref(false)
 const messageEl = ref<HTMLElement | null>(null)
 
-// Aborted on unmount: a cancel is not a failure and shows nothing.
+// Aborted on unmount. Calls carry the signal, and send() stops once it is aborted:
+// leaving mid-save navigates nowhere and shows nothing.
 const controller = new AbortController()
 
 const ids: Record<FieldName, string> = {
@@ -152,12 +153,8 @@ async function load(): Promise<void> {
             phase.value = 'missing'
             return
         }
+        // The inline message carries the announcement; no toast.
         phase.value = 'failed'
-        showErrorToast(
-            isApiError(error) && error.code === 'unknown_error'
-                ? toastCopy.network
-                : toastCopy.server,
-        )
     }
 }
 
@@ -199,11 +196,16 @@ async function submit(): Promise<void> {
             return
         }
         await send(() =>
-            api.PATCH('/sites/{id}', { params: { path: { id: siteId } }, body: patch }),
+            api.PATCH('/sites/{id}', {
+                params: { path: { id: siteId } },
+                body: patch,
+                signal: controller.signal,
+            }),
         )
     } else {
         await send(() =>
             api.POST('/sites', {
+                signal: controller.signal,
                 body: {
                     name: values.name.trim(),
                     slug: values.slug.trim(),
@@ -221,6 +223,7 @@ async function send(call: () => Promise<{ data?: Site }>): Promise<void> {
     sending.value = true
     try {
         const { data } = await call()
+        if (controller.signal.aborted) return
         if (!data) throw new Error('Empty response')
         dismissToast()
         if (isEdit) {
@@ -230,7 +233,7 @@ async function send(call: () => Promise<{ data?: Site }>): Promise<void> {
             await router.push(`/sites/${data.id}/pages`)
         }
     } catch (error) {
-        if (!isAbort(error)) await showFailure(error)
+        if (!isAbort(error) && !controller.signal.aborted) await showFailure(error)
     } finally {
         sending.value = false
     }
@@ -306,7 +309,7 @@ onBeforeUnmount(() => controller.abort())
         </div>
 
         <div v-else-if="phase === 'failed'" class="hs-form">
-            <p class="hs-message"><strong>Error:</strong> We couldn't load this site.</p>
+            <p class="hs-form-message"><strong>Error:</strong> We couldn't load this site.</p>
             <button type="button" class="hs-button hs-button--secondary" @click="load()">
                 Try again
             </button>
@@ -317,7 +320,7 @@ onBeforeUnmount(() => controller.abort())
                 v-if="formMessage"
                 id="site-form-message"
                 ref="messageEl"
-                class="hs-message"
+                class="hs-form-message"
                 role="alert"
                 tabindex="-1"
             >
@@ -491,8 +494,7 @@ textarea[aria-invalid='true'] {
     animation: hs-fade var(--hs-motion-duration-base) var(--hs-motion-easing-standard) both;
 }
 
-.hs-field__error strong,
-.hs-message strong {
+.hs-field__error strong {
     font-weight: var(--hs-font-weight-text-strong);
     color: var(--hs-color-error);
 }
@@ -517,12 +519,10 @@ textarea[aria-invalid='true'] {
     overflow-wrap: anywhere;
 }
 
-.hs-path {
-    font-family: var(--hs-font-label);
-    letter-spacing: var(--hs-letter-spacing-body);
+.hs-form-message {
+    animation: hs-fade var(--hs-motion-duration-base) var(--hs-motion-easing-standard) both;
 }
 
-.hs-message,
 .hs-note {
     padding: var(--hs-space-4);
     background: var(--hs-color-surface);

@@ -203,7 +203,7 @@ describe('create site: AC4 client checks and server errors on the named field', 
         await type(wrapper, 'name', 'Atelier Noor')
         await submit(wrapper)
         expect(errorOf(wrapper, id).text()).toBe(`Error: ${copy}`)
-        expect(wrapper.find('.hs-message').exists()).toBe(false)
+        expect(wrapper.find('.hs-form-message').exists()).toBe(false)
         expect(document.activeElement?.id).toBe(`site-${id}`)
     })
 
@@ -212,7 +212,7 @@ describe('create site: AC4 client checks and server errors on the named field', 
         const { wrapper } = await open('/sites/new')
         await type(wrapper, 'name', 'Atelier Noor')
         await submit(wrapper)
-        const message = wrapper.find('.hs-message')
+        const message = wrapper.find('.hs-form-message')
         expect(message.text()).toBe(
             "Error: Something in the form wasn't accepted. Please check it and try again.",
         )
@@ -247,7 +247,7 @@ describe('create site: AC5 slug_taken and too_many_sites', () => {
         const { wrapper } = await open('/sites/new')
         await type(wrapper, 'name', 'Atelier Noor')
         await submit(wrapper)
-        expect(wrapper.find('.hs-message').text()).toBe(
+        expect(wrapper.find('.hs-form-message').text()).toBe(
             "Error: You have 10 sites, the most for now. This site wasn't created.",
         )
         const button = wrapper.find('button[type=submit]')
@@ -267,13 +267,37 @@ describe('create site: AC5 slug_taken and too_many_sites', () => {
         expect(input(wrapper, 'name').element.value).toBe('Atelier Noor')
     })
 
+    it('AC5: leaving mid-save aborts the request and shows nothing when the response arrives', async () => {
+        let release!: (r: Response) => void
+        fetchMock.mockReturnValueOnce(new Promise<Response>((res) => (release = res)))
+        const { wrapper, router } = await open('/sites/new')
+        await type(wrapper, 'name', 'Atelier Noor')
+        await submit(wrapper)
+        const req = fetchMock.mock.calls[0]?.[0] as Request
+        await router.push('/sites')
+        await flushPromises()
+        expect(req.signal.aborted).toBe(true)
+        release(json(201, site()))
+        await flushPromises()
+        expect(router.currentRoute.value.path).toBe('/sites')
+        expect(useToast().message.value).toBeNull()
+    })
+
+    it('AC3: after 201 the owner lands on the pages route of the new site', async () => {
+        fetchMock.mockResolvedValueOnce(json(201, site()))
+        const { wrapper, router } = await open('/sites/new')
+        await type(wrapper, 'name', 'Atelier Noor')
+        await submit(wrapper)
+        expect(router.currentRoute.value.name).toBe('site-pages')
+    })
+
     it('AC5: 401 unauthenticated shows nothing of its own', async () => {
         fetchMock.mockResolvedValueOnce(fail(401, 'unauthenticated'))
         const { wrapper } = await open('/sites/new')
         await type(wrapper, 'name', 'Atelier Noor')
         await submit(wrapper)
         expect(useToast().message.value).toBeNull()
-        expect(wrapper.find('.hs-message').exists()).toBe(false)
+        expect(wrapper.find('.hs-form-message').exists()).toBe(false)
     })
 })
 
@@ -412,10 +436,11 @@ describe('edit site: AC8 a missing or foreign site shows the not-found screen', 
         expect(wrapper.find('h1').text()).toBe('Site settings')
     })
 
-    it('AC8: another load failure shows the error toast and Try again', async () => {
+    it('AC8: another load failure shows the inline message and Try again, without a toast', async () => {
         fetchMock.mockResolvedValueOnce(fail(500, 'internal_error'))
         const { wrapper } = await open(`/sites/${ID}/edit`)
-        expect(useToast().message.value).toBe('Something went wrong on our side. Please try again.')
+        expect(useToast().message.value).toBeNull()
+        expect(wrapper.find('.hs-form-message').text()).toContain("We couldn't load this site.")
         fetchMock.mockResolvedValueOnce(json(200, site()))
         await wrapper.find('.hs-form button').trigger('click')
         await flushPromises()
