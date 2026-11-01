@@ -127,6 +127,7 @@ public sealed class ContentApi : IAsyncDisposable
             api._factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
             {
                 builder.UseSetting("ConnectionStrings:Content", Postgres.ConnectionString);
+                builder.UseSetting("Dev:Seed", "false");   // the seed tests run it themselves
                 builder.ConfigureServices(services =>
                 {
                     services.AddAuthentication("Test").AddScheme<AuthenticationSchemeOptions, HeaderAuthenticationHandler>("Test", null);
