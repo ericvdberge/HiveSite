@@ -5,6 +5,7 @@ import NotFoundScreen from '../components/NotFoundScreen.vue'
 import ScreenHead from '../components/ScreenHead.vue'
 import { api, fieldKey, isApiError, type components } from '../api'
 import { rememberAddedPage } from '../composables/useAddedPage'
+import { clearSiteNav, setSiteNav } from '../composables/useSiteNav'
 import { dismissToast, showErrorToast, toastCopy } from '../composables/useToast'
 import {
     FIELD_ORDER,
@@ -73,7 +74,10 @@ function onInput(field: FieldName): void {
     serverErrors[field] = ''
     status.value = ''
     if (field === 'slug') slugEdited.value = values.slug !== ''
-    if (field === 'title' && !isEdit && !slugEdited.value) values.slug = suggestSlug(values.title)
+    if (field === 'title' && !isEdit && !slugEdited.value) {
+        values.slug = suggestSlug(values.title)
+        serverErrors.slug = ''
+    }
 }
 
 function onBlur(field: FieldName): void {
@@ -99,6 +103,10 @@ const slugChanged = computed(
         saved.value !== null &&
         values.slug.trim() !== '' &&
         values.slug.trim() !== saved.value.slug,
+)
+const loadError = isEdit ? "We couldn't load this page." : "We couldn't load this site."
+const documentTitle = computed(() =>
+    isEdit && saved.value ? `Edit page · ${saved.value.title} · Hivesite Studio` : undefined,
 )
 const heading = isEdit ? 'Edit page' : 'New page'
 
@@ -145,6 +153,7 @@ async function load(): Promise<void> {
         } else {
             site.value = await fetchSite(routeId)
         }
+        setSiteNav({ id: site.value.id, name: site.value.name })
         phase.value = 'ready'
     } catch (error) {
         if (isAbort(error)) return
@@ -159,11 +168,6 @@ async function load(): Promise<void> {
             return
         }
         phase.value = 'failed'
-        showErrorToast(
-            isApiError(error) && error.code === 'unknown_error'
-                ? toastCopy.network
-                : toastCopy.server,
-        )
     }
 }
 
@@ -197,13 +201,18 @@ async function submit(): Promise<void> {
             return
         }
         await send(() =>
-            api.PATCH('/pages/{id}', { params: { path: { id: routeId } }, body: patch }),
+            api.PATCH('/pages/{id}', {
+                params: { path: { id: routeId } },
+                body: patch,
+                signal: controller.signal,
+            }),
         )
     } else {
         await send(() =>
             api.POST('/sites/{id}/pages', {
                 params: { path: { id: routeId } },
                 body: { title: values.title.trim(), slug: values.slug.trim() },
+                signal: controller.signal,
             }),
         )
     }
@@ -213,6 +222,8 @@ async function send(call: () => Promise<{ data?: PageItem }>): Promise<void> {
     sending.value = true
     try {
         const { data } = await call()
+        // Left the screen while the request was out: nothing more to do here.
+        if (controller.signal.aborted) return
         if (!data) throw new Error('Empty response')
         dismissToast()
         if (isEdit) {
@@ -223,7 +234,7 @@ async function send(call: () => Promise<{ data?: PageItem }>): Promise<void> {
             await router.push(pagesPath.value)
         }
     } catch (error) {
-        if (!isAbort(error)) await showFailure(error)
+        if (!isAbort(error) && !controller.signal.aborted) await showFailure(error)
     } finally {
         sending.value = false
     }
@@ -276,15 +287,19 @@ function describedBy(field: FieldName): string {
         .join(' ')
 }
 
-/** Cancel and Edit blocks leave the form; they are unavailable while a request is out. */
-function guard(e: Event): void {
+/** Cancel and Edit blocks leave the form; they do nothing while a request is out. */
+function go(e: MouseEvent, navigate: (e?: MouseEvent) => unknown): void {
     if (sending.value) e.preventDefault()
+    else navigate(e)
 }
 
 onMounted(() => {
     void load()
 })
-onBeforeUnmount(() => controller.abort())
+onBeforeUnmount(() => {
+    controller.abort()
+    clearSiteNav()
+})
 </script>
 
 <template>
@@ -295,20 +310,26 @@ onBeforeUnmount(() => controller.abort())
         :pages-to="siteId ? pagesPath : undefined"
     />
     <template v-else>
-        <ScreenHead :title="heading" :eyebrow="site?.name">
+        <ScreenHead :title="heading" :eyebrow="site?.name" :document-title="documentTitle">
             <template v-if="isEdit && saved" #actions>
-                <RouterLink
-                    class="hs-button hs-button--secondary"
-                    :to="`/pages/${saved.id}/blocks`"
-                    :aria-disabled="sending ? 'true' : undefined"
-                    @click="guard"
-                    >Edit blocks</RouterLink
-                >
+                <RouterLink v-slot="{ href, navigate }" custom :to="`/pages/${saved.id}/blocks`">
+                    <a
+                        class="hs-button hs-button--secondary"
+                        :href="href"
+                        :aria-disabled="sending ? 'true' : undefined"
+                        @click="go($event, navigate)"
+                        >Edit blocks</a
+                    >
+                </RouterLink>
             </template>
         </ScreenHead>
 
+        <!-- One status region while the form is not ready; its text changes, the element stays. -->
+        <p v-if="phase !== 'ready'" class="hs-visually-hidden" role="status">
+            {{ phase === 'failed' ? `Error: ${loadError}` : 'Loading…' }}
+        </p>
+
         <div v-if="phase === 'loading'" class="hs-form" aria-busy="true">
-            <p class="hs-visually-hidden" role="status">Loading…</p>
             <div v-for="n in 2" :key="n" class="hs-skeleton" aria-hidden="true">
                 <span class="hs-skeleton__shape hs-skeleton__shape--label" />
                 <span class="hs-skeleton__shape hs-skeleton__shape--control" />
@@ -316,10 +337,12 @@ onBeforeUnmount(() => controller.abort())
         </div>
 
         <div v-else-if="phase === 'failed'" class="hs-form">
-            <p class="hs-message">
-                <strong>Error:</strong> We couldn't load {{ isEdit ? 'this page' : 'this site' }}.
-            </p>
-            <button type="button" class="hs-button hs-button--secondary" @click="load()">
+            <p class="hs-form-message"><strong>Error:</strong> {{ loadError }}</p>
+            <button
+                type="button"
+                class="hs-button hs-button--secondary hs-form__retry"
+                @click="load()"
+            >
                 Try again
             </button>
         </div>
@@ -329,7 +352,7 @@ onBeforeUnmount(() => controller.abort())
                 v-if="formMessage"
                 id="page-form-message"
                 ref="messageEl"
-                class="hs-message"
+                class="hs-form-message"
                 role="alert"
                 tabindex="-1"
             >
@@ -404,13 +427,15 @@ onBeforeUnmount(() => controller.abort())
                               : 'Add page'
                     }}
                 </button>
-                <RouterLink
-                    class="hs-button hs-button--secondary"
-                    :to="pagesPath"
-                    :aria-disabled="sending ? 'true' : undefined"
-                    @click="guard"
-                    >Cancel</RouterLink
-                >
+                <RouterLink v-slot="{ href, navigate }" custom :to="pagesPath">
+                    <a
+                        class="hs-button hs-button--secondary"
+                        :href="href"
+                        :aria-disabled="sending ? 'true' : undefined"
+                        @click="go($event, navigate)"
+                        >Cancel</a
+                    >
+                </RouterLink>
                 <p class="hs-form__status" role="status">{{ status }}</p>
             </div>
         </form>
@@ -486,12 +511,13 @@ input[aria-invalid='true'] {
 }
 
 .hs-field__error strong,
-.hs-message strong {
+.hs-form-message strong {
     font-weight: var(--hs-font-weight-text-strong);
     color: var(--hs-color-error);
 }
 
 .hs-counter {
+    flex-shrink: 0;
     margin-block-start: var(--hs-space-2);
     margin-inline-start: auto;
     font-family: var(--hs-font-label);
@@ -516,7 +542,7 @@ input[aria-invalid='true'] {
     letter-spacing: var(--hs-letter-spacing-body);
 }
 
-.hs-message,
+.hs-form-message,
 .hs-note {
     padding: var(--hs-space-4);
     background: var(--hs-color-surface);
@@ -551,6 +577,10 @@ input[aria-invalid='true'] {
 
 .hs-form__actions .hs-button {
     inline-size: 100%;
+}
+
+.hs-form__retry {
+    align-self: flex-start;
 }
 
 .hs-form__status {

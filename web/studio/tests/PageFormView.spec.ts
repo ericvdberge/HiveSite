@@ -387,6 +387,18 @@ describe('page form: AC5 a new page appears last; AC9 404 shows not-found', () =
                 201,
             ),
         )
+        const serveAll = fetchMock.getMockImplementation() as (req: Request) => Promise<Response>
+        const created = page({
+            id: 'new-page-id',
+            title: 'Our work',
+            slug: 'our-work',
+            menu_order: 0,
+        })
+        fetchMock.mockImplementation((req: Request) =>
+            req.method === 'GET' && new URL(req.url).pathname === `/sites/${SITE_ID}/pages`
+                ? Promise.resolve(json({ items: [created], next_cursor: null }))
+                : serveAll(req),
+        )
         const w = await open(addPath)
 
         await type(w, 'page-title', 'Our work')
@@ -397,7 +409,7 @@ describe('page form: AC5 a new page appears last; AC9 404 shows not-found', () =
         expect(call.path).toBe(`/sites/${SITE_ID}/pages`)
         expect(call.body).toEqual({ title: 'Our work', slug: 'our-work' })
         expect(router.currentRoute.value.path).toBe(`/sites/${SITE_ID}/pages`)
-        expect(takeAddedPage()).toEqual({ id: 'new-page-id', title: 'Our work' })
+        expect(w.get('.hs-list-status').text()).toBe('Our work added at position 1 of 1.')
     })
 
     it('AC5: Cancel returns to the page list', async () => {
@@ -435,15 +447,95 @@ describe('page form: AC5 a new page appears last; AC9 404 shows not-found', () =
         expect(w.get('h1').text()).toBe("We can't find that site")
     })
 
-    it('AC9: a failed load shows an error with Try again and a toast', async () => {
+    it('AC9: a failed load shows one inline error with Try again and no toast', async () => {
         fetchMock.mockImplementation(() => Promise.resolve(fail(500, 'internal_error')))
         const w = await open(addPath)
 
         expect(w.text()).toContain("We couldn't load this site.")
-        expect(useToast().message.value).not.toBeNull()
+        expect(useToast().message.value).toBeNull()
+        expect(w.findAll('[role="status"]')).toHaveLength(1)
+        expect(w.get('[role="status"]').text()).toBe("Error: We couldn't load this site.")
         serve()
         await w.get('.hs-form .hs-button').trigger('click')
         await flushPromises()
         expect(w.find('form').exists()).toBe(true)
+    })
+})
+
+describe('page form: leaving mid-save and stale errors', () => {
+    /** A write that stays pending until `release()` is called. */
+    function pendingWrite() {
+        let release: () => void = () => {}
+        const gate = new Promise<void>((r) => (release = r))
+        fetchMock.mockImplementation(async (req: Request) => {
+            const url = new URL(req.url)
+            if (req.method === 'GET') {
+                return url.pathname === `/sites/${SITE_ID}` ? json(SITE) : json(page())
+            }
+            await gate
+            return json(page({ id: 'late-id', title: 'Late', slug: 'late' }), 201)
+        })
+        return release
+    }
+
+    it('AC5: a late 201 after leaving the form does not navigate, remember the page or toast', async () => {
+        const release = pendingWrite()
+        const w = await open(addPath)
+
+        await type(w, 'page-title', 'Late')
+        await w.get('form').trigger('submit')
+        await router.push('/nowhere')
+        release()
+        await flushPromises()
+
+        expect(router.currentRoute.value.path).toBe('/nowhere')
+        expect(takeAddedPage()).toBeNull()
+        expect(useToast().message.value).toBeNull()
+        w.unmount()
+    })
+
+    it('Cancel and Edit blocks do nothing while a save is out', async () => {
+        const release = pendingWrite()
+        const w = await open(editPath)
+
+        await type(w, 'page-title', 'Changed')
+        await w.get('form').trigger('submit')
+        await w.get('.hs-form__actions a').trigger('click')
+        await w.get('.hs-screen-head__actions a').trigger('click')
+        await flushPromises()
+        expect(router.currentRoute.value.path).toBe(editPath)
+        expect(w.get('.hs-form__actions a').attributes('aria-disabled')).toBe('true')
+        release()
+        await flushPromises()
+    })
+
+    it('Cancel navigates to the list when nothing is being sent', async () => {
+        serve()
+        const w = await open(addPath)
+
+        await w.get('.hs-form__actions a').trigger('click')
+        await flushPromises()
+        expect(router.currentRoute.value.path).toBe(`/sites/${SITE_ID}/pages`)
+    })
+
+    it('a stale slug_taken clears when the title rewrites the suggested slug', async () => {
+        serve(fail(400, 'slug_taken'))
+        const w = await open(addPath)
+
+        await type(w, 'page-title', 'About')
+        await submit(w)
+        expect(w.find('#page-slug-error').exists()).toBe(true)
+        await type(w, 'page-title', 'About us', false)
+
+        expect(w.find('#page-slug-error').exists()).toBe(false)
+        expect((w.get('#page-slug').element as HTMLInputElement).value).toBe('about-us')
+    })
+
+    it('shows the site in the side nav and the page in the document title on edit', async () => {
+        serve()
+        const w = await open(editPath)
+
+        expect(w.get('.hs-nav__site').text()).toBe('Atelier Noor')
+        expect(document.title).toBe('Edit page · About · Hivesite Studio')
     })
 })
