@@ -79,6 +79,24 @@ public sealed class DevSeedTests
     }
 
     [TestMethod]
+    public async Task Seed_skips_a_site_slug_held_by_another_owner_AC5()
+    {
+        await ContentApi.ReadyAsync();
+        await using var factory = await OwnDatabaseAsync("Development", "seed_slug_clash");
+        var other = Guid.NewGuid().ToString("D");
+        var taken = await AsAsync(factory.Services, other, sp =>
+            sp.GetRequiredService<SiteService>().CreateAsync(new Site { Name = "Taken", Slug = "dev-atelier-nord" }, default));
+        Assert.IsTrue(taken.IsSuccess);
+
+        await factory.Services.SeedContentDevelopmentDataAsync();
+
+        var a = await SitesAsync(factory.Services, DevSeeder.OwnerA);
+        CollectionAssert.AreEquivalent(new[] { DevSeeder.FullSiteSlug, DevSeeder.EmptySiteSlug }, a.Select(s => s.Slug).ToList());
+        Assert.AreEqual(1, (await SitesAsync(factory.Services, DevSeeder.OwnerB)).Count);
+        Assert.AreEqual(0, (await PagesAsync(factory.Services, other, taken.Value.Id)).Count);
+    }
+
+    [TestMethod]
     public async Task Seeded_slugs_are_valid_unique_menu_order_has_no_gaps_and_events_were_raised_AC2()
     {
         var api = await SeededAsync();

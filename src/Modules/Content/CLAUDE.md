@@ -31,7 +31,7 @@ Sample data for local studio work, in `Hivesite.Content/Seeding/DevSeeder`. It c
 
 | Owner id | Sites |
 |---|---|
-| `dev-owner-a` | `dev-atelier-nord` (4 pages), `dev-atelier-full` (49 pages, one under the limit), `dev-atelier-empty` (no pages) |
-| `dev-owner-b` | `dev-bureau-blau` (2 pages) |
+| `0198f1a0-0000-7000-8000-000000000001` (the admin) | `dev-atelier-nord` (4 pages), `dev-atelier-full` (49 pages, one under the limit), `dev-atelier-empty` (no pages) |
+| `0198f1a0-0000-7000-8000-000000000002` | `dev-bureau-blau` (2 pages) |
 
 Run it on demand, after the database is migrated: `await app.Services.SeedContentDevelopmentDataAsync()` (`ContentModule`). It writes nothing unless the environment is Development, and it never runs at startup. There is no sign-in yet (API-001 Decisions), so the owner ids are only usable from code and tests.

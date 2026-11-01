@@ -10,12 +10,14 @@ namespace Hivesite.Content.Seeding;
 /// Sample sites and pages for local studio work. Everything goes through <see cref="SiteService"/> and
 /// <see cref="PageService"/>, so the rules of API-001 and API-002 hold and the change events are raised.
 /// What exists (site slug, then page slug within the site) is skipped, so a second run changes nothing.
-/// A failed rule is a bug in the seed data: <c>Result.Value</c> throws with the error code.
+/// A site slug already held by another owner is a clash: that site and its pages are skipped.
+/// Any other failed rule is a bug in the seed data: <c>Result.Value</c> throws with the error code.
 /// </summary>
 internal sealed class DevSeeder(IServiceProvider services)
 {
-    public const string OwnerA = "dev-owner-a";
-    public const string OwnerB = "dev-owner-b";
+    /// <summary>The admin owner, a fixed GUID so it stays the same on every machine.</summary>
+    public const string OwnerA = "0198f1a0-0000-7000-8000-000000000001";
+    public const string OwnerB = "0198f1a0-0000-7000-8000-000000000002";
     public const string FullSiteSlug = "dev-atelier-full";
     public const string EmptySiteSlug = "dev-atelier-empty";
     public const int FullSitePages = 49;
@@ -30,21 +32,19 @@ internal sealed class DevSeeder(IServiceProvider services)
 
     public async Task RunAsync(CancellationToken ct)
     {
-        foreach (var owner in Sites.Select(s => s.Owner).Distinct())
+        foreach (var seed in Sites)
         {
-            // One scope per owner, signed in through the claim UserContext reads, so no HTTP request is needed.
+            // One scope per site, so a refused insert (slug clash) cannot linger in the DbContext of the next site.
+            // The scope is signed in through the claim UserContext reads, so no HTTP request is needed.
             await using var scope = services.CreateAsyncScope();
             var http = scope.ServiceProvider.GetRequiredService<IHttpContextAccessor>();
             http.HttpContext = new DefaultHttpContext
             {
-                User = new ClaimsPrincipal(new ClaimsIdentity([new Claim(ClaimTypes.NameIdentifier, owner)], "Seed")),
+                User = new ClaimsPrincipal(new ClaimsIdentity([new Claim(ClaimTypes.NameIdentifier, seed.Owner)], "Seed")),
             };
             try
             {
-                foreach (var seed in Sites.Where(s => s.Owner == owner))
-                {
-                    await SeedSiteAsync(seed, scope.ServiceProvider, ct);
-                }
+                await SeedSiteAsync(seed, scope.ServiceProvider, ct);
             }
             finally
             {
@@ -59,8 +59,20 @@ internal sealed class DevSeeder(IServiceProvider services)
         var pageService = scope.GetRequiredService<PageService>();
 
         var owned = await siteService.ListAsync(new SiteFilter { Limit = SiteService.MaxSitesPerOwner }, ct);
-        var site = owned.Value.Items.FirstOrDefault(s => s.Slug == seed.Slug)
-            ?? (await siteService.CreateAsync(new Site { Name = seed.Name, Slug = seed.Slug, Description = seed.Description }, ct)).Value;
+        var site = owned.Value.Items.FirstOrDefault(s => s.Slug == seed.Slug);
+        if (site is null)
+        {
+            var created = await siteService.CreateAsync(new Site { Name = seed.Name, Slug = seed.Slug, Description = seed.Description }, ct);
+            if (!created.IsSuccess)
+            {
+                if (created.Error.Code == "slug_taken")
+                {
+                    return;
+                }
+                _ = created.Value;
+            }
+            site = created.Value;
+        }
 
         var have = (await pageService.ListAsync(new PageFilter { SiteId = site.Id, Limit = PageService.MaxPagesPerSite }, ct)).Value.Items
             .Select(p => p.Slug).ToHashSet();
