@@ -11,6 +11,7 @@
 | [API-003](content/API-003-block-types.md) | Block type registry | in review | #14 | API-001 |
 | [API-004](content/API-004-page-blocks.md) | Page blocks | approved | #15 | API-001, API-002, API-003 |
 | [API-005](content/API-005-entities.md) | Entities | in review | #36 | API-001, API-002, API-003, API-004 |
+| [API-006](content/API-006-assets.md) | Site assets | in review | #92 | API-001 |
 
 ## publishing
 
@@ -30,7 +31,7 @@
 ## By status
 
 - **draft** (3): API-011, API-012, API-021
-- **in review** (4): API-003, API-005, API-010, API-020
+- **in review** (5): API-003, API-005, API-006, API-010, API-020
 - **approved** (1): API-004
 - **built** (2): API-001, API-002
 
