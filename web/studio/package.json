@@ -13,7 +13,7 @@
     "typecheck": "vue-tsc --noEmit",
     "test": "vitest run",
     "format": "prettier --write .",
-    "generate:api": "openapi-typescript ../../openapi/hivesite.v1.json -o src/api/schema.d.ts"
+    "generate:api": "openapi-typescript ../../openapi/hivesite.json -o src/api/schema.d.ts"
   },
   "dependencies": {
     "openapi-fetch": "^0.17.0",
