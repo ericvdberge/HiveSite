@@ -20,8 +20,11 @@ internal static partial class SpecExamples
     [GeneratedRegex(@"^Response (\d{3})\b")]
     private static partial Regex ResponseMarker();
 
-    [GeneratedRegex(@"^- (\d{3}) `(\w+)`")]
+    [GeneratedRegex(@"^- (\d{3}) `([a-z_]+)`")]
     private static partial Regex ErrorLine();
+
+    [GeneratedRegex(@"^- \d{3}\b")]
+    private static partial Regex ErrorLike();
 
     public static IReadOnlyList<SpecEndpoint> Read(string specFile)
     {
@@ -32,6 +35,7 @@ internal static partial class SpecExamples
         int? marker = null;
         var markerSet = false;
         var inBody = false;
+        var inErrors = false;
         List<string> json = [];
 
         void Flush()
@@ -57,6 +61,22 @@ internal static partial class SpecExamples
                     json.Add(line);
                 }
                 continue;
+            }
+
+            if (line == "Errors")
+            {
+                inErrors = true;
+                continue;
+            }
+
+            if (inErrors && !line.StartsWith("- ", StringComparison.Ordinal))
+            {
+                inErrors = false;
+            }
+
+            if (inErrors && ErrorLike().IsMatch(line) && !ErrorLine().IsMatch(line))
+            {
+                throw new FormatException($"{specFile}: {method} {path}: error entry does not parse: {line}");
             }
 
             if (line.StartsWith("## ", StringComparison.Ordinal))

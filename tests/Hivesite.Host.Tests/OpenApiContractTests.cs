@@ -30,12 +30,22 @@ public sealed partial class OpenApiContractTests
     }
 
     [TestMethod]
-    [DataRow("API-001-sites.md", "POST /sites,GET /sites,GET /sites/{id},PATCH /sites/{id}")]
+    [DataRow("API-001-sites.md", "POST /sites:2:4,GET /sites:1:3,GET /sites/{id}:1:2,PATCH /sites/{id}:2:4")]
     public void The_spec_is_read_whole(string specFile, string expected)
     {
-        var read = SpecExamples.Read(specFile).Select(e => $"{e.Method} {e.Path}");
+        var read = SpecExamples.Read(specFile).Select(e => $"{e.Method} {e.Path}:{e.Bodies.Count}:{e.Errors.Count}");
 
         CollectionAssert.AreEqual(expected.Split(','), read.ToArray());
+    }
+
+    [TestMethod]
+    [DataRow("API-001-sites.md")]
+    public void Every_spec_endpoint_documents_the_401_of_the_shared_conventions(string specFile)
+    {
+        foreach (var endpoint in SpecExamples.Read(specFile))
+        {
+            CollectionAssert.Contains(endpoint.Errors.Select(e => $"{e.Status} {e.Code}").ToArray(), "401 unauthenticated", $"{endpoint.Method} {endpoint.Path}: the spec lists no 401 `unauthenticated`.");
+        }
     }
 
     [TestMethod]

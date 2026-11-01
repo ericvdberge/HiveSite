@@ -9,12 +9,13 @@ namespace Hivesite.Content.Endpoints;
 internal static class SiteEndpoints
 {
     private static readonly ApiError SiteNotFound = ApiError.Of("site_not_found", "No site with this id.");
+    private static readonly ProducesResponseTypeMetadata Unauthenticated = new(StatusCodes.Status401Unauthorized, typeof(ApiError), ["application/json"]);   // RequireAuthorization answers it
 
     public static void MapSiteEndpoints(this IEndpointRouteBuilder endpoints)
     {
         var sites = endpoints.MapGroup("/sites").RequireAuthorization();
         sites.WithTags("Sites");
-        sites.WithMetadata(new ProducesResponseTypeMetadata(StatusCodes.Status401Unauthorized, typeof(ApiError), ["application/json"]));   // RequireAuthorization answers it
+        sites.WithMetadata(Unauthenticated);
         sites.MapPost("", CreateSite).Validate<SitePostValidator>().WithName("CreateSite")
             .WithSummary("Create a site")
             .WithDescription("Errors: 400 `invalid_request`, 400 `slug_taken`, 400 `too_many_sites`, 401 `unauthenticated`.");
