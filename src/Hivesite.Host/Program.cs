@@ -11,9 +11,15 @@ builder.Services
     .AddContentModule()
     .AddRenderingModule()
     .AddPublishingModule()
-    .AddStudioCors(builder.Configuration);
+    .AddStudioCors(builder.Configuration)
+    .AddHivesiteOpenApi();
 
 var app = builder.Build();
+
+if (app.Environment.IsDevelopment())
+{
+    app.MapOpenApi();
+}
 
 app.UseExceptionHandler();
 app.UseCors(StudioCors.Policy);
