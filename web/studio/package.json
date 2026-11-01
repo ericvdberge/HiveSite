@@ -7,6 +7,7 @@
     "node": "^22.22.2 || >=24.15.0"
   },
   "scripts": {
+    "tokens": "node scripts/tokens.mjs",
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
@@ -16,6 +17,9 @@
     "generate:api": "openapi-typescript ../../openapi/hivesite.json -o src/api/schema.d.ts"
   },
   "dependencies": {
+    "@fontsource/cormorant-garamond": "^5.3.0",
+    "@fontsource/hanken-grotesk": "^5.3.0",
+    "@fontsource/ibm-plex-mono": "^5.3.0",
     "openapi-fetch": "^0.17.0",
     "vue": "^3.5.44",
     "vue-router": "^5.4.0"

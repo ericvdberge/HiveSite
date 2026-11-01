@@ -1,8 +1,9 @@
-<script setup lang="ts"></script>
+<script setup lang="ts">
+import ScreenHead from '../components/ScreenHead.vue'
+</script>
 
 <template>
-    <main>
-        <h1>Hivesite Studio</h1>
-        <p>Crafted by many. Made for you.</p>
-    </main>
+    <ScreenHead title="Hivesite Studio">
+        <template #lead>Crafted by many. Made for you.</template>
+    </ScreenHead>
 </template>
