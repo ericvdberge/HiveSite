@@ -5,6 +5,7 @@ Visual design for Hivesite sites, written so renderers never need a hard-coded v
 - `tokens.json`: three themes, each with the same keys.
 - `blocks/<type>.md`: one layout note per block type in API-003.
 - The block notes will become the default Vue components in `@hivesite/blocks` (#36).
+- `studio/<screen>.md`: one layout note per studio screen (#54). `studio/shell.md` holds the frame, the shared studio rules and the Token gaps list; the other notes link to it. The studio uses the `atelier` theme.
 - `check-contrast.mjs`: `node design/check-contrast.mjs design/tokens.json` checks that the themes share their keys and prints every contrast ratio.
 - `brand/`: logo, lockups and motion samples (a separate task).
 
