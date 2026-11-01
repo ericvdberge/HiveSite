@@ -21,5 +21,6 @@
     <Project Path="tests/Hivesite.Content.Tests/Hivesite.Content.Tests.csproj" />
     <Project Path="tests/Hivesite.Rendering.Tests/Hivesite.Rendering.Tests.csproj" />
     <Project Path="tests/Hivesite.Publishing.Tests/Hivesite.Publishing.Tests.csproj" />
+    <Project Path="tests/Hivesite.Host.Tests/Hivesite.Host.Tests.csproj" />
   </Folder>
 </Solution>
