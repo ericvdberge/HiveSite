@@ -1,6 +1,6 @@
 # Page form (add and edit)
 
-One form for adding a page and for changing its title and slug. Covers #65 and #47 AC2, AC3, AC5 and AC9. It follows [site-form.md](site-form.md) wherever this note is silent. Shared rules are in [shell.md](shell.md); this note lists only what differs.
+One form for adding a page and for changing its title and slug. Covers #65 and #47 AC2, AC3, AC5 and AC9. It follows [site-form.md](site-form.md) wherever this note is silent. In edit mode it links to the page's blocks ([block-editor.md](block-editor.md)). Shared rules are in [shell.md](shell.md); this note lists only what differs.
 
 ## Data
 
@@ -53,6 +53,9 @@ Server errors:
   <header class="hs-screen-head">
     <p class="hs-eyebrow">Atelier Noor</p>
     <h1 tabindex="-1">New page</h1>                         <!-- edit: Edit page -->
+    <div class="hs-screen-head__actions">                   <!-- edit only -->
+      <a class="hs-button hs-button--secondary" href="/pages/{id}/blocks">Edit blocks</a>
+    </div>
   </header>
   <form class="hs-form" novalidate>
     <div class="hs-message" role="alert">…</div>            <!-- only for a message without a field -->
@@ -81,6 +84,7 @@ As [site-form.md](site-form.md) Layout, with these differences:
 - Two fields: Title, then Slug. Title hint: "Used in the menu and as the page title."
 - Path preview: "Public path: /s/{site_slug}/{page_slug}". For the home page in edit it adds a second line: "As the home page it is also served at /s/atelier-noor/."
 - Cancel shows in both add and edit and returns to the page list.
+- **Edit blocks (edit only).** A secondary link "Edit blocks" in the screen head actions goes to `/pages/{id}/blocks`. It is not shown on add, because the page does not exist yet. Like Cancel, it does not save the form; a changed title or slug is left unsaved. While sending it is unavailable, like Cancel.
 
 **Slug warning (edit).** When the slug differs from the saved one, the Note block reads: "Note: This page's public path changes from /s/atelier-noor/about to /s/atelier-noor/about-us. Old links may stop working." For the home page it adds: "Your home page stays at /s/atelier-noor/."
 
@@ -101,7 +105,7 @@ As [site-form.md](site-form.md) Layout, with these differences:
 | Limit reached (field) | "80 of 80" or "60 of 60" stays `color.text_muted`; over it the counter turns `color.error` with the field error. | `color.text_muted`, `color.error` |
 | Limit reached (50 pages, add) | Form message in place of the form, as above. A server `too_many_pages` keeps the form, shows the form message with its copy and makes "Add page" unavailable. | `color.surface`, `color.error`, `color.text_muted`, `color.border` |
 | Reserved slug | Field error on Slug naming `assets`, from the client check or the server. | `color.error` |
-| Sending | Fields `readonly`; button busy ("Adding…" or "Saving…"); Cancel unavailable. | `color.text_muted`, `color.border` |
+| Sending | Fields `readonly`; button busy ("Adding…" or "Saving…"); Cancel and Edit blocks unavailable. | `color.text_muted`, `color.border` |
 | Saved (edit) | Status line with the new `updated_at`. | `color.text_muted`, `font_size.body_s` |
 | Slug changed (edit) | Note block under the path preview. | `color.rule`, `color.accent_text`, `color.text`, `border_width.focus` |
 
@@ -118,8 +122,8 @@ As [site-form.md](site-form.md) Responsive: below `breakpoint.sm` the buttons ar
 ## Accessibility
 
 - **`<h1>`:** "New page" (add), "Edit page" (edit). The eyebrow gives the site name; the document title adds the page title in edit ("Edit page · About · Hivesite Studio").
-- **Tab order.** Shell items, form message (when shown), Title, Slug, primary button, Cancel.
-- **Keyboard paths.** Enter in a field submits. Add: fill Title (Slug follows), Enter. Edit: change a field, Enter or "Save changes". Cancel: Tab to it, Enter.
+- **Tab order.** Shell items, Edit blocks (edit), form message (when shown), Title, Slug, primary button, Cancel.
+- **Keyboard paths.** Enter in a field submits. Add: fill Title (Slug follows), Enter. Edit: change a field, Enter or "Save changes". Cancel: Tab to it, Enter. Edit blocks (edit): Tab to it from the shell items, Enter; focus goes to the block editor's `<h1>`, as on any screen change.
 - On 201, focus goes to the new row's title link on the page list. On a save, focus stays on "Save changes" and the status line is read. Errors move focus as in site-form.
 - Labels, hints, counters and errors as in site-form; Slug has `autocapitalize="none"` and `spellcheck="false"`.
 - Shared focus ring (`border_width.focus`, `color.focus`); controls and buttons at least `control.min_height` tall.

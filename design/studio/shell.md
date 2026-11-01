@@ -301,14 +301,17 @@ Values the studio notes needed that `tokens.json` does not have. Each note uses 
 
 | Need | Proposed name | Used in | Stand-in until then |
 |---|---|---|---|
-| Dialog backdrop color | color.overlay | shell (dialog), delete-confirm | `color.image_scrim` |
-| Raised surface (toast, dialog, dragged row) | elevation.raised | shell (toast, dialog), menu-reorder | an edge of `border_width.hairline` in `color.border_strong` or `color.error` |
-| Warning color for a notice | color.warning | site-form, page-form (slug change) | the Note block: `color.rule` edge and the word "Note:" |
-| Success color for a saved message | color.success | site-form, page-form, menu-reorder | `color.text_muted` text; the words carry the meaning |
-| Stacking order (sticky top bar, dragged row above the list) | z_index.sticky, z_index.drag | shell, menu-reorder | top bar scrolls with the page; dialog and toast use the top layer; the dragged row stays in the list flow |
+| Dialog backdrop color | color.overlay | shell (dialog), delete-confirm, block-editor | `color.image_scrim` |
+| Raised surface (toast, dialog, dragged row) | elevation.raised | shell (toast, dialog), menu-reorder, block-editor | an edge of `border_width.hairline` in `color.border_strong` or `color.error` |
+| Warning color for a notice | color.warning | site-form, page-form (slug change), block-editor (second hero, paste) | the Note block: `color.rule` edge and the word "Note:" |
+| Success color for a saved message | color.success | site-form, page-form, menu-reorder, block-editor | `color.text_muted` text; the words carry the meaning |
+| Stacking order (sticky top bar, sticky save bar, dragged row above the list) | z_index.sticky, z_index.drag | shell, menu-reorder, block-editor | top bar and the block editor's screen head scroll with the page (Save also on Ctrl+S); dialog and toast use the top layer; the dragged row stays in the list flow |
 | Side navigation width | layout.nav_width | shell | `max-content` |
 | Dialog and toast width | layout.dialog_width | shell, delete-confirm | `layout.content_width` |
-| Unavailable control colors | color.disabled_text, color.disabled_border | shell (button) | `color.text_muted` text and `color.border` edge |
-| Icon size (drag handle, move arrows) | icon.size | page-list, menu-reorder | a text glyph at `font_size.body` |
+| Unavailable control colors | color.disabled_text, color.disabled_border | shell (button), block-editor | `color.text_muted` text and `color.border` edge |
+| Icon size (drag handle, move arrows) | icon.size | page-list, menu-reorder, block-editor (toolbar, chevron) | a text glyph at `font_size.body` |
 | Placeholder pulse colors | color.placeholder_pulse | shell (loading placeholder) | between `color.placeholder_media` and `color.surface_sunk` |
-| Drop indicator width | border_width.indicator | menu-reorder | `border_width.focus` |
+| Drop indicator width | border_width.indicator | menu-reorder, block-editor | `border_width.focus` |
+| Rich text area minimum height | control.editor_min_height | block-editor | four lines of `font_size.body` at `line_height.body` |
+| Lines a block summary shows before it clips | line_clamp.summary | block-editor | two lines |
+| Edge of a checked choice row | border_width.selected | block-editor (Add block dialog) | `border_width.focus` in `color.accent` |
