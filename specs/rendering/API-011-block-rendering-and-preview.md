@@ -2,30 +2,30 @@
 id: API-011
 title: Block rendering and draft preview
 domain: rendering
-status: draft
+status: in review
 owner: api-architect
 stories: [17, 18]
 depends_on: [API-001, API-002, API-003, API-004, API-010]
-version: 1
+version: 2
 ---
 
-> **Held.** This spec is on hold until ADR 3 (sandboxed Vue/Nuxt templates instead of the C# block renderer) is decided. It is kept as written for reference and is not up for approval. Its `brand_styling` references point to an API-001 v3 that was withdrawn; brand styling now comes from the `brand_styling` entity (API-005).
-
 ## Purpose
-Rendering turns a site's content and brand styling into static HTML, the same way every time. A site owner can see any draft page as HTML before it is published.
+Rendering builds a site's static files from one snapshot of its content with Hivesite's default Vue template, the same way every time. A site owner can see any draft page, built the same way, before it is published.
 
-Auth, ids, errors, validation and timestamps follow the shared conventions in API-001. Brand styling is in API-001, block types and their attributes in API-003, the blocks document in API-004, themes and tokens in API-010.
+Auth, ids, errors, validation and timestamps follow the shared conventions in API-001. The theme is `settings.theme` (API-001 v4, API-010). Block types and their attributes are in API-003, the blocks document in API-004, the block layouts in `design/blocks/`.
+
+Version 2 follows ADR 4. The C# renderer of version 1 is replaced by the default Vue template (`@hivesite/blocks` plus one template), which Rendering runs with Node, as trusted code, from the Host. Brand styling choices and list pages are gone; the theme is one site setting.
 
 ## Endpoints
 
 ### GET /pages/{id}/preview
 Auth: site owner
 
-Query:
-- `theme` (optional): a theme key from API-010. Renders with that theme instead of the site's `brand_styling.theme`, without saving it, so an owner can compare themes. The site's `display_font` and `corners` still apply.
-- `list_page` (optional): integer from 1, default 1. Which list page to show when the page has a paged collection `card_list` (see Paging).
+Operation: `PreviewPage`
 
-Renders the page as it is now in Content: current blocks, current menu, current site settings and brand styling. Nothing is stored.
+Query: `theme` (optional), a theme key from API-010. Builds with that theme instead of the site's `settings.theme`, without saving it, so an owner can compare themes.
+
+Builds the page as it is now in Content (current blocks, menu and site settings) and returns its HTML. Nothing is stored.
 
 Request
 ```
@@ -34,9 +34,9 @@ GET /pages/01a181d8-810e-7cfa-b14e-65065bb59fa1/preview
 
 Response 200
 
-Headers: `Content-Type: text/html; charset=utf-8`, `Cache-Control: no-store`, `X-Robots-Tag: noindex`, `Content-Security-Policy` as in Security below.
+Headers: `Content-Type: text/html; charset=utf-8`, `Cache-Control: no-store`, `X-Robots-Tag: noindex`, and the headers in Security below.
 
-The site is Atelier Noor (`language` `nl`, brand styling `atelier` with `from_theme` for both choices, so `<html>` has no `data-display-font` or `data-corners`) with three pages in menu order: Home (`01a181cf-2a4a-7cd5-bb2c-5c6582ac33a0`), About (`01a181d4-5e8b-75fc-bd2f-613219bf3f79`, slug `about`) and Our work (`01a181d8-810e-7cfa-b14e-65065bb59fa1`, slug `our-work`). Our work has a `hero` and a `rich_text` block.
+The site is Atelier Noor (`language` `nl`, `theme` `atelier`) with three pages in menu order: Home (`01a181cf-2a4a-7cd5-bb2c-5c6582ac33a0`), About (`01a181d4-5e8b-75fc-bd2f-613219bf3f79`, slug `about`) and Our work (`01a181d8-810e-7cfa-b14e-65065bb59fa1`, slug `our-work`). Our work has a `hero` and a `rich_text` block. The example is wrapped for reading; the real body is as Vue's server renderer writes it (see Output).
 ```html
 <!doctype html>
 <html lang="nl" data-theme="atelier">
@@ -64,16 +64,18 @@ The site is Atelier Noor (`language` `nl`, brand styling `atelier` with `from_th
 </nav>
 </header>
 <main class="hs-main" id="hs-main">
-<section class="hs-block hs-hero" id="hs-b0" aria-labelledby="hs-b0-title">
-<div class="hs-hero__text">
-<h1 class="hs-hero__title" id="hs-b0-title">Selected work</h1>
+<section class="hs-hero" id="hs-b0" data-variant="image">
+<img class="hs-hero__image" src="https://images.example.com/noor/vases.jpg" alt="Three celadon vases on linen" loading="eager" decoding="async">
+<div class="hs-hero__body">
+<h1 class="hs-hero__title">Selected work</h1>
 <p class="hs-hero__subtitle">Bowls, vases and tableware.</p>
 <a class="hs-button" href="/pages/01a181d4-5e8b-75fc-bd2f-613219bf3f79/preview">Meet the maker</a>
 </div>
-<img class="hs-hero__image" src="https://images.example.com/noor/vases.jpg" alt="Three celadon vases on linen" loading="eager" decoding="async">
 </section>
-<section class="hs-block hs-rich-text" id="hs-b1">
+<section class="hs-rich-text" id="hs-b1">
+<div class="hs-prose">
 <p>Every piece is thrown, glazed and fired in <strong>Utrecht</strong>. Read more <a href="/pages/01a181d4-5e8b-75fc-bd2f-613219bf3f79/preview">about the studio</a>.</p>
+</div>
 </section>
 </main>
 <footer class="hs-footer">
@@ -119,31 +121,32 @@ The blocks behind this example:
 Errors
 
 Errors are JSON in the shape of `specs/STYLE.md`, not HTML.
-- 400 `invalid_request`: `list_page` is not an integer of 1 or more (`field` `list_page`), or `theme` is empty (`field` `theme`).
-- 400 `unknown_theme`: `theme` is not a key from API-010. `field` is `theme`.
-- 400 `list_page_out_of_range`: `list_page` is higher than the page's list page count. `field` is `list_page`.
+- 400 `unknown_theme`: `theme` is sent and is not one of the API-010 keys, including an empty value. `field` is `theme`.
 - 401 `unauthenticated`
 - 404 `page_not_found`: as in API-002.
+- 500 `build_failed`: the build did not finish: Node exited with an error, wrote output that breaks the Build contract, or ran longer than 10 seconds. The owner can try again; the cause is in the Host's log. This is a Hivesite bug, never a content problem.
 
-## Renderer contract
+#### How the studio shows it
+The studio opens the preview URL in a new browser tab. The page is served from the API origin, so every absolute path in it resolves there:
+- the stylesheet: `/themes/{key}/assets/{file}` (API-010), and the fonts next to it;
+- links to other pages of the site: `/pages/{page_id}/preview`, with `?theme={key}` added when the preview was asked with `theme`;
+- images: their own `https://` URLs (API-003).
 
-Rendering offers two pure functions through `Hivesite.Rendering.Contracts`. Preview calls `RenderPage`; Publishing (API-020) calls `RenderSite`. Neither reads a database, the clock or a random source: the caller passes in everything, and the same input always gives byte-identical output.
+## Snapshot
 
-### Input: a site snapshot
-Shown as JSON; in code it is a set of records with the same names in PascalCase.
+The snapshot is everything a build reads: the site and its theme, the menu, the pages and their blocks. It is the minimal subset of the API-005 snapshot that the default template needs. When API-005's snapshot is built, it can replace this one; it then raises `snapshot_format` to 2.
+
 ```json
 {
-  "mode": "release",
+  "snapshot_format": 1,
   "site": {
     "id": "01a181c9-b7ca-70bc-abf5-a9e81e300af7",
     "name": "Atelier Noor",
     "slug": "atelier-noor",
-    "language": "nl",
-    "description": "Handmade ceramics from Utrecht.",
-    "brand_styling": {
-      "theme": "atelier",
-      "display_font": "from_theme",
-      "corners": "from_theme"
+    "settings": {
+      "language": "nl",
+      "description": "Handmade ceramics from Utrecht.",
+      "theme": "atelier"
     }
   },
   "pages": [
@@ -154,110 +157,151 @@ Shown as JSON; in code it is a set of records with the same names in PascalCase.
       "menu_order": 0,
       "created_at": "2026-10-28T09:20:00Z",
       "blocks": { "type": "doc", "content": [] }
+    },
+    {
+      "id": "01a181d4-5e8b-75fc-bd2f-613219bf3f79",
+      "title": "About",
+      "slug": "about",
+      "menu_order": 1,
+      "created_at": "2026-10-28T09:25:41Z",
+      "blocks": { "type": "doc", "content": [] }
     }
   ]
 }
 ```
-- `mode`: `release` or `preview` (see Modes).
-- `site.brand_styling`: the site's brand styling as Content returns it (API-001). Preview with a `theme` override passes the override in `site.brand_styling.theme`. The theme's tokens and assets come from the registry in code (API-010), so they are part of the renderer, not of the input.
-- `pages`: every page of the site in `menu_order`, each with its stored blocks document (API-004). The caller reads the site, the pages and their blocks in one consistent read through `Hivesite.Content.Contracts`.
-- The blocks are trusted: they were validated by API-004 and are not validated again.
+- `site`: the fields of API-001 that a build uses, with the same names. A preview with `?theme=` puts that key in `site.settings.theme`.
+- `pages`: every page of the site in `menu_order`. This order is the menu: every page is in it (API-002). `blocks` is the page's stored document (API-004), validated there and not validated again.
+- Keys are in the order shown, and the JSON is compact UTF-8. The same stored content gives the same bytes.
+- At most 14 MB (14,680,064 bytes): 50 pages (API-002) with at most 256 KB of blocks each (API-004).
 
-### RenderPage(snapshot, page_id, list_page) → HTML
-Returns one HTML document as a UTF-8 string. Fails with `list_page_out_of_range` when `list_page` is higher than the page's list page count.
+### Where it comes from
+Content offers it in-process through `Hivesite.Content.Contracts`. This adds two operations to `IContentApi`, built by Content:
+- `GetSiteSnapshot(site_id)`: the snapshot of that site, or `null` when the site does not exist or belongs to another owner.
+- `GetSiteSnapshotForPage(page_id)`: the snapshot of the site that holds that page, or `null` when the page does not exist or its site belongs to another owner.
+
+Both read the site, its pages and their blocks in one transaction, so they belong to the same moment. They return records with the snapshot's fields in PascalCase; Rendering writes them as the JSON above.
+
+## Build contract
+
+Rendering offers two operations through `Hivesite.Rendering.Contracts`. The preview endpoint calls `RenderPage`; Publishing (API-020) calls `RenderSite`. Both are pure: a snapshot in, files out, and the same snapshot always gives byte-identical files. Neither stores anything.
+
+### RenderPage(snapshot, page_id, preview_theme) → HTML
+Returns one HTML document, built in `preview` mode, as a UTF-8 string. `preview_theme` is the `theme` query value or `null`; it only adds `?theme=` to preview links. Fails with `build_failed`.
 
 ### RenderSite(snapshot) → files
-Returns every file of a static site, as a list of `{ "path", "content_type", "bytes" }`, sorted by `path` in ordinal order:
+Returns every file of the static site, built in `release` mode, as a list of `{ path, content_type, bytes }` sorted by `path` in ordinal order. Fails with `no_pages` when the snapshot has no pages, `build_too_large` when the output breaks a limit below, or `build_failed`.
 
-| `path` | What |
-|---|---|
-| `/` | the home page (`menu_order` 0) |
-| `/{page_slug}` | every other page |
-| `/page/{n}` | list page `n` (2 or more) of the home page, when it has one |
-| `/{page_slug}/page/{n}` | list page `n` (2 or more) of another page |
-| `/404.html` | the not-found page (see Not-found page). The `.` keeps it apart from a page with the slug `404` |
-| `/assets/{file}` | the theme's stylesheet and fonts (API-010), and later files such as API-012's script |
+### Release files
 
-HTML files have `content_type` `text/html; charset=utf-8`. A snapshot with no pages is an error; Publishing checks for it first (API-020).
+| `path` | What | `content_type` |
+|---|---|---|
+| `/` | the home page (`menu_order` 0) | `text/html; charset=utf-8` |
+| `/{page_slug}` | every other page | `text/html; charset=utf-8` |
+| `/404.html` | the not-found page | `text/html; charset=utf-8` |
+| `/assets/{file}` | the theme's stylesheet and fonts (API-010), copied as they are | `text/css; charset=utf-8` or `font/woff2` |
+
+API-002 reserves the page slug `assets`, so pages and assets cannot clash.
+
+### Running the template
+Rendering runs the default template's build with Node, once per call:
+1. It starts `node {template_dir}/render.mjs` as a child process of the Host, with no arguments.
+2. It writes one JSON request to the process's stdin and closes it:
+   ```json
+   {
+     "mode": "preview",
+     "page_id": "01a181d8-810e-7cfa-b14e-65065bb59fa1",
+     "preview_theme": null,
+     "snapshot": { "snapshot_format": 1, "site": { "…": "as Snapshot" }, "pages": [] }
+   }
+   ```
+   In `release` mode `page_id` and `preview_theme` are `null`.
+3. The process writes one JSON response to stdout and exits with code 0:
+   ```json
+   {
+     "files": [
+       { "path": "/our-work", "html": "<!doctype html>…" }
+     ]
+   }
+   ```
+   In `preview` mode `files` holds exactly the one page. In `release` mode it holds `/`, every `/{page_slug}` and `/404.html`. Node writes HTML only; Rendering adds `/assets/{file}` from the theme's built assets and sets every `content_type`.
+4. Anything else is `build_failed`: a non-zero exit code, output that is not this JSON, a missing or extra path, or a run over the time limit. Rendering kills the process at the limit and logs the first 4 KB of stderr.
+
+### Limits
+
+| | Preview | Release |
+|---|---|---|
+| Wall clock per build, then killed | 10 seconds | 30 seconds |
+| Snapshot in | 14 MB | 14 MB |
+| Output on stdout | 2 MB | 50 MB |
+| One HTML file | 2 MB | 2 MB |
+| Files in the result | 1 | 3,000, including assets |
+| Bytes in the result | 2 MB | 50 MB (52,428,800), including assets |
+
+A release over its file or byte limit fails with `build_too_large`; API-020 returns it as 400 `release_too_large`. Output over a stdout or HTML file limit is `build_failed`. With the limits of API-002 to API-004 a site has at most 51 HTML files and the theme's 7 assets, so these limits only catch a bug.
 
 ## Modes
 
 | | `release` | `preview` |
 |---|---|---|
-| Links to site pages | relative to the file's own path (see Links) | `/pages/{page_id}/preview`, plus `?list_page={n}` for list pages, plus `theme={key}` when a `theme` override was given |
-| Stylesheet and fonts | `assets/{file}`, relative like links | `/themes/{key}/assets/{file}` (API-010) |
+| Links to site pages | relative (see Links) | `/pages/{page_id}/preview`, plus `?theme={key}` when `preview_theme` is set |
+| Stylesheet | `assets/{file}`, relative | `/themes/{key}/assets/{file}` (API-010) |
 | `<meta name="robots" content="noindex">` | no | yes |
 | Preview label | no | `<p class="hs-preview-label">` right after the skip link |
-| Intro and loader (API-012) | yes | no |
 
-Release HTML never contains the site slug, except in the not-found page's `<base>`. A release therefore stays correct when the site slug changes (API-021).
+Release HTML never contains the site slug, except in the not-found page's `<base>`, so a release stays correct when the slug changes.
 
 ## Document
 
 Every HTML page has the structure of the example above, in this order:
-1. `<!doctype html>`, then `<html lang="{site.language}" data-theme="{theme}">`, where `{theme}` is `brand_styling.theme`. When `display_font` or `corners` is not `from_theme`, `data-display-font="{display_font}"` and then `data-corners="{corners}"` follow `data-theme`, in that order (API-010 Brand styling).
-2. `<head>`: `charset`, `viewport`, `robots` (preview only), `generator` (`Hivesite`), `color-scheme` (the theme's `color_scheme`), `<title>`, `description` (left out when `site.description` is `""`), the stylesheet link. Nothing else.
+1. `<!doctype html>`, then `<html lang="{site.settings.language}" data-theme="{site.settings.theme}">`.
+2. `<head>`: `charset`, `viewport`, `robots` (preview only), `generator` (`Hivesite`), `color-scheme` (the theme's `color_scheme`), `<title>`, `description` (left out when `site.settings.description` is `""`), the stylesheet link. Nothing else.
 3. `<body>`: skip link to `#hs-main`, preview label (preview only), `<header class="hs-header">` with the site name linked to the home page and the menu, `<main class="hs-main" id="hs-main">` with the blocks, `<footer class="hs-footer">` with the site name.
 
 ### Title
 - Home page: `{site name}`.
 - Other pages: `{page title} · {site name}`.
-- List page `n`: `{page title} · {Page n of N} · {site name}`, with the localised string from Strings; for the home page `{Page n of N} · {site name}`.
 
 ### Menu
 - `<nav class="hs-menu" aria-label="{Main menu}">` with a `<ul>` of every page in `menu_order`. Each item links to the page by its title.
-- The current page's link has `aria-current="page"`, also on its list pages.
+- The current page's link has `aria-current="page"`.
 
 ### Headings
 - Exactly one `<h1>` per page. If block 0 is a `hero`, its title is the `<h1>`. Otherwise `<main>` starts with `<h1 class="hs-page-title">{page title}</h1>`, before the first block.
 - A `hero` that is not block 0 uses `<h2>` for its title.
 - Block headings (`gallery`, `card_list`, `contact_form`) are `<h2>`. Card titles are `<h3>`. Rich text headings keep their level (2 or 3).
 
-### Output format
-- UTF-8 without BOM, `\n` line endings, ending in one `\n`.
-- One element per line, no indentation, as in the example. Inline content (text and its marks, links, `<br>`) stays on the line of its block element.
-- Attributes in the order shown in Blocks; values in double quotes. Boolean attributes (`required`, `allowfullscreen`) have no value.
-- No inline `style` attributes, no `<style>` elements, no inline scripts and no event handler attributes.
+### Output
+- The page is rendered on the server with Vue's `renderToString`. It holds no `<script>`, no hydration data and no event handler attributes: a built site is plain HTML and CSS.
+- Whitespace and Vue's own comment markers (`<!--[-->`) are as Vue writes them. The exact bytes are fixed by the snapshot tests, not by this spec; this spec fixes elements, attributes, classes and their order.
+- No `style` attributes and no `<style>` elements. Owner values that change the layout become `data-` attributes the stylesheet styles (see Blocks).
+- UTF-8 without BOM.
 
 ### Escaping
-- Every string from content is HTML-escaped: `&` `<` `>` `"` `'` become `&amp;` `&lt;` `&gt;` `&quot;` `&#39;`. This holds for text and for attribute values, including URLs.
+- Every string from content is HTML-escaped, in text and in attribute values, as Vue does for `{{ }}` and bound attributes. Components never use `v-html` or `innerHTML` with content.
 - Rich text `text` is literal (API-003): `<b>` in content is shown as the characters `<b>`.
 
 ## Blocks
 
-Every block is one top-level element with `class="hs-block hs-{type}"` (the type with `_` turned into `-`) and `id="hs-b{i}"`, where `i` is the block's 0-based position in the page. Ids inside a block start with that id. A block section with a heading has `aria-labelledby` pointing to it.
-
-Common rules:
-- An empty string attribute and a `null` attribute leave out the element that would show them (an empty `subtitle` gives no `<p class="hs-hero__subtitle">`).
-- Images: `<img src alt loading decoding>`. `alt=""` is kept as written: it marks the image as decorative. `loading` is `eager` in block 0 and `lazy` in every other block; `decoding` is always `async`.
-- A `width`, `layout`, `columns` or `aspect_ratio` attribute becomes a modifier class, as listed below. The layout itself comes from the theme stylesheet and `design/blocks/`.
-
-| Block | Markup |
-|---|---|
-| `hero` | `<section class="hs-block hs-hero" id aria-labelledby>`, then `<div class="hs-hero__text">` with `<h1\|h2 class="hs-hero__title" id="hs-b{i}-title">`, `<p class="hs-hero__subtitle">`, `<a class="hs-button" href>{cta.label}</a>`; then `<img class="hs-hero__image">` after the div. |
-| `rich_text` | `<section class="hs-block hs-rich-text" id>` holding the rich text (see Rich text). No heading id; the block has no `aria-labelledby`. |
-| `image` | `<figure class="hs-block hs-image hs-image--{width}" id>` with `<img>` and `<figcaption>`. |
-| `gallery` | `<section class="hs-block hs-gallery hs-gallery--cols-{columns}" id aria-labelledby>`, `<h2 class="hs-block__heading" id="hs-b{i}-heading">`, then `<ul class="hs-gallery__grid">` with one `<li><figure><img><figcaption></figure></li>` per image. |
-| `card_list` | `<section class="hs-block hs-card-list hs-card-list--{layout}" id aria-labelledby>`, `<h2 class="hs-block__heading" id="hs-b{i}-heading">`, `<ul class="hs-card-list__items">` with one `<li><article class="hs-card">` per card, then the pager (see Paging). |
-| `contact_form` | `<section class="hs-block hs-contact-form" id aria-labelledby>`, `<h2 class="hs-block__heading" id="hs-b{i}-heading">`, `<p class="hs-contact-form__intro">`, then `<form class="hs-form" method="post" action="{action_url}">` (see Contact form). |
-| `embed` | `<figure class="hs-block hs-embed hs-embed--{ratio}" id>` with `<iframe>` and `<figcaption>` holding the `title`. `ratio` is `16-9`, `4-3` or `1-1`. |
+Each block type is one component in `@hivesite/blocks`. Its markup is the Structure in `design/blocks/{type}.md`: the same elements, classes, `data-` attributes and order, with these rules on top:
+- The block's top element gets `id="hs-b{i}"`, where `i` is its 0-based position in the page. Ids inside a block start with it: `hs-b{i}-heading` for its heading, `hs-b{i}-{name}` for a form field.
+- An empty string attribute and a `null` attribute leave out the element that would show them.
+- A block with a `heading` attribute has `aria-labelledby="hs-b{i}-heading"` when the heading is not empty, and `aria-label` with its block name from Strings when it is.
+- Images: `<img src alt loading decoding>`. `alt=""` is kept: it marks the image as decorative. The hero image has `loading="eager"`; every other image `loading="lazy"`. `decoding` is always `async`.
+- `gallery.columns` is `data-columns="{columns}"` on `.hs-gallery__grid` and `embed.aspect_ratio` is `data-ratio="16-9"`, `"4-3"` or `"1-1"` on `.hs-embed__frame`, instead of the inline styles in `design/blocks/gallery.md` and `embed.md`. The page's CSP allows no inline style.
+- A `card_list` with `source.kind` `collection` shows the first `page_size` cards, sorted as API-003 says (`created_at` comes from the snapshot). It has no pager. A collection list with no items (the site has one page) is left out entirely.
 
 ### Rich text
 - `paragraph` → `<p>`, `heading` → `<h2>` or `<h3>`, `bulletList` → `<ul>`, `orderedList` → `<ol>` (with `start="{n}"` only when `start` is not 1), `listItem` → `<li>`, `hardBreak` → `<br>`.
 - An empty `paragraph` or `heading` (no `content`) is left out.
-- Marks nest in a fixed order, outermost first: `link` → `<a href>`, `bold` → `<strong>`, `italic` → `<em>`. Each `text` node is rendered on its own; adjacent nodes with the same mark give adjacent elements.
-- A list item's paragraph is rendered as a `<p>` inside the `<li>`.
+- Marks nest in a fixed order, outermost first: `link` → `<a href>`, `bold` → `<strong>`, `italic` → `<em>`.
 - Of the `link` mark only `href` is used (API-003). `orderedList`'s `type` is ignored.
 
 ### Cards
-- An `<article class="hs-card">` holds, in order: `<img class="hs-card__image">`, `<h3 class="hs-card__title">`, `<p class="hs-card__body">`, `<a class="hs-card__action" href>{label}</a>`.
-- Manual cards: the title is plain text and the `action`, when set, is the link.
-- Collection cards from `page` (API-003): the title is a link to the page and there is no action, body or image.
+- Manual cards: the title is plain text, or a link to `action.href` when the card has an `action`; the action label is the `hs-card__action` text as `design/blocks/card_list.md` says.
+- Collection cards from `page` (API-003): the title links to the page. There is no action, body or image.
 
 ### Contact form
-- One field per line pair: `<label for="hs-b{i}-{name}">{label}</label>`, then the control with `id="hs-b{i}-{name}" name="{name}"`.
-- Controls: `text` → `<input type="text">`, `email` → `<input type="email" autocomplete="email">`, `phone` → `<input type="tel" autocomplete="tel">`, `textarea` → `<textarea rows="5"></textarea>`. A required field adds `required` to the control and ` <span class="hs-form__required">({required})</span>` to the label.
-- Then `<button class="hs-button" type="submit">{submit_label}</button>`.
+- Each field is a `<label for="hs-b{i}-{name}">` and its control with `id="hs-b{i}-{name}" name="{name}"`, using the elements in `design/blocks/contact_form.md`. A required field adds `required` to the control and `({required})` from Strings to the label.
 - The form posts to `action_url` as `application/x-www-form-urlencoded`. No script is added.
 
 ### Embed
@@ -266,85 +310,82 @@ The stored `url` becomes a privacy-friendly player URL:
 - `vimeo`: the numeric id from `vimeo.com/{id}` or `player.vimeo.com/video/{id}` → `https://player.vimeo.com/video/{id}?dnt=1`.
 - `google_maps`: the stored URL as it is.
 
-The iframe is `<iframe src title loading="lazy" referrerpolicy="strict-origin-when-cross-origin" sandbox="allow-scripts allow-same-origin allow-presentation allow-popups" allow="fullscreen; picture-in-picture" allowfullscreen></iframe>`. When no id can be found in a `youtube` or `vimeo` URL, the figure holds `<a class="hs-embed__link" href="{url}">{title}</a>` instead of the iframe.
+The iframe is `<iframe src title loading="lazy" referrerpolicy="strict-origin-when-cross-origin" sandbox="allow-scripts allow-same-origin allow-presentation allow-popups" allow="fullscreen; picture-in-picture" allowfullscreen>`. When no id can be found in a `youtube` or `vimeo` URL, the frame holds `<a class="hs-embed__link" href="{url}">{title}</a>` instead.
 
 ## Links
 Every `href` from content (`hero.cta`, card actions, rich text links) and every menu link is resolved the same way.
 
 - `https://…` and `mailto:…`: written as stored. No `target`, no `rel`.
-- Site paths, matched against the snapshot:
-  - `/` → the home page.
-  - `/{slug}` → the page with that slug; the home page's own slug also means the home page.
-  - `/page/{n}` and `/{slug}/page/{n}` → that list page, when it exists.
-- A site path that matches nothing (a page renamed or deleted since the link was written) is rendered as its text without a link: `<span class="hs-link-missing">`. A published site never has a dead internal link.
-
-In `release` mode a site link is relative to the path of the file it is in, so it works under any site slug:
-
-| File | Prefix | Home | Page `about` | Asset |
-|---|---|---|---|---|
-| `/` and `/{slug}` | (none) | `./` | `about` | `assets/theme.5f1c9a2e.css` |
-| `/page/{n}` | `../` | `../` | `../about` | `../assets/theme.5f1c9a2e.css` |
-| `/{slug}/page/{n}` | `../../` | `../../` | `../../about` | `../../assets/theme.5f1c9a2e.css` |
-
-A list page link is `{prefix}{slug}/page/{n}` (or `{prefix}page/{n}` for the home page); list page 1 is the page itself.
-
-## Paging
-- A `card_list` with `source.kind` `collection` shows `page_size` cards per list page.
-- A page's list page count `N` is the highest `ceil(items / page_size)` over its collection lists, and at least 1. With 49 other pages and `page_size` 12, `N` is 5.
-- On list page `n`, every collection list on the page shows its `n`-th slice. A list whose own slice count is lower than `n` shows its heading and a pager with only "previous" to its last slice.
-- A list with more than one slice ends with `<nav class="hs-pager" aria-label="{Pages}">`: a "previous" link (`rel="prev"`) when `n` > 1, `<span class="hs-pager__status">{Page n of N}</span>` with the list's own count, and a "next" link (`rel="next"`) when there is a next slice.
-- A collection list with no items at all (the site has one page) is left out entirely.
-- Manual lists are never paged.
-- Sorting follows API-003 (`natural`, `newest`, `title`); `created_at` comes from the snapshot.
+- Site paths, matched against the snapshot: `/` is the home page; `/{slug}` is the page with that slug, and the home page's own slug also means the home page.
+- A site path that matches no page (renamed or deleted since the link was written) is its text without a link: `<span class="hs-link-missing">`. A published site never has a dead internal link.
+- In `release` mode site links are relative, so they work under any site slug. Every release file except the not-found page sits at the site root, so the home page is `./`, a page is `{slug}` and an asset is `assets/{file}`.
 
 ## Not-found page
-`RenderSite` adds `/404.html`: the site header and menu (no item has `aria-current`), then `<main>` with `<h1 class="hs-page-title">{Not found title}</h1>`, `<p>{Not found text}</p>` and a link to the home page. Its title is `{Not found title} · {site name}`. Because Publishing serves it at any unknown path, it has `<base href="/s/{site.slug}/">` as the first element of `<head>` after `charset`, and its links use the prefix of `/`.
+`RenderSite` adds `/404.html`: the site header and menu (no item has `aria-current`), then `<main>` with `<h1 class="hs-page-title">{Not found title}</h1>`, `<p>{Not found text}</p>` and a link `{Back home}` to the home page. Its title is `{Not found title} · {site name}`. Publishing serves it at any unknown path, so it has `<base href="/s/{site.slug}/">` right after `charset`.
 
 ## Strings
-Built-in text is chosen by the primary subtag of `site.language`. `nl` gets Dutch; every other language gets English.
+Built-in text is chosen by the primary subtag of `site.settings.language`. `nl` gets Dutch; every other language gets English.
 
 | Key | `en` | `nl` |
 |---|---|---|
 | Skip link | Skip to content | Naar de inhoud |
 | Main menu | Main menu | Hoofdmenu |
-| Pages | Pages | Pagina's |
-| Previous | Previous | Vorige |
-| Next | Next | Volgende |
-| Page n of N | Page {n} of {N} | Pagina {n} van {N} |
 | required | required | verplicht |
 | Preview label | Preview · not published | Voorbeeld · niet gepubliceerd |
 | Not found title | Page not found | Pagina niet gevonden |
 | Not found text | This page does not exist (any more). | Deze pagina bestaat niet (meer). |
 | Back home | Back to the home page | Terug naar de startpagina |
-| Made with (API-012) | Made with Hivesite | Gemaakt met Hivesite |
+| Gallery (block name) | Gallery | Galerij |
+| Card list (block name) | Cards | Kaarten |
+| Contact form (block name) | Contact form | Contactformulier |
 
 ## Security
-- Preview responses (and the live site, API-021) send `Content-Security-Policy: default-src 'none'; style-src 'self'; font-src 'self'; img-src https:; frame-src https://www.youtube-nocookie.com https://player.vimeo.com https://www.google.com; form-action https:; script-src 'self'; base-uri 'self'; frame-ancestors 'none'`.
-- Rendered HTML holds no owner-controlled script or style, so this policy never blocks a correct page.
-- `X-Content-Type-Options: nosniff` and `Referrer-Policy: strict-origin-when-cross-origin` on every response.
+- Preview responses send `Content-Security-Policy: default-src 'none'; style-src 'self'; font-src 'self'; img-src https:; frame-src https://www.youtube-nocookie.com https://player.vimeo.com https://www.google.com; form-action https:; script-src 'none'; base-uri 'self'; frame-ancestors 'none'`, `X-Content-Type-Options: nosniff` and `Referrer-Policy: strict-origin-when-cross-origin`.
+- Built HTML holds no owner-controlled script or style, so this policy never blocks a correct page. That is what makes serving on the API origin safe (ADR 4).
+- The template is Hivesite's own code. No owner code runs in a build.
+
+## Tooling
+- **Node 24 LTS**, at least 24.15.0, the version CI uses. The Host finds it as `node` on its `PATH`.
+- **`web/packages/blocks`** is `@hivesite/blocks`: one Vue 3 single-file component per block type, in TypeScript (strict), styled only with `var(--hs-…)` from `design/tokens.json`. It ships source and has no build of its own.
+- **`web/template`** is the default template, `@hivesite/template-default`: the page shell (head, header, menu, footer, not-found page), the stylesheet build from `design/tokens.json` and the block styles, and `render.mjs`. It depends on `@hivesite/blocks` as `file:../packages/blocks`. Both packages are private and never published to npm.
+- `npm ci && npm run build` in `web/template` writes `web/template/dist/`: `render.mjs` (a Vite SSR bundle with Vue and every dependency inside, so it runs without `node_modules`), `themes/{key}/` with each theme's stylesheet and fonts, and `themes.json`, the registry Rendering reads (API-010): per theme its `key`, `name`, `description`, `color_scheme`, `version`, `sample` and asset file names.
+- The Host's published output carries `web/template/dist/` as `{template_dir}`. Rendering reads `themes.json` once at start and fails to start without it.
+- Tests: the HTML snapshot tests are Vitest snapshots in `web/template` (`npm test`). C# tests in `tests/Hivesite.Rendering.Tests` run the built `render.mjs` for the Build contract: modes, release files, limits and errors.
 
 ## Rules
 
 ### Purity and determinism
-- `RenderPage` and `RenderSite` are pure. Same snapshot (and arguments) in, same bytes out. Snapshot tests cover every block type in every theme, both modes, list pages, the not-found page, and each `display_font` and `corners` value at least once.
-- Renderers use design tokens only, through the theme stylesheet's custom properties. HTML carries classes, never values.
+- A build reads only its request. `render.mjs` does not read the clock, a random source, the environment, the network or any file outside its own bundle. The same request gives byte-identical output; a test builds the same snapshot twice and compares.
+- Snapshot tests cover every block type in every theme, both modes, the not-found page, a page without a hero, and both languages.
+- The stylesheet and components use design tokens only. HTML carries classes and `data-` attributes, never values.
 
 ### Limits
-- A page renders at most 40 blocks (API-004) and 50 menu items (API-002).
-- `list_page` in a preview: 1 to the page's `N`. The highest possible `N` is 49 (49 other pages, `page_size` 1).
+- A page has at most 40 blocks (API-004) and the menu at most 50 items (API-002).
+- Build limits are in Build contract.
 
 ### Preview
-- Preview reads the site with its brand styling, its pages and their blocks in one read through `Hivesite.Content.Contracts`, then calls `RenderPage` with `mode` `preview`. Rendering stores nothing and has no database.
+- Preview calls `GetSiteSnapshotForPage`, then `RenderPage`. `null` from Content is 404 `page_not_found`. Rendering stores nothing and has no database.
 - Preview is read-only and raises no events.
-- Preview has no intro, loader or script.
+
+### Operation names
+- `PreviewPage` (HTTP), `RenderPage` and `RenderSite` (Rendering contract), `GetSiteSnapshot` and `GetSiteSnapshotForPage` (Content contract). Each becomes the `operationId` and the C# method name. Renaming one is a breaking change.
+
+## Agent use
+An agent previews with `GET /pages/{id}/preview`, optionally with `?theme=`, and reads the HTML. It is read-only and safe to call any number of times. A 500 `build_failed` may be retried once; a second failure is a bug to report.
 
 ## Decisions
-- **The markup in this spec is the contract.** Class names, element order and heading levels are fixed here; `design/blocks/` styles them through the theme stylesheet. A markup change is a new version of this spec.
-- **Release HTML uses relative links.** A release does not depend on the site slug, so a slug change reaches the live site without a new publish (API-021).
-- **Dead internal links become plain text.** Content does not check site paths (API-003), so Rendering makes sure a published site has none.
-- **List pages live at `/{page_slug}/page/{n}`** (and `/page/{n}` for the home page). They cannot clash with page slugs, which are one path segment. All collection lists on one page share the list page number.
-- **YouTube embeds use `youtube-nocookie.com` and Vimeo adds `dnt=1`,** so visitors are not tracked until they press play.
-- **Built-in strings come in English and Dutch.** Other languages fall back to English until a story adds them.
+- **One default Vue template, run by Node from the Host as trusted code** (ADR 4). No sandbox, because no owner code runs.
+- **Preview is synchronous.** A build of one page takes well under a second, so the endpoint returns HTML in the response, not a job to poll. The 10-second limit makes a stuck build fail instead of hang.
+- **One Node process per build, request on stdin, response on stdout.** No temp folders and no long-running Node server.
+- **Node writes HTML only; Rendering adds the theme assets.** Assets are fixed per theme and deploy, so they are built once, in `npm run build`, not per site.
+- **The block markup is in `design/blocks/`, and the bytes in snapshot tests.** Version 1 repeated the markup here and drifted from the design notes. This spec keeps only the rules that cross blocks: ids, headings, escaping, links, images.
+- **`data-columns` and `data-ratio`, not inline styles,** so the CSP needs no `'unsafe-inline'`. `design/blocks/gallery.md` and `embed.md` should follow in a design change.
+- **`script-src 'none'`.** A built site has no script in this version. API-012 (intro and loader) changes it when it is revised.
+- **The snapshot is a small subset of API-005's,** with `snapshot_format` 1, so API-005 can replace it later as format 2 without changing the template's job.
+- **Content adds `GetSiteSnapshot` and `GetSiteSnapshotForPage`** to `Hivesite.Content.Contracts`. Rendering never reads Content's data another way.
+- **The operation names `RenderPage` and `RenderSite` are kept** from version 1, so API-020 calls the same contract.
+- **The studio opens the preview in a new tab.** Showing it inside the studio in an `<iframe>` needs `frame-ancestors` for the studio's origin; not in this version.
+- **Not in this version:** list pages and a pager for collection card lists (version 1's `/page/{n}` and `list_page`), display font and corner choices, `@hivesite/composables`, owner templates and the build sandbox (ADR 3), per-site and preview origins, a preview of the whole site as files, caching of builds, a limit on builds running at once, retries, and site assets from API-006.
 
 ## Open questions
 - none
