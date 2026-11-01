@@ -8,8 +8,9 @@ Sites, pages, the menu, block types and block validation. Owned by `dev-content`
   - `Application/`: `SiteService`.
   - `Domain/`: `Site`, `SiteFilter`.
   - `Infrastructure/`: `ContentDbContext`, `SiteDao`, `SiteDaoMapper`, `SiteRepository`, `Migrations/`.
+  - Block types (API-003) have no database: `BlockTypes/*.json` (embedded schemas, copied verbatim from the spec, plus `defs.json`), `Infrastructure/BlockTypeRegistry` (singleton), `Application/BlockTypeService` and `BlockTypeModuleApi`, `Domain/BlockType`, `BlockTypeFilter`, `Endpoints/BlockTypeEndpoints`, `BlockTypeDtos`, `BlockTypeValidators`, `BlockTypeMapper`.
   - `ContentModule`: the only entry point the Host calls.
-- `Hivesite.Content.Contracts/`: what other modules may use. Interfaces, events (`SiteChanged`, `PageChanged`, `MenuChanged`) and their DTOs. Nothing else.
+- `Hivesite.Content.Contracts/`: what other modules may use. Interfaces (`IBlockTypeApi`), events (`SiteChanged`, `PageChanged`, `MenuChanged`) and their DTOs. Nothing else.
 - Tests: `tests/Hivesite.Content.Tests/`.
 
 ## Adding an entity (pages, menu, …)
@@ -21,6 +22,7 @@ Sites, pages, the menu, block types and block validation. Owned by `dev-content`
 6. Register the repository and service as scoped in `AddContentModule`.
 
 ## Rules
+- The block type registry is code, not data: the seven types are fixed, there is no endpoint or table to change them. A schema change raises that type's `version` and needs a new spec version. Never hand-write a schema in C#; edit the JSON resource so it stays equal to the spec.
 - Reference only `Hivesite.Shared`, this module's Contracts and other modules' Contracts. `Hivesite.ArchitectureTests` fails the build otherwise.
 - Own `DbContext`, schema `content` (ADR 2). Never read another module's tables.
 - Everything is scoped to the signed-in owner (`UserContext`). Another owner's resource is the same 404 as a missing one.

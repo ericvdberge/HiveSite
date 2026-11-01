@@ -1,5 +1,6 @@
 using FluentValidation;
 using Hivesite.Content.Application;
+using Hivesite.Content.Contracts;
 using Hivesite.Content.Endpoints;
 using Hivesite.Content.Infrastructure;
 using Microsoft.EntityFrameworkCore;
@@ -21,6 +22,9 @@ public static class ContentModule
         services.AddScoped<SiteService>();
         services.AddScoped<PageRepository>();
         services.AddScoped<PageService>();
+        services.AddSingleton<BlockTypeRegistry>();
+        services.AddScoped<BlockTypeService>();
+        services.AddScoped<IBlockTypeApi, BlockTypeModuleApi>();
         return services;
     }
 
@@ -28,6 +32,7 @@ public static class ContentModule
     {
         endpoints.MapSiteEndpoints();
         endpoints.MapPageEndpoints();
+        endpoints.MapBlockTypeEndpoints();
         return endpoints;
     }
 
