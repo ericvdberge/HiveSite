@@ -8,3 +8,5 @@ node_modules/
 .claude/settings.local.json
 .claude/worktrees/
 releases/
+# Written by dotnet build (src/Hivesite.Host); never commit it
+openapi/
