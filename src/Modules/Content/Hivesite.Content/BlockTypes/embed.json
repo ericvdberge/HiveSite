@@ -1,0 +1,19 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["type", "attrs"],
+  "properties": {
+    "type": { "const": "embed" },
+    "attrs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["provider", "url", "title"],
+      "properties": {
+        "provider": { "enum": ["youtube", "vimeo", "google_maps"] },
+        "url": { "$ref": "#/$defs/url" },
+        "title": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "aspect_ratio": { "enum": ["16:9", "4:3", "1:1"], "default": "16:9" }
+      }
+    }
+  }
+}

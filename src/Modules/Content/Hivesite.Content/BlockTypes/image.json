@@ -1,0 +1,18 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["type", "attrs"],
+  "properties": {
+    "type": { "const": "image" },
+    "attrs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["image"],
+      "properties": {
+        "image": { "$ref": "#/$defs/image" },
+        "caption": { "type": "string", "maxLength": 200, "default": "" },
+        "width": { "enum": ["content", "wide", "full"], "default": "content" }
+      }
+    }
+  }
+}
