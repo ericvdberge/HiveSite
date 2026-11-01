@@ -18,7 +18,7 @@
 | Spec | Title | Status | Stories | Depends on |
 |---|---|---|---|---|
 | [API-020](publishing/API-020-releases-and-rollback.md) | Releases and rollback | in review | #19, #20 | API-001, API-002, API-004, API-010, API-011 |
-| [API-021](publishing/API-021-serving.md) | Serving the live site | draft | #21 | API-001, API-002, API-011, API-020 |
+| [API-021](publishing/API-021-serving.md) | Serving the live site | in review | #21 | API-001, API-002, API-011, API-020 |
 
 ## rendering
 
@@ -30,8 +30,8 @@
 
 ## By status
 
-- **draft** (2): API-012, API-021
-- **in review** (7): API-001, API-003, API-005, API-006, API-010, API-011, API-020
+- **draft** (1): API-012
+- **in review** (8): API-001, API-003, API-005, API-006, API-010, API-011, API-020, API-021
 - **approved** (1): API-004
 - **built** (1): API-002
 
@@ -40,8 +40,3 @@
 - API-005: Should `accent_color` also fill the button fill `color.accent`? Then Content must also pick or check `color.on_accent` on it (4.5:1), for example the theme's `color.text` or `color.background`, whichever passes.
 - API-005: Contrast against `color.background` and `color.surface` (proposed), or `color.background` only, as first described?
 - API-005: The theme table and the `brand_styling` values depend on `design/tokens.json` in #33, which is not merged. Is version 1 of that file final, so this spec can cite it?
-- API-020: ADR 3: how is a release built? This spec calls the C# `RenderSite` (API-011), which is held. Under ADR 3 a release is a static build of Vue/Nuxt templates in a sandbox. Which contract does Publishing call, and what does it get back: files with paths and content types, as now?
-- API-020: ADR 3: is publish still synchronous? A sandboxed build may take longer than the Host's request timeout. If not, publish returns 202 with a release in a `building` state, and this spec needs that state, a failure state with an error `code`, and a way to poll. The retry check in Agent use then changes: an agent polls `GetRelease` until the release is live or failed.
-- API-020: ADR 3: do the limits hold for a static build (max 3,000 files and 50 MB per release)? A Nuxt build adds framework files per release.
-- API-020: ADR 3: `theme` and `theme_version` on a release. If templates replace the theme registry (API-010), what identifies the look a release was built with: theme key and version, a template version, or both?
-- API-020: ADR 3: Site slug changes and the home page slug. Both exist for path-based `/s/{site_slug}/` serving (API-021, held). With a per-site origin, does a slug change still reach the live site without a republish, and does a release still record its home page slug?
