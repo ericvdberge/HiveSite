@@ -24,7 +24,7 @@ public sealed partial class OpenApiContractTests
     [ClassInitialize]
     public static async Task LoadDocument(TestContext _)
     {
-        await using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(b => b.UseEnvironment("Development"));
+        await using var factory = HostFactory.WithoutDatabase();
         using var client = factory.CreateClient();
         document = JsonNode.Parse(await client.GetStringAsync(new Uri("/openapi/v1.json", UriKind.Relative)))!.AsObject();
     }
