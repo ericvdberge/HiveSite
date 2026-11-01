@@ -44,6 +44,11 @@ a {
     outline-offset: var(--hs-border-width-focus-offset);
 }
 
+/* Programmatic focus targets (the h1, main) are not controls: no ring (shell.md). */
+[tabindex='-1']:focus-visible {
+    outline: none;
+}
+
 .hs-eyebrow,
 .hs-label {
     font-family: var(--hs-font-label);

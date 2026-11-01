@@ -1,14 +1,29 @@
+<script lang="ts">
+import type { Router } from 'vue-router'
+
+// Routers whose first screen has already shown. Focus moves to the h1 only after that,
+// so the first page load keeps the browser's own tab order (skip link first).
+const firstScreenShown = new WeakSet<Router>()
+</script>
+
 <script setup lang="ts">
 import { onMounted, ref, watchEffect } from 'vue'
+import { useRouter } from 'vue-router'
 
 const props = defineProps<{ title: string; eyebrow?: string }>()
 const heading = ref<HTMLElement | null>(null)
+const router = useRouter()
 
-// Screen change: the document title follows the h1, and focus moves to it.
+const APP_NAME = 'Hivesite Studio'
+
+// The document title follows the h1.
 watchEffect(() => {
-    document.title = `${props.title} · Hivesite Studio`
+    document.title = props.title === APP_NAME ? APP_NAME : `${props.title} · ${APP_NAME}`
 })
-onMounted(() => heading.value?.focus())
+onMounted(() => {
+    if (firstScreenShown.has(router)) heading.value?.focus()
+    else firstScreenShown.add(router)
+})
 </script>
 
 <template>

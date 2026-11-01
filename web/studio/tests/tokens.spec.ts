@@ -44,7 +44,9 @@ describe('design tokens', () => {
         )
         const used = new Set<string>()
         for (const file of sourceFiles('src')) {
-            for (const m of readFileSync(file, 'utf8').matchAll(/var\((--hs-[a-z0-9-]+)\)/g)) {
+            for (const m of readFileSync(file, 'utf8').matchAll(
+                /var\(\s*(--hs-[a-z0-9-]+)\s*[,)]/g,
+            )) {
                 used.add(m[1] as string)
             }
         }
@@ -57,8 +59,34 @@ describe('design tokens', () => {
         expect(replaceBreakpoints('(width >= breakpoint(md))', bps)).toBe(`(width >= ${bps.md})`)
         expect(() => replaceBreakpoints('breakpoint(xl)', bps)).toThrow()
         const rule = { params: '(width < breakpoint(sm))' }
-        breakpointPlugin(bps).AtRule.media(rule)
+        breakpointPlugin(bps).AtRule(rule)
         expect(rule.params).toBe(`(width < ${bps.sm})`)
+    })
+
+    it('breakpoints: names with digits or capitals and any at-rule are handled or rejected loudly', () => {
+        const bps: Record<string, string> = { ...breakpoints(tokens), '2xl': '99rem' }
+        expect(replaceBreakpoints('(width >= breakpoint( 2xl ))', bps)).toBe('(width >= 99rem)')
+        expect(() => replaceBreakpoints('(width >= breakpoint(MD))', bps)).toThrow(/Unknown/)
+        expect(() => replaceBreakpoints('(width >= breakpoint())', bps)).toThrow(/Unknown/)
+        expect(() => replaceBreakpoints('breakpoint(md', bps)).toThrow(/Unresolved/)
+        const container = { params: 'sidebar (width >= breakpoint(md))' }
+        breakpointPlugin(bps).AtRule(container)
+        expect(container.params).toBe(`sidebar (width >= ${bps.md})`)
+        expect(() =>
+            breakpointPlugin(bps).AtRule({ params: '(width >= breakpoint(nope))' }),
+        ).toThrow()
+    })
+
+    it('token gaps: literals are explicit and a stand-in pointing at a missing token throws', () => {
+        const css = buildTokensCss(tokens)
+        expect(css).toContain('--hs-layout-nav-width: max-content;')
+        expect(css).toMatch(/--hs-color-overlay: var\(--hs-color-image-scrim\);/)
+        expect(() =>
+            buildTokensCss(tokens, 'atelier', { 'color.zzz_gap': 'color.no_such_token' }),
+        ).toThrow(/unknown token/)
+        expect(buildTokensCss(tokens, 'atelier', { 'x.gap': { literal: 'auto' } })).toContain(
+            '--hs-x-gap: auto;',
+        )
     })
 })
 
@@ -74,7 +102,9 @@ describe('no hard-coded design values', () => {
         const offenders: string[] = []
         for (const file of files) {
             const text = stripComments(readFileSync(file, 'utf8'))
-            const found = text.match(/#[0-9a-fA-F]{3,8}\b|\b\d*\.?\d+(px|rem|ms)\b|rgba?\(/g)
+            const found = text.match(
+                /#[0-9a-fA-F]{3,8}\b|\b\d*\.?\d+(px|rem|em|vh|vw|ms|s)\b|\b(rgba?|hsla?|oklch|oklab|lab|lch)\(/g,
+            )
             if (found) offenders.push(`${file}: ${found.join(', ')}`)
         }
         expect(offenders).toEqual([])

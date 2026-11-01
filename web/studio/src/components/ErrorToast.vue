@@ -15,6 +15,7 @@ function sync(message: string | null) {
     if (shouldOpen === open.value) return
     open.value = shouldOpen
     // The popover API sits in the browser's top layer; older engines and jsdom lack it.
+    // There, the @supports fallback in the styles shows and hides the toast from data-open.
     try {
         if (shouldOpen) el.value?.showPopover()
         else el.value?.hidePopover()
@@ -93,6 +94,19 @@ onMounted(() => sync(props.message))
 .hs-toast__label {
     color: var(--hs-color-error);
     font-weight: var(--hs-font-weight-text-strong);
+}
+
+/* No popover support: data-open drives a fixed-position toast. */
+@supports not selector(:popover-open) {
+    .hs-toast {
+        position: fixed;
+        display: none;
+    }
+
+    .hs-toast[data-open='true'] {
+        display: flex;
+        opacity: 1;
+    }
 }
 
 @media (width < breakpoint(sm)) {

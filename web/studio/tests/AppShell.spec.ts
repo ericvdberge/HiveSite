@@ -1,4 +1,5 @@
-import { readFileSync } from 'node:fs'
+import { readFileSync, readdirSync, statSync } from 'node:fs'
+import { join } from 'node:path'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
 import { createMemoryHistory } from 'vue-router'
@@ -7,6 +8,15 @@ import AppShell from '../src/components/AppShell.vue'
 import StudioNav from '../src/components/StudioNav.vue'
 import { createStudioRouter } from '../src/router'
 import { dismissToast, showErrorToast } from '../src/composables/useToast'
+
+function sourceFiles(dir: string, out: string[] = []): string[] {
+    for (const name of readdirSync(dir)) {
+        const path = join(dir, name)
+        if (statSync(path).isDirectory()) sourceFiles(path, out)
+        else if (/\.(vue|css)$/.test(name)) out.push(path)
+    }
+    return out
+}
 
 async function mountApp(path = '/') {
     const router = createStudioRouter(createMemoryHistory())
@@ -84,13 +94,27 @@ describe('layout shell', () => {
     it('Layout: each screen has exactly one h1 and the document title follows it', async () => {
         const { wrapper } = await mountApp('/')
         expect(wrapper.findAll('h1')).toHaveLength(1)
-        expect(document.title).toBe('Hivesite Studio · Hivesite Studio')
+        expect(document.title).toBe('Hivesite Studio')
         wrapper.unmount()
     })
 
-    it('Layout: on a new screen focus moves to the h1', async () => {
+    it('Layout: the first page load does not move focus to the h1', async () => {
         const { wrapper } = await mountApp('/')
-        expect(document.activeElement).toBe(wrapper.get('h1').element)
+        expect(document.activeElement).not.toBe(wrapper.get('h1').element)
+        expect(document.activeElement).toBe(document.body)
+        wrapper.unmount()
+    })
+
+    it('Layout: on a new screen focus moves to the h1 and the title follows it', async () => {
+        const { wrapper, router } = await mountApp('/')
+        const before = document.title
+        await router.push('/no/such/place')
+        await flushPromises()
+        const h1 = wrapper.get('h1')
+        expect(h1.text()).toBe("We can't find that site")
+        expect(document.activeElement).toBe(h1.element)
+        expect(document.title).not.toBe(before)
+        expect(document.title).toBe("We can't find that site · Hivesite Studio")
         wrapper.unmount()
     })
 
@@ -120,26 +144,29 @@ describe('motion and focus', () => {
     })
 
     it('Motion: every transition and animation uses a token duration of at least duration-base', () => {
-        const files = [
-            'src/App.vue',
-            'src/components/ErrorToast.vue',
-            'src/components/StudioNav.vue',
-            'src/styles/base.css',
-        ]
+        const files = sourceFiles('src').filter((f) => !f.endsWith('tokens.css'))
         const durations = new Set<string>()
+        const offenders: string[] = []
         for (const file of files) {
-            const text = readFileSync(file, 'utf8')
-            for (const m of text.matchAll(/(?:transition|animation):([^;]*);/g)) {
-                for (const d of (m[1] as string).matchAll(
-                    /var\((--hs-motion-duration-[a-z]+)\)/g,
-                )) {
+            const text = readFileSync(file, 'utf8').replace(/\/\*[\s\S]*?\*\//g, '')
+            for (const m of text.matchAll(/(?:transition|animation)(?:-duration)?\s*:([^;]*);/g)) {
+                const value = m[1] as string
+                const tokens = [...value.matchAll(/var\(\s*(--hs-motion-duration-[a-z]+)\s*[,)]/g)]
+                // Drop var() calls so only literal times and keywords are left.
+                const rest = value.replace(/var\([^)]*\)/g, '')
+                if (/\d/.test(rest) || tokens.length === 0)
+                    offenders.push(`${file}: ${value.trim()}`)
+                for (const d of tokens) {
                     durations.add(d[1] as string)
+                    // base, slow and slower are all 300 ms or more in tokens.json.
+                    if (!/duration-(base|slow|slower)$/.test(d[1] as string)) {
+                        offenders.push(`${file}: ${d[1]}`)
+                    }
                 }
             }
         }
         expect(durations.size).toBeGreaterThan(0)
-        // base, slow and slower are all 300 ms or more in tokens.json.
-        for (const d of durations) expect(d).toMatch(/duration-(base|slow|slower)$/)
+        expect(offenders).toEqual([])
     })
 
     it('Focus: every control has a focus ring from the focus tokens', () => {
