@@ -5,8 +5,8 @@ using Microsoft.AspNetCore.Mvc.Testing;
 namespace Hivesite.Host.Tests;
 
 /// <summary>
-/// The committed <c>openapi/hivesite.v1.json</c> is what the running Host serves. The studio's client is generated from that file.
-/// After an API change, regenerate it with <c>UPDATE_OPENAPI=1 dotnet test --project tests/Hivesite.Host.Tests</c> and commit the result.
+/// <c>dotnet build</c> writes <c>openapi/hivesite.json</c> from the Host's endpoint metadata; it is git-ignored and never edited.
+/// These tests check that the build output is what the running Host serves, and that the Host serves it in Development only.
 /// No database is needed: the document is built from endpoint metadata.
 /// </summary>
 [TestClass]
@@ -15,23 +15,16 @@ public sealed class OpenApiDocumentTests
     private const string DocumentPath = "/openapi/v1.json";
 
     [TestMethod]
-    public async Task The_committed_document_matches_the_running_Host()
+    public async Task The_build_output_is_what_the_running_Host_serves()
     {
         await using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(b => b.UseEnvironment("Development"));
         using var client = factory.CreateClient();
 
         var served = Normalize(await client.GetStringAsync(new Uri(DocumentPath, UriKind.Relative)));
-        var path = CommittedPath();
+        var path = BuildOutputPath();
 
-        if (Environment.GetEnvironmentVariable("UPDATE_OPENAPI") == "1")
-        {
-            Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-            await File.WriteAllTextAsync(path, served);
-        }
-
-        Assert.IsTrue(File.Exists(path), $"{path} is missing. Run UPDATE_OPENAPI=1 dotnet test --project tests/Hivesite.Host.Tests.");
-        var committed = Normalize(await File.ReadAllTextAsync(path));
-        Assert.AreEqual(committed, served, "openapi/hivesite.v1.json is out of date. Run UPDATE_OPENAPI=1 dotnet test --project tests/Hivesite.Host.Tests and commit it.");
+        Assert.IsTrue(File.Exists(path), $"{path} is missing. Run dotnet build; it writes the document.");
+        Assert.AreEqual(Normalize(await File.ReadAllTextAsync(path)), served, "openapi/hivesite.json differs from what the Host serves. Run dotnet build.");
     }
 
     [TestMethod]
@@ -49,7 +42,7 @@ public sealed class OpenApiDocumentTests
 
     private static string Normalize(string text) => text.ReplaceLineEndings("\n").TrimEnd() + "\n";
 
-    private static string CommittedPath()
+    private static string BuildOutputPath()
     {
         var dir = new DirectoryInfo(AppContext.BaseDirectory);
         while (dir is not null && !File.Exists(Path.Combine(dir.FullName, "Hivesite.slnx")))
@@ -57,6 +50,6 @@ public sealed class OpenApiDocumentTests
             dir = dir.Parent;
         }
         Assert.IsNotNull(dir, "Hivesite.slnx not found above the test output folder.");
-        return Path.Combine(dir.FullName, "openapi", "hivesite.v1.json");
+        return Path.Combine(dir.FullName, "openapi", "hivesite.json");
     }
 }
