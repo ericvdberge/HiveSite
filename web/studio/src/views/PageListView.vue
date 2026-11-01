@@ -2,10 +2,12 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 import NotFoundScreen from '../components/NotFoundScreen.vue'
+import DeletePageDialog from '../components/DeletePageDialog.vue'
 import ScreenHead from '../components/ScreenHead.vue'
 import { api, isApiError, listAll, type components } from '../api'
 import { takeAddedPage } from '../composables/useAddedPage'
 import { clearSiteNav, setSiteNav } from '../composables/useSiteNav'
+import { glide, play } from '../motion'
 
 type Site = components['schemas']['SiteDto']
 type PageItem = components['schemas']['PageDto']
@@ -20,7 +22,8 @@ const site = ref<Site | null>(null)
 const pages = ref<PageItem[]>([])
 const phase = ref<'loading' | 'ready' | 'failed' | 'missing'>('loading')
 const addedPage = takeAddedPage()
-const added = ref('')
+// The one status line of the screen: add, delete and (later) reorder messages.
+const notice = ref('')
 const addedId = ref('')
 const list = ref<HTMLElement | null>(null)
 
@@ -74,6 +77,7 @@ async function fetchPagesRestarting(): Promise<PageItem[]> {
 
 async function load(): Promise<void> {
     phase.value = 'loading'
+    notice.value = ''
     try {
         const [loadedSite, all] = await Promise.all([fetchSite(), fetchPagesRestarting()])
         site.value = loadedSite
@@ -90,12 +94,127 @@ async function load(): Promise<void> {
     }
 }
 
+/** Confirm dialog state (delete-confirm.md). The dialog opens with data already on the page. */
+const deleting = ref<PageItem | null>(null)
+const deleteBusy = ref(false)
+const deleteFailed = ref(false)
+const dialog = ref<InstanceType<typeof DeletePageDialog> | null>(null)
+
+const onlyPage = computed(() => count.value === 1)
+const nextHomeTitle = computed(() =>
+    deleting.value && isHome(deleting.value) && count.value > 1 ? pages.value[1]?.title : undefined,
+)
+
+function openDelete(page: PageItem): void {
+    if (deleting.value) return
+    deleteFailed.value = false
+    deleteBusy.value = false
+    deleting.value = page
+}
+
+function rowElement(id: string): HTMLElement | null {
+    return list.value?.querySelector<HTMLElement>(`[data-page-id="${id}"]`) ?? null
+}
+
+/** Closes the dialog (it fades out first). */
+async function closeDialog(): Promise<void> {
+    await dialog.value?.dismiss()
+    deleting.value = null
+}
+
+async function cancelDelete(): Promise<void> {
+    if (deleteBusy.value || !deleting.value) return
+    const id = deleting.value.id
+    await closeDialog()
+    await nextTick()
+    // Focus goes back to the Delete button of the same row.
+    rowElement(id)?.querySelector<HTMLElement>('[data-action="delete"]')?.focus()
+}
+
+/** Focus: the title link now at the deleted row's place, else the new last, else "Add a page". */
+async function focusAfterRemoval(index: number): Promise<void> {
+    await nextTick()
+    const target = pages.value[Math.min(index, pages.value.length - 1)]
+    if (!target) {
+        document.querySelector<HTMLElement>('.hs-empty a')?.focus()
+        return
+    }
+    rowElement(target.id)?.querySelector<HTMLElement>('.hs-row__title')?.focus()
+}
+
+async function confirmDelete(): Promise<void> {
+    const target = deleting.value
+    if (!target || deleteBusy.value) return
+    const index = pages.value.findIndex((p) => p.id === target.id)
+    const wasHome = isHome(target)
+    const nextTitle = wasHome ? pages.value[1]?.title : undefined
+    deleteBusy.value = true
+    deleteFailed.value = false
+    try {
+        await api.DELETE('/pages/{id}', {
+            params: { path: { id: target.id } },
+            signal: controller.signal,
+        })
+        if (controller.signal.aborted) return
+        await closeDialog()
+        if (controller.signal.aborted) return
+        await removeRow(target, index)
+        if (controller.signal.aborted) return
+        notice.value =
+            wasHome && nextTitle !== undefined
+                ? `${target.title} deleted. ${nextTitle} is now your home page.`
+                : `${target.title} deleted.`
+        await focusAfterRemoval(index)
+    } catch (error) {
+        if (controller.signal.aborted || isAbort(error)) return
+        if (isApiError(error) && error.code === 'unauthenticated') {
+            // Sign-in owns a 401; the dialog just returns to idle.
+        } else if (isApiError(error) && error.code === 'page_not_found') {
+            // Already gone: not the not-found screen. Reload, then say so.
+            await closeDialog()
+            if (controller.signal.aborted) return
+            await load()
+            if (controller.signal.aborted || phase.value !== 'ready') return
+            notice.value = 'That page was already deleted. The list is up to date.'
+            await focusAfterRemoval(index)
+        } else {
+            deleteFailed.value = true
+        }
+    } finally {
+        if (!controller.signal.aborted) deleteBusy.value = false
+    }
+}
+
+/** The row fades out, then the rows below close the gap: one shape at a time. */
+async function removeRow(target: PageItem, index: number): Promise<void> {
+    const row = rowElement(target.id)
+    if (row) await play(row, [{ opacity: 1 }, { opacity: 0 }])
+    if (controller.signal.aborted) return
+    const below = pages.value.slice(index + 1)
+    const tops = new Map(
+        below.map((p) => [p.id, rowElement(p.id)?.getBoundingClientRect().top ?? 0] as const),
+    )
+    const removed = Number(target.menu_order)
+    pages.value = pages.value
+        .filter((p) => p.id !== target.id)
+        .map((p) =>
+            Number(p.menu_order) > removed ? { ...p, menu_order: Number(p.menu_order) - 1 } : p,
+        )
+    await nextTick()
+    await Promise.all(
+        below.map((p) => {
+            const el = rowElement(p.id)
+            return el ? glide(el, tops.get(p.id) ?? 0) : Promise.resolve()
+        }),
+    )
+}
+
 /** After add: say where the page landed and focus its title link. */
 async function announceAdded(): Promise<void> {
     const row = addedPage ? pages.value.find((p) => p.id === addedPage.id) : undefined
     if (!row) return
     addedId.value = row.id
-    added.value = `${row.title} added at position ${position(row)} of ${count.value}.`
+    notice.value = `${row.title} added at position ${position(row)} of ${count.value}.`
     await nextTick()
     list.value?.querySelector<HTMLElement>(`[data-page-id="${row.id}"] .hs-row__title`)?.focus()
 }
@@ -106,7 +225,7 @@ const documentTitle = computed(() =>
 const statusText = computed(() => {
     if (phase.value === 'loading') return 'Loading pages…'
     if (phase.value === 'failed') return "Error: We couldn't load the pages of this site."
-    return added.value
+    return notice.value
 })
 
 onMounted(() => {
@@ -220,9 +339,30 @@ onBeforeUnmount(() => {
                         :aria-label="`Edit blocks of ${page.title}`"
                         >Edit blocks</RouterLink
                     >
+                    <button
+                        type="button"
+                        class="hs-button hs-button--quiet"
+                        data-action="delete"
+                        :aria-label="`Delete ${page.title}`"
+                        @click="openDelete(page)"
+                    >
+                        Delete
+                    </button>
                 </div>
             </li>
         </ol>
+
+        <DeletePageDialog
+            v-if="deleting"
+            ref="dialog"
+            :title="deleting.title"
+            :next-title="nextHomeTitle"
+            :only-page="onlyPage"
+            :busy="deleteBusy"
+            :failed="deleteFailed"
+            @cancel="cancelDelete"
+            @confirm="confirmDelete"
+        />
     </template>
 </template>
 
