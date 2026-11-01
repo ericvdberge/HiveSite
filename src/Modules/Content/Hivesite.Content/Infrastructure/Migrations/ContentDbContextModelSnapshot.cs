@@ -23,6 +23,27 @@ namespace Hivesite.Content.Infrastructure.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("Hivesite.Content.Infrastructure.PageBlocksDao", b =>
+                {
+                    b.Property<Guid>("PageId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("pageId");
+
+                    b.Property<string>("Document")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("document");
+
+                    b.Property<int>("Version")
+                        .HasColumnType("integer")
+                        .HasColumnName("version");
+
+                    b.HasKey("PageId")
+                        .HasName("pkPageBlocks");
+
+                    b.ToTable("pageBlocks", "content");
+                });
+
             modelBuilder.Entity("Hivesite.Content.Infrastructure.PageDao", b =>
                 {
                     b.Property<Guid>("Id")
@@ -122,6 +143,16 @@ namespace Hivesite.Content.Infrastructure.Migrations
                         .HasDatabaseName("ixSitesOwnerIdCreatedAtId");
 
                     b.ToTable("sites", "content");
+                });
+
+            modelBuilder.Entity("Hivesite.Content.Infrastructure.PageBlocksDao", b =>
+                {
+                    b.HasOne("Hivesite.Content.Infrastructure.PageDao", null)
+                        .WithOne()
+                        .HasForeignKey("Hivesite.Content.Infrastructure.PageBlocksDao", "PageId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fkPageBlocksPageId");
                 });
 
             modelBuilder.Entity("Hivesite.Content.Infrastructure.PageDao", b =>

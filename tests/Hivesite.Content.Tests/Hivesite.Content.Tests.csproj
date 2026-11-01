@@ -12,6 +12,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <None Include="Examples\*.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\..\src\Modules\Content\Hivesite.Content\Hivesite.Content.csproj" />
     <ProjectReference Include="..\..\src\Hivesite.Host\Hivesite.Host.csproj" />
     <ProjectReference Include="..\Hivesite.Testing\Hivesite.Testing.csproj" />

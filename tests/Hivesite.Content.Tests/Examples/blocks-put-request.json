@@ -1,0 +1,26 @@
+{
+  "type": "doc",
+  "content": [
+    {
+      "type": "hero",
+      "attrs": {
+        "title": "Made slowly, by hand",
+        "cta": { "label": "See the work", "href": "/our-work" }
+      }
+    },
+    {
+      "type": "rich_text",
+      "content": [
+        { "type": "heading", "attrs": { "level": 2 }, "content": [{ "type": "text", "text": "The studio" }] },
+        {
+          "type": "paragraph",
+          "content": [
+            { "type": "text", "text": "Every piece is thrown, glazed and fired in " },
+            { "type": "text", "marks": [{ "type": "bold" }], "text": "Utrecht" },
+            { "type": "text", "text": "." }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -1,17 +1,18 @@
 import { createRouter, createWebHistory, type RouterHistory } from 'vue-router'
-import NewSiteView from '../views/NewSiteView.vue'
 import NotFoundView from '../views/NotFoundView.vue'
 import PageFormView from '../views/PageFormView.vue'
 import PageListView from '../views/PageListView.vue'
+import SiteFormView from '../views/SiteFormView.vue'
 import SiteListView from '../views/SiteListView.vue'
 
 export const routes = [
     // The site list is the first screen. "/" is an alias, not a redirect, so the shell's
     // links to "/" (wordmark, "Sites") stay the current page while the list is open.
     { path: '/sites', alias: '/', name: 'sites', component: SiteListView },
-    // Placeholder until the create form (#61).
-    { path: '/sites/new', name: 'site-new', component: NewSiteView },
-    { path: '/sites/:id/pages', name: 'pages', component: PageListView },
+    // One form for create (#61) and edit (#62); the edit route carries the site id.
+    { path: '/sites/new', name: 'site-new', component: SiteFormView },
+    { path: '/sites/:id/edit', name: 'site-edit', component: SiteFormView },
+    { path: '/sites/:id/pages', name: 'site-pages', component: PageListView },
     { path: '/sites/:id/pages/new', name: 'page-new', component: PageFormView },
     { path: '/pages/:id/edit', name: 'page-edit', component: PageFormView },
     // Catch-all: any address the studio does not know shows the not-found screen.
