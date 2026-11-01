@@ -2,26 +2,28 @@
 id: API-021
 title: Serving the live site
 domain: publishing
-status: draft
+status: in review
 owner: api-architect
 stories: [21]
 depends_on: [API-001, API-002, API-011, API-020]
-version: 1
+version: 2
 ---
-
-> **Held.** This spec is on hold until ADR 3 (sandboxed Vue/Nuxt templates instead of the C# block renderer) is decided. Under ADR 3 each site is built statically in a sandbox and served from its own origin, so the shared path-based `/s/{site_slug}/` serving below will change. It is kept as written for reference and is not up for approval.
 
 ## Purpose
 Anyone can visit a published site at `/s/{site_slug}/` and gets the files of its live release.
 
-Ids and timestamps follow API-001. The files and their paths come from API-011 `RenderSite`; releases and the live pointer from API-020.
+Ids and errors follow API-001. The files and their paths come from API-011 v2 `RenderSite`; releases, their stored files and the live pointer from API-020.
+
+Version 2 follows ADR 4: every site is served from the API origin under `/s/{site_slug}/`, with no per-site origins. It drops version 1's former-slug redirects, list pages, ETags, `HEAD` and the HTML-or-JSON error choice, and sets `script-src 'none'` as API-011 does.
 
 ## Endpoints
 
 ### GET /s/{site_slug}/{path}
 Auth: none (public)
 
-Methods: `GET` and `HEAD`. `HEAD` returns the same status and headers as `GET`, without a body.
+Operation: `ServeSite`
+
+`{path}` is the rest of the URL after `/s/{site_slug}/`. It may be empty and may hold `/`.
 
 Request
 ```
@@ -33,14 +35,13 @@ Response 200
 Headers:
 ```
 Content-Type: text/html; charset=utf-8
-Cache-Control: public, max-age=0, must-revalidate
-ETag: "9f2c4e71b0a85d36"
-Content-Security-Policy: default-src 'none'; style-src 'self'; font-src 'self'; img-src https:; frame-src https://www.youtube-nocookie.com https://player.vimeo.com https://www.google.com; form-action https:; script-src 'self'; base-uri 'self'; frame-ancestors 'none'
+Cache-Control: no-cache
+Content-Security-Policy: default-src 'none'; style-src 'self'; font-src 'self'; img-src https:; frame-src https://www.youtube-nocookie.com https://player.vimeo.com https://www.google.com; form-action https:; script-src 'none'; base-uri 'self'; frame-ancestors 'none'
 X-Content-Type-Options: nosniff
 Referrer-Policy: strict-origin-when-cross-origin
 ```
 
-The body is the stored file `/our-work` of the live release. For the site and page of the API-011 example it is that page in `release` mode, as API-011 renders it before API-012 adds the intro script and mark:
+The body is the stored file `/our-work` of the live release, byte for byte. For the site and page of the API-011 example it is that page in `release` mode (wrapped for reading; the bytes are fixed by API-011's snapshot tests):
 ```html
 <!doctype html>
 <html lang="nl" data-theme="atelier">
@@ -66,16 +67,18 @@ The body is the stored file `/our-work` of the live release. For the site and pa
 </nav>
 </header>
 <main class="hs-main" id="hs-main">
-<section class="hs-block hs-hero" id="hs-b0" aria-labelledby="hs-b0-title">
-<div class="hs-hero__text">
-<h1 class="hs-hero__title" id="hs-b0-title">Selected work</h1>
+<section class="hs-hero" id="hs-b0" data-variant="image">
+<img class="hs-hero__image" src="https://images.example.com/noor/vases.jpg" alt="Three celadon vases on linen" loading="eager" decoding="async">
+<div class="hs-hero__body">
+<h1 class="hs-hero__title">Selected work</h1>
 <p class="hs-hero__subtitle">Bowls, vases and tableware.</p>
 <a class="hs-button" href="about">Meet the maker</a>
 </div>
-<img class="hs-hero__image" src="https://images.example.com/noor/vases.jpg" alt="Three celadon vases on linen" loading="eager" decoding="async">
 </section>
-<section class="hs-block hs-rich-text" id="hs-b1">
+<section class="hs-rich-text" id="hs-b1">
+<div class="hs-prose">
 <p>Every piece is thrown, glazed and fired in <strong>Utrecht</strong>. Read more <a href="about">about the studio</a>.</p>
+</div>
 </section>
 </main>
 <footer class="hs-footer">
@@ -85,77 +88,69 @@ The body is the stored file `/our-work` of the live release. For the site and pa
 </html>
 ```
 
-Response 304: when `If-None-Match` holds the file's current `ETag`. Same headers, no body.
+An asset, for example `GET /s/atelier-noor/assets/theme.5f1c9a2e.css`, returns 200 with its stored bytes, `Content-Type: text/css; charset=utf-8`, `Cache-Control: public, max-age=31536000, immutable` and the security headers above.
 
-Response 301: see Redirects. Headers `Location` (a path, no host) and `Cache-Control: public, max-age=300`. No body.
+Response 301: `GET /s/atelier-noor` (no final `/`) redirects to `/s/atelier-noor/`. Header `Location: /s/atelier-noor/` (a path, no host, query string kept). No body.
 
 Errors
-- 404 `site_not_found`: no site has this slug or a former slug that redirects (see Redirects), or the site has never published.
-- 404 `not_found`: the site is live but the release has no file for this path. The body is the release's not-found page (`/404.html`, API-011) with status 404, `Content-Type: text/html; charset=utf-8` and `Cache-Control: public, max-age=0, must-revalidate`.
-- 405 `method_not_allowed`: any method other than `GET` and `HEAD`. Header `Allow: GET, HEAD`.
-
-Error bodies: `not_found` is the HTML not-found page. `site_not_found` and `method_not_allowed` have a short plain HTML page (`<!doctype html>`, `<title>` and one `<p>` with the message, in English), because visitors use a browser. A request whose `Accept` header lists `application/json` before `text/html` (or without `text/html`) gets the JSON error shape from `specs/STYLE.md` instead, with the same status and `code`.
+- 404 `site_not_found`: no site has this slug as its current slug, or the site has no live release (it never published). The body is the JSON error shape of `specs/STYLE.md`, `Content-Type: application/json`.
+- 404 `not_found`: the site is live but its live release has no file for this path. The body is the release's not-found page, the stored file `/404.html` (API-011 Not-found page), with `Content-Type: text/html; charset=utf-8`. It has no JSON `code`; the name is for tests and logs.
 
 ## Paths
 
-`{site_slug}` is matched against current and former site slugs. The rest of the path, after `/s/{site_slug}`, maps to a release file:
+The request path after `/s/{site_slug}` maps to a release file `path` (API-011 Release files):
 
 | Request path | Result |
 |---|---|
 | `/s/{site_slug}` | 301 to `/s/{site_slug}/` |
-| `/s/{site_slug}/` | file `/` (the home page) |
-| `/s/{site_slug}/{page_slug}` | file `/{page_slug}`. If `{page_slug}` is the home page's slug: 301 to `/s/{site_slug}/` |
-| `/s/{site_slug}/{page_slug}/page/{n}` and `/s/{site_slug}/page/{n}` | that list page file. `n` = 1: 301 to the page itself |
-| `/s/{site_slug}/assets/{file}` | that asset file |
-| `/s/{site_slug}/404.html` | 404 `not_found` with the not-found page; the file is never served with 200. (`/s/{site_slug}/404` is a page with the slug `404`, if there is one.) |
-| a path ending in `/` (other than the site root) | 301 to the same path without the final `/` |
+| `/s/{site_slug}/` | file `/`, the home page |
+| `/s/{site_slug}/{page_slug}` | file `/{page_slug}` |
+| `/s/{site_slug}/assets/{file}` | file `/assets/{file}` |
+| `/s/{site_slug}/404.html` | 404 `not_found`. The not-found page is never served with 200. |
 | anything else | 404 `not_found` |
 
-- Paths are matched exactly, case-sensitive, after percent-decoding. `/s/Atelier-Noor/` is not `/s/atelier-noor/`: 404 `site_not_found`.
-- `n` matches `^[1-9][0-9]{0,3}$`. `page/01` is not a list page: 404.
-- A query string is ignored for matching and kept on a 301 `Location`.
-- Paths with `..`, `//`, a percent-encoded `/` or a NUL byte return 404 `not_found` without touching storage.
-- Paths longer than 512 characters return 404 `not_found`.
-- The home page's slug is known from the release: the page at `menu_order` 0 when it was published. Publishing stores it with the release.
-
-## Redirects
-
-### Former site slugs
-- When a site's slug changes (API-001), the live site moves to the new slug at once: releases have relative links (API-011), so nothing is republished.
-- Requests to a former slug get 301 to the same path under the current slug: `/s/old-name/about?x=1` → `/s/new-name/about?x=1`.
-- A former slug redirects for as long as no site has it as its current slug. When another site takes it, that site wins and the redirect ends for good. If the site later takes back an old slug, that slug is simply current again.
-- Former slugs are recorded only once the site has published (API-020 Site slug changes).
-- At most 20 former slugs per site are kept; the oldest is dropped first.
-
-### Renamed pages
-- A renamed page is not redirected. Its old path returns 404 `not_found` in the next release. The release before stays as it was, so a rollback brings the old path back.
+- The site is found with `GetSiteIdBySlug(site_slug)` on `Hivesite.Content.Contracts` (API-020 Contracts), then its live pointer (API-020). `null` or no live pointer is 404 `site_not_found`.
+- The file is found by exact, case-sensitive match of `/{path}` against the live release's file list (API-020 Storage), after percent-decoding. Only a listed file is read from disk, at the place API-020 Storage gives it, so no request path ever becomes a disk path.
+- `/s/{site_slug}/` is the folder of the release; its file is `index.html` (API-020 Storage). A path ending in `/` other than the site root, such as `/s/atelier-noor/about/`, is not in the list and is 404 `not_found`.
+- The home page is only at `/s/{site_slug}/`. Its own slug, for example `/s/atelier-noor/home`, is not a release file and is 404 `not_found`.
+- A query string is ignored for matching.
+- Slugs are matched exactly: `/s/Atelier-Noor/` is 404 `site_not_found`.
 
 ## Rules
 
 ### Live release
-- Each request reads the live pointer of the site (API-020) and serves from that release only. A publish or rollback is visible to the next request.
-- Within one request, all reads use one release. Assets are named by their content hash, so a page from the new release never gets a stylesheet from the old one.
+- Each request reads the site's live pointer (API-020) and serves from that release only. A publish or rollback is visible to the next request.
+- The live site always follows the current slug. After a slug change (API-001) the site is at the new slug at once, without a new publish: release HTML has relative links (API-011 Links). The former slug returns 404 `site_not_found`.
+
+### Content types
+- As stored with each file from `RenderSite` (API-011 Release files): HTML `text/html; charset=utf-8`, `.css` `text/css; charset=utf-8`, `.woff2` `font/woff2`. Publishing never guesses a type from a file name.
 
 ### Caching
-- HTML files and the not-found page: `Cache-Control: public, max-age=0, must-revalidate`, and a strong `ETag`: the first 16 hex digits of the SHA-256 of the body, in quotes. `If-None-Match` with a matching value returns 304.
-- Assets: `Cache-Control: public, max-age=31536000, immutable`, with the same kind of `ETag`.
-- Redirects: `Cache-Control: public, max-age=300`, short because a former slug can be taken by another site.
-- Content types: as stored with each file (API-011): HTML `text/html; charset=utf-8`, `.css` `text/css; charset=utf-8`, `.woff2` `font/woff2`, `.js` `text/javascript; charset=utf-8`.
+- Assets (`/assets/{file}`): `Cache-Control: public, max-age=31536000, immutable`. Their names carry a content hash (API-010 Assets), so a name always means the same bytes.
+- Every other response, HTML, redirects and errors: `Cache-Control: no-cache`, so a publish or rollback shows on the next visit.
 
 ### Security
-- Every response, including errors and redirects, has the `Content-Security-Policy`, `X-Content-Type-Options` and `Referrer-Policy` headers shown above.
+- Every response, including errors and redirects, has the `Content-Security-Policy`, `X-Content-Type-Options` and `Referrer-Policy` headers shown above. The policy is the one of the API-011 preview, with `script-src 'none'`.
 - No cookies are set or read. Owner credentials are ignored on `/s/` paths.
-- The site is served on the same origin as the API. That is safe because release HTML has no owner-controlled script (API-011 Security). Serving sites on their own origin comes with custom domains, a later phase.
+- Serving on the API origin is safe because no owner code runs and release HTML holds no script and no owner-controlled style (ADR 4, API-011 Security).
+
+### Methods
+- Only `GET` is mapped. Other methods get the framework's 405 with no body.
 
 ### Side effects
 - Serving is read-only and raises no events. There is no analytics or access log beyond the Host's request log.
 
+### Operation names
+- `ServeSite` becomes the `operationId` and the C# method name. Renaming it is a breaking change.
+
 ## Decisions
-- **The live site follows the current slug at once,** and former slugs redirect with 301. This settles the question API-001 left to Publishing.
-- **Renamed pages do not redirect** in this version. Keeping a page path history is a later story.
-- **Error pages are HTML for browsers and JSON on request.** Visitors are people with browsers; tools that send `Accept: application/json` get the house error shape.
-- **No `robots.txt` or `sitemap.xml`** in this version: under `/s/` every site shares one host, where these files only work at the root. They come with custom domains.
-- **`assets` is the release's own folder,** which is why API-002 reserves the page slug `assets`.
+- **One origin, under `/s/{site_slug}/`** (ADR 4). Per-site origins come with ADR 3 or custom domains.
+- **The site is looked up by slug in Content on each request** (`GetSiteIdBySlug`, API-020 Contracts), so a slug change reaches the live site at once with no read model and no event handling. Visits are few in the MVP; a local slug table fed by `SiteChanged` can replace the call when they are not.
+- **Serving reads the release's file list, never a path built from the request.** No traversal rules are needed.
+- **`/404.html` is served with 404 for any unknown path.** Its `<base href="/s/{site_slug}/">` (API-011) makes its links work at any depth. It carries the slug of its build, so after a slug change its links point to the former slug until the next publish.
+- **An unknown or unpublished site gets the JSON error shape,** like every other error in the API. A visitor page for it is not in this version.
+- **Caching is two rules:** immutable for hashed assets, `no-cache` for everything else.
+- **Not in this version:** former-slug redirects, a redirect from the home page's slug to the site root, redirects for a final `/`, `ETag` and 304, `HEAD`, an HTML page for `site_not_found`, list pages (`/page/{n}`), `robots.txt` and `sitemap.xml`, per-site origins, custom domains, and the intro script of API-012 (which changes `script-src` when it is revised).
 
 ## Open questions
 - none
