@@ -14,6 +14,8 @@ public sealed class ContentDbContext(DbContextOptions<ContentDbContext> options)
 
     public DbSet<PageDao> Pages => Set<PageDao>();
 
+    public DbSet<PageBlocksDao> PageBlocks => Set<PageBlocksDao>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.HasDefaultSchema(Schema);
@@ -42,6 +44,16 @@ public sealed class ContentDbContext(DbContextOptions<ContentDbContext> options)
             page.HasIndex(p => new { p.SiteId, p.Slug }).IsUnique().HasDatabaseName(PageSlugIndex);
             // Serves GET /sites/{id}/pages. Not unique: a menu change moves several orders at once.
             page.HasIndex(p => new { p.SiteId, p.MenuOrder }).HasDatabaseName("ixPagesSiteIdMenuOrder");
+        });
+
+        modelBuilder.Entity<PageBlocksDao>(blocks =>
+        {
+            blocks.ToTable("pageBlocks");
+            blocks.HasKey(b => b.PageId).HasName("pkPageBlocks");
+            blocks.Property(b => b.PageId).ValueGeneratedNever();
+            blocks.Property(b => b.Document).HasColumnType("jsonb");
+            // Blocks go with their page.
+            blocks.HasOne<PageDao>().WithOne().HasForeignKey<PageBlocksDao>(b => b.PageId).HasConstraintName("fkPageBlocksPageId").OnDelete(DeleteBehavior.Cascade);
         });
     }
 }

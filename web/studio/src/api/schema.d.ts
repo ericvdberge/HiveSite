@@ -124,6 +124,30 @@ export interface paths {
         patch: operations["UpdatePage"];
         trace?: never;
     };
+    "/pages/{id}/blocks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get the blocks of a page
+         * @description A Tiptap document with `ETag: "<version>"`; a new page has an empty `content` and `ETag: "1"`. Errors: 401 `unauthenticated`, 404 `page_not_found`.
+         */
+        get: operations["GetPageBlocks"];
+        /**
+         * Replace the blocks of a page
+         * @description Replaces the whole document, with defaults filled in. Send `If-Match` with the last `ETag` to refuse a stale write. Errors: 400 `invalid_request`, 400 `unknown_block_type`, 400 `invalid_block`, 400 `too_many_blocks`, 401 `unauthenticated`, 404 `page_not_found`, 412 `precondition_failed`, 413 `request_too_large`, 415 `unsupported_media_type`.
+         */
+        put: operations["ReplacePageBlocks"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/block-types": {
         parameters: {
             query?: never;
@@ -212,6 +236,10 @@ export interface components {
         };
         MenuPutDto: {
             page_ids?: null | string[];
+        };
+        PageBlocksDocumentDto: {
+            type: string;
+            content: unknown[];
         };
         PageDto: {
             /** Format: uuid */
@@ -747,6 +775,127 @@ export interface operations {
             };
             /** @description Not Found */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    GetPageBlocks: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PageBlocksDocumentDto"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    ReplacePageBlocks: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PageBlocksDocumentDto"];
+                "*/*": components["schemas"]["PageBlocksDocumentDto"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PageBlocksDocumentDto"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Precondition Failed */
+            412: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Payload Too Large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Unsupported Media Type */
+            415: {
                 headers: {
                     [name: string]: unknown;
                 };

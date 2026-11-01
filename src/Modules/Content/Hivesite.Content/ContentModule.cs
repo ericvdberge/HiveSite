@@ -24,7 +24,10 @@ public static class ContentModule
         services.AddScoped<SiteService>();
         services.AddScoped<PageRepository>();
         services.AddScoped<PageService>();
+        services.AddScoped<PageBlocksRepository>();
+        services.AddScoped<PageBlocksService>();
         services.AddSingleton<BlockTypeRegistry>();
+        services.AddSingleton<BlockDocumentValidator>();
         services.AddScoped<BlockTypeService>();
         services.AddScoped<IContentApi, ContentModuleApi>();
         return services;
@@ -34,6 +37,7 @@ public static class ContentModule
     {
         endpoints.MapSiteEndpoints();
         endpoints.MapPageEndpoints();
+        endpoints.MapPageBlocksEndpoints();
         endpoints.MapBlockTypeEndpoints();
         return endpoints;
     }
