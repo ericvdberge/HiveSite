@@ -103,6 +103,10 @@ public sealed class ContentApi : IAsyncDisposable
 
     internal TestClock Clock { get; } = new();
 
+    internal IServiceProvider Services => _factory!.Services;
+
+    internal static string ConnectionString => Postgres.ConnectionString;
+
     [AssemblyInitialize]
     public static Task InitializeAsync(TestContext context) => Postgres.InitializeAsync();
 
