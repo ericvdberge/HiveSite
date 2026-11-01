@@ -31,6 +31,7 @@ public sealed partial class OpenApiContractTests
 
     [TestMethod]
     [DataRow("API-001-sites.md", "POST /sites:2:4,GET /sites:1:3,GET /sites/{id}:1:2,PATCH /sites/{id}:2:4")]
+    [DataRow("API-002-pages-and-menu.md", "POST /sites/{id}/pages:2:6,GET /sites/{id}/pages:1:4,GET /pages/{id}:1:2,PATCH /pages/{id}:2:5,DELETE /pages/{id}:0:2,PUT /sites/{id}/menu:2:4")]
     public void The_spec_is_read_whole(string specFile, string expected)
     {
         var read = SpecExamples.Read(specFile).Select(e => $"{e.Method} {e.Path}:{e.Bodies.Count}:{e.Errors.Count}");
@@ -40,6 +41,7 @@ public sealed partial class OpenApiContractTests
 
     [TestMethod]
     [DataRow("API-001-sites.md")]
+    [DataRow("API-002-pages-and-menu.md")]
     public void Every_spec_endpoint_documents_the_401_of_the_shared_conventions(string specFile)
     {
         foreach (var endpoint in SpecExamples.Read(specFile))
@@ -50,6 +52,7 @@ public sealed partial class OpenApiContractTests
 
     [TestMethod]
     [DataRow("API-001-sites.md")]
+    [DataRow("API-002-pages-and-menu.md")]
     public void Every_spec_example_body_validates_against_the_document(string specFile)
     {
         var checkedBodies = 0;
@@ -68,6 +71,7 @@ public sealed partial class OpenApiContractTests
 
     [TestMethod]
     [DataRow("API-001-sites.md")]
+    [DataRow("API-002-pages-and-menu.md")]
     public void Every_spec_error_is_documented_on_its_operation(string specFile)
     {
         foreach (var endpoint in SpecExamples.Read(specFile))
@@ -86,6 +90,7 @@ public sealed partial class OpenApiContractTests
 
     [TestMethod]
     [DataRow("API-001-sites.md")]
+    [DataRow("API-002-pages-and-menu.md")]
     public void Every_spec_operation_has_a_name_and_one_tag(string specFile)
     {
         foreach (var endpoint in SpecExamples.Read(specFile))
@@ -103,11 +108,6 @@ public sealed partial class OpenApiContractTests
         {
             foreach (var (method, operation) in item!.AsObject())
             {
-                if (operation!["operationId"] is null)
-                {
-                    continue;   // not described yet: the page routes get their turn in #63
-                }
-
                 var declared = (operation!["parameters"]?.AsArray() ?? []).Where(p => p!["in"]!.GetValue<string>() == "path").ToDictionary(p => p!["name"]!.GetValue<string>(), p => p!);
                 foreach (Match variable in PathTemplate().Matches(path))
                 {

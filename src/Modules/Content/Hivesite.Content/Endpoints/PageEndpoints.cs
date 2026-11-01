@@ -1,6 +1,7 @@
 using Hivesite.Content.Application;
 using Hivesite.Shared;
 using Microsoft.AspNetCore.Http.HttpResults;
+using Microsoft.AspNetCore.Http.Metadata;
 
 namespace Hivesite.Content.Endpoints;
 
@@ -8,23 +9,40 @@ namespace Hivesite.Content.Endpoints;
 internal static class PageEndpoints
 {
     private static readonly ApiError SiteNotFound = ApiError.Of("site_not_found", "No site with this id.");
+    private static readonly ProducesResponseTypeMetadata Unauthenticated = new(StatusCodes.Status401Unauthorized, typeof(ApiError), ["application/json"]);   // RequireAuthorization answers it
     private static readonly ApiError PageNotFound = ApiError.Of("page_not_found", "No page with this id.");
 
     public static void MapPageEndpoints(this IEndpointRouteBuilder endpoints)
     {
         var sites = endpoints.MapGroup("/sites").RequireAuthorization();
-        sites.MapPost("{id:guid}/pages", CreatePage).Validate<PagePostValidator>();
-        sites.MapGet("{id:guid}/pages", ListPages).Validate<PageQueryValidator>();
-        sites.MapPut("{id:guid}/menu", ReplaceMenu).Validate<MenuPutValidator>();
-        // An id that is no UUID names no site: the same 404 as a missing one (API-001 Ids).
-        sites.MapMethods("{id}/pages", [HttpMethods.Post, HttpMethods.Get], () => TypedResults.NotFound(SiteNotFound));
-        sites.MapPut("{id}/menu", () => TypedResults.NotFound(SiteNotFound));
+        sites.WithTags("Pages");
+        sites.WithMetadata(Unauthenticated);
+        sites.MapPost("{id:guid}/pages", CreatePage).Validate<PagePostValidator>().WithName("CreatePage")
+            .WithSummary("Create a page")
+            .WithDescription("Errors: 400 `invalid_request`, 400 `slug_taken`, 400 `slug_reserved`, 400 `too_many_pages`, 401 `unauthenticated`, 404 `site_not_found`.");
+        sites.MapGet("{id:guid}/pages", ListPages).Validate<PageQueryValidator>().WithName("ListPages")
+            .WithSummary("List the pages of a site")
+            .WithDescription("Errors: 400 `invalid_request`, 400 `invalid_cursor`, 401 `unauthenticated`, 404 `site_not_found`.");
+        sites.MapPut("{id:guid}/menu", ReplaceMenu).Validate<MenuPutValidator>().WithName("ReplaceMenu")
+            .WithSummary("Replace the order of the menu")
+            .WithDescription("Errors: 400 `invalid_request`, 400 `menu_mismatch`, 401 `unauthenticated`, 404 `site_not_found`.");
+        // An id that is no UUID names no site: the same 404 as a missing one (API-001 Ids). Not in the document: the routes above say it.
+        sites.MapMethods("{id}/pages", [HttpMethods.Post, HttpMethods.Get], () => TypedResults.NotFound(SiteNotFound)).ExcludeFromDescription();
+        sites.MapPut("{id}/menu", () => TypedResults.NotFound(SiteNotFound)).ExcludeFromDescription();
 
         var pages = endpoints.MapGroup("/pages").RequireAuthorization();
-        pages.MapGet("{id:guid}", GetPage);
-        pages.MapPatch("{id:guid}", UpdatePage).Validate<PagePatchValidator>();
-        pages.MapDelete("{id:guid}", DeletePage);
-        pages.MapMethods("{id}", [HttpMethods.Get, HttpMethods.Patch, HttpMethods.Delete], () => TypedResults.NotFound(PageNotFound));
+        pages.WithTags("Pages");
+        pages.WithMetadata(Unauthenticated);
+        pages.MapGet("{id:guid}", GetPage).WithName("GetPage")
+            .WithSummary("Get a page")
+            .WithDescription("Errors: 401 `unauthenticated`, 404 `page_not_found`.");
+        pages.MapPatch("{id:guid}", UpdatePage).Validate<PagePatchValidator>().WithName("UpdatePage")
+            .WithSummary("Update a page")
+            .WithDescription("Errors: 400 `invalid_request`, 400 `slug_taken`, 400 `slug_reserved`, 401 `unauthenticated`, 404 `page_not_found`.");
+        pages.MapDelete("{id:guid}", DeletePage).WithName("DeletePage")
+            .WithSummary("Delete a page")
+            .WithDescription("Errors: 401 `unauthenticated`, 404 `page_not_found`.");
+        pages.MapMethods("{id}", [HttpMethods.Get, HttpMethods.Patch, HttpMethods.Delete], () => TypedResults.NotFound(PageNotFound)).ExcludeFromDescription();
     }
 
     private static async Task<Results<Created<PageDto>, NotFound<ApiError>, BadRequest<ApiError>>> CreatePage(
