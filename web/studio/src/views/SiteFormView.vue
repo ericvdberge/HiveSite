@@ -4,6 +4,7 @@ import { RouterLink, useRoute, useRouter } from 'vue-router'
 import NotFoundScreen from '../components/NotFoundScreen.vue'
 import ScreenHead from '../components/ScreenHead.vue'
 import { api, fieldKey, isApiError, type components } from '../api'
+import { clearSiteNav, setSiteNav } from '../composables/useSiteNav'
 import { dismissToast, showErrorToast, toastCopy } from '../composables/useToast'
 import {
     DEFAULT_LANGUAGE,
@@ -144,6 +145,7 @@ async function load(): Promise<void> {
         })
         if (!data) throw new Error('Empty response')
         fill(data)
+        setSiteNav({ id: data.id, name: data.name })
         phase.value = 'ready'
     } catch (error) {
         if (isAbort(error)) return
@@ -287,7 +289,10 @@ function describedBy(field: FieldName): string {
 onMounted(() => {
     if (isEdit) void load()
 })
-onBeforeUnmount(() => controller.abort())
+onBeforeUnmount(() => {
+    controller.abort()
+    clearSiteNav()
+})
 </script>
 
 <template>
