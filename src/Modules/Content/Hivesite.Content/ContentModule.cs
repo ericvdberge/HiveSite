@@ -3,9 +3,11 @@ using Hivesite.Content.Application;
 using Hivesite.Content.Contracts;
 using Hivesite.Content.Endpoints;
 using Hivesite.Content.Infrastructure;
+using Hivesite.Content.Seeding;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 
 namespace Hivesite.Content;
 
@@ -41,6 +43,19 @@ public static class ContentModule
     {
         await using var scope = services.CreateAsyncScope();
         await scope.ServiceProvider.GetRequiredService<ContentDbContext>().Database.MigrateAsync(cancellationToken);
+    }
+
+    /// <summary>
+    /// Seeds sample sites and pages for local work, only when the environment is Development; otherwise it writes nothing.
+    /// Run it on demand after <see cref="MigrateContentDatabaseAsync"/>. It never runs at startup. Safe to repeat.
+    /// </summary>
+    public static async Task SeedContentDevelopmentDataAsync(this IServiceProvider services, CancellationToken cancellationToken = default)
+    {
+        if (!services.GetRequiredService<IHostEnvironment>().IsDevelopment())
+        {
+            return;
+        }
+        await new DevSeeder(services).RunAsync(cancellationToken);
     }
 
     internal static DbContextOptionsBuilder Configure(DbContextOptionsBuilder options, string? connectionString) =>
