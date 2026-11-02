@@ -4,9 +4,9 @@ Sites, pages, the menu, block types and block validation. Owned by `dev-content`
 
 ## Layout
 - `Hivesite.Content/`
-  - `Endpoints/`: `SiteEndpoints`, `SiteDtos`, `SiteValidators`, `SiteMapper`.
+  - `Endpoints/`: `SiteEndpoints`, `SiteDtos`, `SiteValidators`, `SiteMapper`, `SiteOpenApi` (the `theme` enum in the OpenAPI schema).
   - `Application/`: `SiteService`.
-  - `Domain/`: `Site`, `SiteFilter`.
+  - `Domain/`: `Site`, `SiteFilter`, `SiteThemes` (the three theme keys and the default; `SiteThemeTokensTests` checks them against `design/tokens.json`, so change both together).
   - `Infrastructure/`: `ContentDbContext`, `SiteDao`, `SiteDaoMapper`, `SiteRepository`, `Migrations/`.
   - Block types (API-003) have no database: `BlockTypes/*.json` (embedded schemas, copied verbatim from the spec, plus `defs.json`), `Infrastructure/BlockTypeRegistry` (singleton), `Application/BlockTypeService` and `ContentModuleApi` and `ContentApiMapper`, `Domain/BlockType`, `BlockTypeFilter`, `Endpoints/BlockTypeEndpoints`, `BlockTypeDtos`, `BlockTypeValidators`, `BlockTypeMapper`.
   - Page blocks (API-004, GET and PUT): `Domain/PageBlocks`, `PageBlocksFilter`, `Infrastructure/PageBlocksDao`, `PageBlocksDaoMapper`, `PageBlocksRepository` (one row per page, none means the empty document at version 1; the save checks the version and sets the page's `updated_at` in one transaction), `Application/PageBlocksService`, `Application/BlockDocumentValidator` (singleton, no database; trims, fills defaults and validates with JsonSchema.Net against the schemas of `BlockTypeRegistry`, the only source of schemas; after each block's schema check it runs `Application/BlockRules`, the API-003 "Rules beyond the schemas": static, no database, reads the block and never changes it), `Endpoints/PageBlocksEndpoints`, `PageBlocksRequest` (raw body and headers: 413, 415, `If-Match`; the blocks are open JSON, so no DTO and no FluentValidation validator), `PageBlocksDtos` (OpenAPI only).

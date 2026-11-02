@@ -14,7 +14,7 @@ public sealed partial class CreateSiteTests
     private static partial Regex Timestamp();
 
     private static readonly string[] SiteFields = ["id", "name", "slug", "settings", "created_at", "updated_at"];
-    private static readonly string[] SettingsFields = ["language", "description"];
+    private static readonly string[] SettingsFields = ["language", "description", "theme"];
 
     private static string Json(string name = "Atelier Noor", string? slug = null, string? settings = null) =>
         $$"""{"name":{{JsonSerializer.Serialize(name)}},"slug":"{{slug ?? ContentApi.NewSlug()}}"{{(settings is null ? "" : ",\"settings\":" + settings)}}}""";

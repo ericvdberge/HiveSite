@@ -2,7 +2,7 @@
 id: API-001
 title: Sites
 domain: content
-status: in review
+status: built
 owner: api-architect
 stories: [12, 16]
 depends_on: []

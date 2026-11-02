@@ -22,6 +22,7 @@ public static class ContentModule
         services.AddDbContext<ContentDbContext>((sp, options) =>
             Configure(options, sp.GetRequiredService<IConfiguration>().GetConnectionString("Content")));
         services.AddValidatorsFromAssemblyContaining<ContentDbContext>(includeInternalTypes: true);
+        services.AddSiteOpenApi();
 
         services.AddScoped<SiteRepository>();
         services.AddScoped<SiteService>();

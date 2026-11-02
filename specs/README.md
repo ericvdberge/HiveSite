@@ -6,7 +6,7 @@
 
 | Spec | Title | Status | Stories | Depends on |
 |---|---|---|---|---|
-| [API-001](content/API-001-sites.md) | Sites | in review | #12, #16 | — |
+| [API-001](content/API-001-sites.md) | Sites | built | #12, #16 | — |
 | [API-002](content/API-002-pages-and-menu.md) | Pages and menu order | built | #13 | API-001 |
 | [API-003](content/API-003-block-types.md) | Block type registry | in review | #14 | API-001 |
 | [API-004](content/API-004-page-blocks.md) | Page blocks | approved | #15 | API-001, API-002, API-003 |
@@ -31,9 +31,9 @@
 ## By status
 
 - **draft** (1): API-012
-- **in review** (8): API-001, API-003, API-005, API-006, API-010, API-011, API-020, API-021
+- **in review** (7): API-003, API-005, API-006, API-010, API-011, API-020, API-021
 - **approved** (1): API-004
-- **built** (1): API-002
+- **built** (2): API-001, API-002
 
 ## Open questions
 

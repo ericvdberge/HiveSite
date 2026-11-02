@@ -19,6 +19,7 @@ internal static partial class SiteMapper
     [MapperIgnoreTarget(nameof(Site.UpdatedAt))] // set by SiteService
     [MapProperty("Settings.Language", nameof(Site.Language))]
     [MapProperty("Settings.Description", nameof(Site.Description))]
+    [MapProperty("Settings.Theme", nameof(Site.Theme))]
     public static partial Site ToEntity(SitePostDto dto);
 
     [MapperIgnoreTarget(nameof(Site.Id))] // comes from the path, never from the body
@@ -27,6 +28,7 @@ internal static partial class SiteMapper
     [MapperIgnoreTarget(nameof(Site.UpdatedAt))] // set by SiteService, only when something changed
     [MapProperty("Settings.Language", nameof(Site.Language))]
     [MapProperty("Settings.Description", nameof(Site.Description))]
+    [MapProperty("Settings.Theme", nameof(Site.Theme))]
     public static partial void Apply(SitePatchDto dto, Site site);
 
     [MapperIgnoreTarget(nameof(SiteFilter.OwnerId))] // the signed-in owner, set by SiteService
@@ -36,5 +38,5 @@ internal static partial class SiteMapper
     public static PageDto<SiteDto> ToDto(Page<Site> page) =>
         new(ToDto(page.Items), page.HasMore ? page.Items[^1].Id.ToString("D") : null);
 
-    private static SiteSettingsDto ToSettings(Site site) => new(site.Language, site.Description);
+    private static SiteSettingsDto ToSettings(Site site) => new(site.Language, site.Description, site.Theme);
 }
