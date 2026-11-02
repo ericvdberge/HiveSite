@@ -14,6 +14,7 @@ A block-based website builder, designed and built by a team of AI agents. Owners
 - Test: `dotnet test`
 - Format: `dotnet format`
 - Spec index: `node scripts/spec-index.mjs` (CI runs it with `--check`)
+- Default template (from `web/template`): `npm ci`, `npm run lint`, `npm test`, `npm run build` (writes `dist/render.mjs` and `dist/themes/`; build it before `dotnet test`)
 - Studio (from `web/studio`): `npm ci`, `npm run dev`, `npm run lint`, `npm run typecheck`, `npm test`, `npm run build`
 - Board: `node scripts/board.mjs list [Column]`, `node scripts/board.mjs move <issue> "<Column>"`, `node scripts/board.mjs sync` (closed issues → Done; run it after you merge)
 
@@ -23,7 +24,7 @@ Work is run by the agents in `.claude/agents/` following `.claude/skills/run-sto
 | Label | Agent | Writes |
 |---|---|---|
 | `team:content` | `dev-content` | `src/Modules/Content`, its tests |
-| `team:rendering` | `dev-rendering` | `src/Modules/Rendering`, its tests |
+| `team:rendering` | `dev-rendering` | `src/Modules/Rendering`, `web/template`, `web/packages`, their tests |
 | `team:publishing` | `dev-publishing` | `src/Modules/Publishing`, its tests |
 | `team:frontend` | `dev-frontend` | `web/studio`, its tests |
 | `team:design` | `designer` | `design/` |
@@ -42,7 +43,7 @@ Expertise comes from existing plugins enabled in `.claude/settings.json`: `pr-re
 
 ## Rules
 - Build exactly what the approved spec says. Gaps go back to the spec, not into the code.
-- Rendering is pure: content + theme → HTML, no database. Renderers use design tokens only.
+- Rendering is pure: a build of the default template turns a snapshot into the same files every time, with no database ([ADR 4](docs/adr/0004-mvp-route.md)). Templates use design tokens only.
 - Errors use the shape in `specs/STYLE.md`. Ids are UUIDv7 strings.
 - No exceptions for business logic: not found returns `null`, a broken rule returns a `Result<T>` with an `Error`. C# patterns are in [src/CLAUDE.md](src/CLAUDE.md).
 - Every acceptance criterion has a test. Rendered HTML has snapshot tests.
