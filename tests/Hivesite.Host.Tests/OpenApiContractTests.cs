@@ -36,6 +36,7 @@ public sealed partial class OpenApiContractTests
     [TestMethod]
     [DataRow("API-001-sites.md", "POST /sites:2:4,GET /sites:1:3,GET /sites/{id}:1:2,PATCH /sites/{id}:2:4")]
     [DataRow("API-002-pages-and-menu.md", "POST /sites/{id}/pages:2:6,GET /sites/{id}/pages:1:4,GET /pages/{id}:1:2,PATCH /pages/{id}:2:5,DELETE /pages/{id}:0:2,PUT /sites/{id}/menu:2:4")]
+    [DataRow("API-003-block-types.md", "GET /block-types:1:3")]   // skipped while API-003 is `in review`; runs once its build PR sets it to built
     [DataRow("API-004-page-blocks.md", "GET /pages/{id}/blocks:1:2,PUT /pages/{id}/blocks:1:9")]
     public void The_spec_is_read_whole(string specFile, string expected)
     {
@@ -48,6 +49,7 @@ public sealed partial class OpenApiContractTests
     [TestMethod]
     [DataRow("API-001-sites.md")]
     [DataRow("API-002-pages-and-menu.md")]
+    [DataRow("API-003-block-types.md")]
     [DataRow("API-004-page-blocks.md")]
     public void Every_spec_endpoint_documents_the_401_of_the_shared_conventions(string specFile)
     {
@@ -61,6 +63,7 @@ public sealed partial class OpenApiContractTests
     [TestMethod]
     [DataRow("API-001-sites.md")]
     [DataRow("API-002-pages-and-menu.md")]
+    [DataRow("API-003-block-types.md")]
     [DataRow("API-004-page-blocks.md")]
     public void Every_spec_example_body_validates_against_the_document(string specFile)
     {
@@ -82,6 +85,7 @@ public sealed partial class OpenApiContractTests
     [TestMethod]
     [DataRow("API-001-sites.md")]
     [DataRow("API-002-pages-and-menu.md")]
+    [DataRow("API-003-block-types.md")]
     [DataRow("API-004-page-blocks.md")]
     public void Every_spec_error_is_documented_on_its_operation(string specFile)
     {
@@ -103,6 +107,7 @@ public sealed partial class OpenApiContractTests
     [TestMethod]
     [DataRow("API-001-sites.md")]
     [DataRow("API-002-pages-and-menu.md")]
+    [DataRow("API-003-block-types.md")]
     [DataRow("API-004-page-blocks.md")]
     public void Every_spec_operation_has_a_name_and_one_tag(string specFile)
     {
@@ -113,6 +118,23 @@ public sealed partial class OpenApiContractTests
             Assert.IsFalse(string.IsNullOrEmpty(operation["operationId"]?.GetValue<string>()), $"{endpoint.Method} {endpoint.Path}: no operationId.");
             Assert.AreEqual(1, operation["tags"]!.AsArray().Count, $"{endpoint.Method} {endpoint.Path}: not exactly one tag.");
         }
+    }
+
+    [TestMethod]
+    public void The_blocks_document_declares_its_ETag_and_If_Match_headers()
+    {
+        foreach (var method in new[] { "GET", "PUT" })
+        {
+            var etag = Operation(method, "/pages/{id}/blocks")["responses"]?["200"]?["headers"]?["ETag"];
+            Assert.AreEqual("string", etag?["schema"]?["type"]?.GetValue<string>(), $"{method}: no ETag header on the 200.");
+        }
+
+        var put = Operation("PUT", "/pages/{id}/blocks");
+        var ifMatch = put["parameters"]!.AsArray().SingleOrDefault(p => p!["in"]!.GetValue<string>() == "header" && p["name"]!.GetValue<string>() == "If-Match");
+        Assert.IsNotNull(ifMatch, "PUT: no If-Match header parameter.");
+        Assert.AreNotEqual(true, ifMatch["required"]?.GetValue<bool>(), "If-Match is optional.");
+        Assert.IsNull(Operation("GET", "/pages/{id}/blocks")["parameters"]!.AsArray().SingleOrDefault(p => p!["in"]!.GetValue<string>() == "header"), "GET takes no header.");
+        Assert.IsNotNull(put["requestBody"]?["content"]?["application/json"]?["schema"], "PUT: application/json is not in the request body.");
     }
 
     [TestMethod]
