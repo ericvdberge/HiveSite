@@ -41,7 +41,7 @@ Backlog ─(manager or human)→ Ready → Spec review ─(human merges spec PR)
 
 ### 3. Build
 - Move the story to **Building**.
-- Start the dev agent for the story's `team:*` label with `isolation: worktree`. Give it the issue number, the spec file, the branch name `story/<issue>-<slug>`, and the build and test commands (for `team:frontend`, the studio commands, run from `web/studio`).
+- Start the dev agent for the story's `team:*` label with `isolation: worktree`, on a branch from `origin/main`. Give it the issue number, the spec file, the branch name `story/<issue>-<slug>`, and the build and test commands (for `team:frontend`, the studio commands, run from `web/studio`).
 - The dev opens a **draft** PR that follows the PR template and says `Closes #<issue>` and `Spec: API-xxx`.
 - **First story of a module** (its folder has no entity built on the `src/CLAUDE.md` patterns yet; for the studio, `web/studio` does not exist yet): the dev first comments on the story with the files it will add and the public method signatures, and **stops**. Tell the human: "Check the sketch on #N." Build once they reply. It costs one short read and saves review rounds.
 - Before the PR, the dev reads its diff against `src/CLAUDE.md` once more and fixes what drifts.
@@ -66,8 +66,9 @@ A **stop** in the steps ends work on that story, not the run. After each stop, a
    - a story in **Building** or **Agent review** with no run going and no `needs-human` label;
    - the top story in **Ready**;
    - the top story in **Backlog** that passes *Promote from Backlog*.
-3. Skip stories that wait on a human: an open spec or design PR in **Spec review**, a sketch with no reply, **Ready to merge**, `needs-human`, or the review budget used.
-4. Nothing left? End with one summary: each story you touched, where it stopped, and what the human must do, most urgent first.
+3. Skip stories that need code from an open PR (a dependency in **Spec review**, **Building**, **Agent review** or **Ready to merge**). Never start one on top of that PR's branch: squash merges make stacked branches conflict. Run it once the dependency is merged.
+4. Skip stories that wait on a human: an open spec or design PR in **Spec review**, a sketch with no reply, **Ready to merge**, `needs-human`, or the review budget used.
+5. Nothing left? End with one summary: each story you touched, where it stopped, and what the human must do, most urgent first.
 
 ## Promote from Backlog
 

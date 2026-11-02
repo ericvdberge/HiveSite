@@ -1,0 +1,63 @@
+name: Update open PRs
+
+# After every merge to main, merge main into each open PR that targets main,
+# so no PR sits behind main until someone notices a conflict. A clean merge is
+# pushed and CI is started for it; a real conflict gets one comment on the PR.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+  actions: write
+
+concurrency:
+  group: update-open-prs
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Merge main into every open PR
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          gh pr list --repo "$REPO" --base main --state open --limit 100 \
+            --json number,headRefName,isCrossRepository \
+            --jq '.[] | select(.isCrossRepository | not) | "\(.number) \(.headRefName)"' |
+          while read -r number branch; do
+            echo "::group::#$number $branch"
+            git fetch --quiet origin "$branch"
+            git checkout --quiet -B "$branch" "origin/$branch"
+
+            if git merge-base --is-ancestor origin/main HEAD; then
+              echo "#$number is up to date with main."
+            elif git merge --no-edit --quiet origin/main; then
+              git push --quiet origin "HEAD:$branch"
+              # Pushes made with GITHUB_TOKEN start no workflows, so start CI on the branch.
+              gh workflow run ci.yml --repo "$REPO" --ref "$branch"
+              echo "#$number: merged main and started CI."
+            else
+              files=$(git diff --name-only --diff-filter=U | sed 's/^/- `/; s/$/`/')
+              git merge --abort
+              marker="<!-- update-open-prs:$(git rev-parse --short origin/main) -->"
+              if ! gh pr view "$number" --repo "$REPO" --json comments --jq '.comments[].body' | grep -qF "$marker"; then
+                printf '%s\n**Conflicts with main.** Merging `main` into this branch conflicts in:\n%s\n\nMerge `main` by hand and resolve them.\n\n---\n_Posted by the Update open PRs workflow_\n' "$marker" "$files" |
+                  gh pr comment "$number" --repo "$REPO" --body-file -
+              fi
+              echo "#$number: conflicts, commented."
+            fi
+            echo "::endgroup::"
+          done

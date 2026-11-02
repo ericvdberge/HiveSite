@@ -40,6 +40,8 @@ Expertise comes from existing plugins enabled in `.claude/settings.json`: `pr-re
 - Conventional Commits with a scope: `feat(content): …`, `docs(spec): …`, `chore(factory): …`.
 - One PR per story, using the PR template, with `Closes #N` and `Spec: API-xxx`. Spec PRs and build PRs are separate.
 - Squash merge.
+- Branch from `main` only, never from another open PR's branch. Squash merges rewrite history, so a branch stacked on an open PR conflicts as soon as that PR merges. A story that needs an open PR waits until it is merged.
+- Before you push to an existing branch, `git pull` it first: after each merge to `main`, the `Update open PRs` workflow merges `main` into every open PR.
 
 ## Rules
 - Build exactly what the approved spec says. Gaps go back to the spec, not into the code.
