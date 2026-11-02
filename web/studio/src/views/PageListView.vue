@@ -121,8 +121,11 @@ const nextHomeTitle = computed(() =>
     deleting.value && isHome(deleting.value) && count.value > 1 ? pages.value[1]?.title : undefined,
 )
 
+// True from the confirm until the row is gone and focus has moved: no second delete meanwhile.
+const removing = ref(false)
+
 function openDelete(page: PageItem): void {
-    if (deleting.value || busy.value || grab.value) return
+    if (deleting.value || removing.value || busy.value || grab.value) return
     deleteFailed.value = false
     deleteBusy.value = false
     deleting.value = page
@@ -160,7 +163,8 @@ async function focusAfterRemoval(index: number): Promise<void> {
 
 async function confirmDelete(): Promise<void> {
     const target = deleting.value
-    if (!target || deleteBusy.value) return
+    if (!target || deleteBusy.value || removing.value) return
+    removing.value = true
     const index = pages.value.findIndex((p) => p.id === target.id)
     const wasHome = isHome(target)
     const nextTitle = wasHome ? pages.value[1]?.title : undefined
@@ -174,13 +178,13 @@ async function confirmDelete(): Promise<void> {
         if (controller.signal.aborted) return
         await closeDialog()
         if (controller.signal.aborted) return
-        await removeRow(target, index)
+        const at = await removeRow(target)
         if (controller.signal.aborted) return
         notice.value =
             wasHome && nextTitle !== undefined
                 ? `${target.title} deleted. ${nextTitle} is now your home page.`
                 : `${target.title} deleted.`
-        await focusAfterRemoval(index)
+        await focusAfterRemoval(at)
     } catch (error) {
         if (controller.signal.aborted || isAbort(error)) return
         if (isApiError(error) && error.code === 'unauthenticated') {
@@ -197,15 +201,21 @@ async function confirmDelete(): Promise<void> {
             deleteFailed.value = true
         }
     } finally {
-        if (!controller.signal.aborted) deleteBusy.value = false
+        if (!controller.signal.aborted) {
+            deleteBusy.value = false
+            removing.value = false
+        }
     }
 }
 
 /** The row fades out, then the rows below close the gap: one shape at a time. */
-async function removeRow(target: PageItem, index: number): Promise<void> {
+async function removeRow(target: PageItem): Promise<number> {
     const row = rowElement(target.id)
     if (row) await play(row, [{ opacity: 1 }, { opacity: 0 }])
-    if (controller.signal.aborted) return
+    if (controller.signal.aborted) return 0
+    // Everything is computed from the list as it is now, not as it was at the confirm.
+    const index = pages.value.findIndex((p) => p.id === target.id)
+    if (index < 0) return 0
     const below = pages.value.slice(index + 1)
     const tops = new Map(
         below.map((p) => [p.id, rowElement(p.id)?.getBoundingClientRect().top ?? 0] as const),
@@ -219,6 +229,7 @@ async function removeRow(target: PageItem, index: number): Promise<void> {
             return el ? glide(el, tops.get(p.id) ?? 0) : Promise.resolve()
         }),
     )
+    return index
 }
 
 /* ---- Reorder (menu-reorder.md) ---- */
@@ -239,7 +250,7 @@ let suppressBlur = false
 let lastControl: { id: string; kind: ControlKind } = { id: '', kind: 'handle' }
 
 const busy = computed(() => saving.value || refreshing.value)
-const canMove = computed(() => !busy.value && count.value > 1)
+const canMove = computed(() => !busy.value && !removing.value && count.value > 1)
 
 /** The saved state to go back to after a cancel or a failed save. */
 function remember(): void {

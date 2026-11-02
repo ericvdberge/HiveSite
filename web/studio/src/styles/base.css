@@ -147,7 +147,7 @@ a {
 .hs-button--danger {
     background: transparent;
     border-color: var(--hs-color-error);
-    color: var(--hs-color-text);
+    color: var(--hs-color-error);
 }
 
 /* Dialog (shell.md, Dialog). Opened with showModal(), so it sits in the top layer. */
