@@ -5,6 +5,9 @@ public sealed record PageBlocksFilter
 {
     public Guid? PageId { get; init; }
 
+    /// <summary>Only the blocks of the pages of this site.</summary>
+    public Guid? SiteId { get; init; }
+
     /// <summary>Only the blocks of pages whose site belongs to this owner.</summary>
     public string? OwnerId { get; init; }
 }

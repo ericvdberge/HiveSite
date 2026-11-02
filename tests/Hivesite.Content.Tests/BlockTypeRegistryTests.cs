@@ -213,6 +213,7 @@ public sealed class BlockTypeRegistryTests
     public void The_contract_offers_the_same_registry_as_contract_dtos_AC10()
     {
         var services = new ServiceCollection().AddSharedServices().AddContentModule();
+        services.AddSingleton<Microsoft.Extensions.Configuration.IConfiguration>(new Microsoft.Extensions.Configuration.ConfigurationBuilder().Build());   // the snapshot service needs the DbContext, which is never opened here
         using var provider = services.BuildServiceProvider();
         using var scope = provider.CreateScope();
 
