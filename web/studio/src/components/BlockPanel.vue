@@ -1,9 +1,8 @@
 <script setup lang="ts">
-import { ref } from 'vue'
-
-// One block of the list: a head (position, name, summary) with a toggle for the body.
-// Opening one block never closes another, so each panel keeps its own state.
-const props = defineProps<{
+// One block of the list: a head (position, name, summary, flag) with a toggle for the body.
+// Opening one block never closes another. The screen owns the open state, so it can open
+// every block with an error.
+defineProps<{
     /** The id prefix, unique per block on the screen. */
     blockId: string
     position: number
@@ -12,10 +11,11 @@ const props = defineProps<{
     summary?: string
     /** A block the studio has no form for: the body says so. */
     unsupported?: boolean
-    startOpen: boolean
+    open: boolean
+    /** The block has an error: "Error: needs attention" shows even when the block is closed. */
+    flagged?: boolean
 }>()
-
-const open = ref(props.startOpen)
+const emit = defineEmits<{ 'update:open': [open: boolean] }>()
 </script>
 
 <template>
@@ -28,7 +28,7 @@ const open = ref(props.startOpen)
                     class="hs-block__toggle"
                     :aria-expanded="open ? 'true' : 'false'"
                     :aria-controls="`${blockId}-body`"
-                    @click="open = !open"
+                    @click="emit('update:open', !open)"
                 >
                     <span class="hs-block__pos">{{ position }}</span>
                     <span class="hs-block__name">{{ name }}</span>
@@ -36,6 +36,7 @@ const open = ref(props.startOpen)
                 </button>
             </h2>
             <p v-if="summary" class="hs-block__summary">{{ summary }}</p>
+            <p v-if="flagged" class="hs-block__flag"><strong>Error:</strong> needs attention</p>
         </div>
         <Transition name="hs-block-body">
             <div v-show="open" :id="`${blockId}-body`" class="hs-block__body">
@@ -120,6 +121,16 @@ const open = ref(props.startOpen)
     line-clamp: 2;
     overflow: hidden;
     overflow-wrap: anywhere;
+}
+
+.hs-block__flag {
+    margin: 0;
+    font-size: var(--hs-font-size-body-s);
+    color: var(--hs-color-error);
+}
+
+.hs-block__flag strong {
+    font-weight: var(--hs-font-weight-text-strong);
 }
 
 .hs-block__body {
