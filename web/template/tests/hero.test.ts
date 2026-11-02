@@ -62,6 +62,18 @@ describe('hero block', () => {
         }
     }
 
+    it('has no script, style, event handler or BOM in any fixture_AC15', async () => {
+        for (const blocks of Object.values(heroFixtures)) {
+            for (const request of [preview(atelierNoor(blocks)), release(atelierNoor(blocks))]) {
+                for (const html of Object.values(await render(request))) {
+                    expect(html).not.toMatch(/<script|<style|\sstyle=|\son[a-z]+=/i)
+                    expect(html.charCodeAt(0)).not.toBe(0xfeff)
+                    expect(Buffer.from(html, 'utf8').toString('utf8')).toBe(html)
+                }
+            }
+        }
+    })
+
     it('keeps one h1 and uses h2 for a hero at index 1_AC9', async () => {
         const html = await renderOne(preview(atelierNoor(heroFixtures['second-block']!)))
         expect(html.match(/<h1/g)).toHaveLength(1)
