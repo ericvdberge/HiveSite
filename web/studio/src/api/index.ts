@@ -4,3 +4,9 @@ export { fieldKey } from './fields'
 export { listAll, type Page } from './pagination'
 export { setUnauthenticatedHandler } from './session'
 export type { components, paths } from './schema'
+export {
+    getPageBlocks,
+    listAllBlockTypes,
+    type BlockTypeInfo,
+    type BlocksDocumentDto,
+} from './blocks'
