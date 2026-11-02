@@ -10,6 +10,8 @@ internal static partial class PageBlocksDaoMapper
 {
     public static partial PageBlocks ToDomain(PageBlocksDao dao);
 
+    public static partial IReadOnlyList<PageBlocks> ToDomain(IReadOnlyList<PageBlocksDao> daos);
+
     public static partial PageBlocksDao ToDao(PageBlocks blocks);
 
     private static JsonObject ParseDocument(string json) => JsonNode.Parse(json)!.AsObject();

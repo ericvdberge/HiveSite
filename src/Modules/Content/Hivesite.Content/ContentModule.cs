@@ -30,6 +30,8 @@ public static class ContentModule
         services.AddScoped<PageService>();
         services.AddScoped<PageBlocksRepository>();
         services.AddScoped<PageBlocksService>();
+        services.AddScoped<ContentTransaction>();
+        services.AddScoped<SiteSnapshotService>();
         services.AddSingleton<BlockTypeRegistry>();
         services.AddSingleton<BlockDocumentValidator>();
         services.AddScoped<BlockTypeService>();
