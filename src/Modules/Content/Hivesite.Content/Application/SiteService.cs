@@ -16,6 +16,10 @@ internal sealed class SiteService(SiteRepository sites, UserContext user, ITimeS
     public Task<Site?> GetAsync(Guid id, CancellationToken ct) =>
         sites.GetAsync(new SiteFilter { OwnerId = user.Id, Id = id }, ct);
 
+    /// <summary>The site whose current slug is exactly this one, whoever owns it. For public serving; null when unknown.</summary>
+    public Task<Site?> GetBySlugAsync(string slug, CancellationToken ct) =>
+        sites.GetAsync(new SiteFilter { Slug = slug }, ct);
+
     public async Task<Result<Page<Site>>> ListAsync(SiteFilter filter, CancellationToken ct)
     {
         filter = filter with { OwnerId = user.Id };

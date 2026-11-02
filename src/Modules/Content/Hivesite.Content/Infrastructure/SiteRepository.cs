@@ -48,6 +48,10 @@ internal sealed class SiteRepository(ContentDbContext db)
         {
             query = query.Where(s => s.Id == filter.Id);
         }
+        if (filter.Slug is not null)
+        {
+            query = query.Where(s => s.Slug == filter.Slug);
+        }
         if (filter.After is not null)
         {
             var after = db.Sites.Where(a => a.Id == filter.After);

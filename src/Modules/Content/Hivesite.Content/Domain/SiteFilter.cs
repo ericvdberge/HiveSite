@@ -7,6 +7,9 @@ public sealed record SiteFilter
 
     public Guid? Id { get; init; }
 
+    /// <summary>Exactly this slug, case-sensitive.</summary>
+    public string? Slug { get; init; }
+
     /// <summary>Only the sites after this one in list order: newest first, ties by id ascending.</summary>
     public Guid? After { get; init; }
 
