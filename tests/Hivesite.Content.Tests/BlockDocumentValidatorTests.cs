@@ -293,6 +293,14 @@ public sealed class BlockDocumentValidatorTests
     private const string BadEmbed = """{"type":"embed","attrs":{"provider":"vimeo","url":"https://www.youtube.com/embed/x","title":"Film"}}""";
 
     [TestMethod]
+    public void The_text_limit_is_per_block_not_per_document_AC4()
+    {
+        var block = $$"""{"type":"rich_text","content":[{"type":"paragraph","content":[{"type":"text","text":"{{Repeat("a", 6000)}}"}]}]}""";
+
+        Assert.IsTrue(Check(Doc(block, block)).IsSuccess);
+    }
+
+    [TestMethod]
     public void A_rule_failure_in_block_0_comes_before_a_schema_failure_in_block_1_AC9()
     {
         AssertFails(Doc(BadEmbed, """{"type":"hero","attrs":{}}"""), "invalid_block", "/content/0/attrs/url", "must be a Vimeo address");

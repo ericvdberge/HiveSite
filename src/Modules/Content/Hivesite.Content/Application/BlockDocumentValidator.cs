@@ -272,7 +272,7 @@ internal sealed partial class BlockDocumentValidator
         return new Error("invalid_block", $"{field}: {message}", field);
     }
 
-    private static string Escape(string segment) => segment.Replace("~", "~0", StringComparison.Ordinal).Replace("/", "~1", StringComparison.Ordinal);
+    internal static string Escape(string segment) => segment.Replace("~", "~0", StringComparison.Ordinal).Replace("/", "~1", StringComparison.Ordinal);
 
     [GeneratedRegex(@"/oneOf/\d+")]
     private static partial Regex InsideBranch();

@@ -139,7 +139,7 @@ internal static class BlockRules
             {
                 if (marks[i]?["type"]?.GetValue<string>() is { } type && !seen.Add(type))
                 {
-                    return Fail($"{path}/marks/{i}", $"has the mark '{type}' more than once");
+                    return Fail($"{path}/marks/{i}", $"repeats the mark '{type}'");
                 }
             }
         }
@@ -152,8 +152,6 @@ internal static class BlockRules
 
     private static Error Fail(string field, string problem) => new("invalid_block", $"{field}: {problem}", field);
 
-    private static string Escape(string segment) => segment.Replace("~", "~0", StringComparison.Ordinal).Replace("/", "~1", StringComparison.Ordinal);
-
     /// <summary>The direct children of an object or array, in document order, with their pointers and property names.</summary>
     private static IEnumerable<(JsonNode Node, string Pointer, string? Key)> Children(JsonNode node, string pointer)
     {
@@ -164,7 +162,7 @@ internal static class BlockRules
                 {
                     if (value is not null)
                     {
-                        yield return (value, $"{pointer}/{Escape(name)}", name);
+                        yield return (value, $"{pointer}/{BlockDocumentValidator.Escape(name)}", name);
                     }
                 }
                 break;

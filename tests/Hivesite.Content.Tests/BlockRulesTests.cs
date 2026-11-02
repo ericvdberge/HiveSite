@@ -123,15 +123,6 @@ public sealed class BlockRulesTests
     }
 
     [TestMethod]
-    public void The_limit_is_per_block_AC4()
-    {
-        var block = RichText(Paragraph(Text(new string('a', 6000))));
-
-        Assert.IsNull(Check(block, 0));
-        Assert.IsNull(Check(block, 1));
-    }
-
-    [TestMethod]
     public void Three_list_levels_pass_and_the_fourth_fails_at_the_fourth_list_AC5()
     {
         var third = List("bulletList", Item(Paragraph(Text("c"))));
@@ -186,14 +177,29 @@ public sealed class BlockRulesTests
     [TestMethod]
     public void The_rules_run_in_the_order_of_the_spec_AC9()
     {
-        // Too deep, a bad first child and a double mark in one block: the first rule listed wins at each step.
-        var marks = Text("a", """{"type":"bold"},{"type":"bold"}""");
-        var bad = List("bulletList", Item(List("bulletList", Item(Paragraph(marks)))));
-        AssertFails(Check(RichText(bad)), "/content/0/content/0/content/0/content/0");
+        // In each block the failure of the later rule stands earlier in the document, so only the order of the rules decides.
+        var doubleMark = Paragraph(Text("a", """{"type":"bold"},{"type":"bold"}"""));
+        var listFirst = List("bulletList", Item(List("bulletList", Item(Paragraph()))));
+        var tooDeep = Nest(4);
+        var tooLong = Paragraph(Text(new string('a', 10_001)));
 
+        // Link host before the mark.
         var host = RichText(Paragraph(Text("a", """{"type":"bold"},{"type":"bold"}"""), Text("b", """{"type":"link","attrs":{"href":"https://"}}""")));
         AssertFails(Check(host), "/content/0/content/0/content/1/marks/0/attrs/href");
+
+        // Total text before depth, first child and marks.
+        AssertFails(Check(RichText(tooDeep, listFirst, doubleMark, tooLong)), "/content/0/content");
+
+        // Depth before first child and marks.
+        AssertFails(Check(RichText(listFirst, doubleMark, tooDeep)), "/content/0/content/2" + string.Concat(Enumerable.Repeat("/content/0/content/1", 3)));
+
+        // First child before marks.
+        AssertFails(Check(RichText(doubleMark, listFirst)), "/content/0/content/1/content/0/content/0");
     }
+
+    /// <summary>A bullet list that holds <paramref name="levels"/> lists one inside the other, each item a paragraph followed by the next list.</summary>
+    private static string Nest(int levels) =>
+        levels == 1 ? List("bulletList", Item(Paragraph(Text("x")))) : List(levels % 2 == 0 ? "orderedList" : "bulletList", Item(Paragraph(Text("x")), Nest(levels - 1)));
 
     [TestMethod]
     public void The_block_is_not_changed_AC10()
