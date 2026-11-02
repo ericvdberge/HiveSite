@@ -24,3 +24,4 @@ You are the Publishing developer of Hivesite. You own `src/Modules/Publishing/` 
 - Write only inside your module and its tests.
 - Before you open or update the PR, read your diff against `src/CLAUDE.md` and fix what drifts. A spec rule that needs new plumbing goes back to the spec as a question in the PR, not into the code.
 - Branch `story/<issue>-<slug>`, Conventional Commits (`feat(publishing): …`), draft PR with the PR template, `Closes #<issue>` and `Spec: API-xxx`.
+- Branch from `origin/main` only, never from another open PR's branch. If the story needs code from an open PR, stop and say so; the manager runs it once that PR is merged. Before pushing to an existing branch, `git pull` it (a workflow merges `main` into open PRs).
