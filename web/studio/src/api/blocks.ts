@@ -33,3 +33,24 @@ export function listAllBlockTypes(signal?: AbortSignal): Promise<BlockTypeInfo[]
         return data
     })
 }
+
+/**
+ * Replaces the blocks of a page (API-004). `If-Match` is set by hand to the last `ETag`, because
+ * the generated types do not declare the header. With `etag` `null` no header is sent, which is
+ * the deliberate overwrite and nothing else. Returns the stored document and its new `ETag`.
+ */
+export async function putPageBlocks(
+    id: string,
+    document: BlocksDocumentDto,
+    etag: string | null,
+    signal?: AbortSignal,
+): Promise<{ document: BlocksDocumentDto; etag: string | null }> {
+    const { data, response } = await api.PUT('/pages/{id}/blocks', {
+        params: { path: { id } },
+        body: document,
+        headers: etag === null ? {} : { 'If-Match': etag },
+        signal,
+    })
+    if (!data) throw new ApiError(UNKNOWN_ERROR_CODE, 'Something went wrong. Try again.')
+    return { document: data, etag: response.headers.get('ETag') }
+}

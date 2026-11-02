@@ -7,6 +7,7 @@ export type { components, paths } from './schema'
 export {
     getPageBlocks,
     listAllBlockTypes,
+    putPageBlocks,
     type BlockTypeInfo,
     type BlocksDocumentDto,
 } from './blocks'
