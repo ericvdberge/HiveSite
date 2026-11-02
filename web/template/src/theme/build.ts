@@ -4,13 +4,14 @@ import { createRequire } from 'node:module'
 import { dirname, join } from 'node:path'
 import { assertSameTokens, cssName, customProperties, flatten, type ThemeTokens, type Tokens } from './tokens.ts'
 import { resolveBreakpoints } from './media.ts'
+import { blockStyles, shellStyles } from './styles.ts'
 
 export const MAX_STYLESHEET_BYTES = 131_072
 export const MAX_FONTS = 6
 
-/** Block and shell styles are appended here by later stories: (theme) => CSS using var(--hs-…) only. */
+/** Shell and block styles: (theme) => CSS using var(--hs-…) only. Later block stories add their file to packages/blocks/src/styles. */
 export type StyleSource = (theme: ThemeTokens) => string
-export const styleSources: StyleSource[] = []
+export const styleSources: StyleSource[] = [shellStyles, blockStyles]
 
 const require = createRequire(import.meta.url)
 const baseCss = readFileSync(new URL('../styles/base.css', import.meta.url), 'utf8')

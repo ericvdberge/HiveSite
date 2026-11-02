@@ -7,23 +7,28 @@
     "node": ">=24.15.0"
   },
   "scripts": {
-    "build": "node scripts/build-themes.mjs",
+    "build": "node scripts/build-themes.mjs && vite build",
     "test": "vitest run",
     "lint": "eslint .",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "vue-tsc --noEmit"
   },
   "dependencies": {
     "@fontsource/cormorant-garamond": "^5.3.0",
     "@fontsource/hanken-grotesk": "^5.3.0",
-    "@fontsource/ibm-plex-mono": "^5.3.0"
+    "@fontsource/ibm-plex-mono": "^5.3.0",
+    "@hivesite/blocks": "file:../packages/blocks",
+    "vue": "^3.5.44"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@types/node": "^24.19.2",
+    "@vitejs/plugin-vue": "^6.0.10",
     "eslint": "^10.14.0",
     "globals": "^17.13.0",
     "typescript": "~6.0.3",
     "typescript-eslint": "^8.72.1",
-    "vitest": "^5.0.5"
+    "vite": "^8.3.5",
+    "vitest": "^5.0.5",
+    "vue-tsc": "^3.3.14"
   }
 }
