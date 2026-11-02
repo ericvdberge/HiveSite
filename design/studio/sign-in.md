@@ -19,9 +19,23 @@ The screen an owner signs in on, the check the studio makes on start, and where 
 | 401 `unauthenticated` | The sign-in screen, with the asked-for address as the return screen. No message: nothing went wrong. |
 | network or server failure | The start error (Layout). The studio cannot tell whether a session exists, so it shows neither the sign-in screen nor a studio screen. |
 
-**Return screen.** When the studio sends an owner to sign-in, it keeps the address they were on (or asked for) in the sign-in address: `/sign-in?next=/sites/{id}/pages`. After sign-in the studio opens that address. It is used only when it is a path inside the studio: it starts with one `/` (not `//`), and it is not `/sign-in` itself. Anything else, or no `next`, opens the site list (`/sites`). The studio uses `replace` for both moves, so Back never returns to the sign-in screen after a sign-in, and never to a studio screen after a sign-out.
+**Return screen.** When the studio sends an owner to sign-in, it keeps the address they were on (or asked for) in the sign-in address: `/sign-in?next=/sites/{id}/pages`. After sign-in the studio opens that address, only when it passes the return rule below.
 
-**A session that ends while working.** Any call that answers 401 `unauthenticated` (the shell Data table) clears the kept email and opens the sign-in screen with the current address as `next` and the "session ended" Note. Values not yet saved on that screen are lost; the Note says so plainly.
+**Return rule.** `next` is an untrusted value: anyone can send an owner a sign-in link with their own `next`. So:
+- Writing it: the studio sets `next` with `encodeURIComponent` of the current path, query and hash.
+- Reading it: decoded once (by the router's query parsing), never again.
+- It is used only when all of these hold:
+  - it starts with `/`;
+  - its second character is neither `/` nor `\` (this refuses `//evil.example` and `/\evil.example`);
+  - it holds no control characters and no whitespace (this refuses tabs and newlines, which browsers strip, and their encoded forms after the one decode);
+  - `new URL(next, location.origin).origin === location.origin`;
+  - the resolved URL's `pathname` is not `/sign-in` (this also refuses `/sign-in?…` and `/sign-in/`).
+- The studio opens it only with `router.replace(next)`, never with `location.href`, `location.assign` or `window.open`.
+- Anything else, or no `next`, opens the site list (`/sites`).
+
+The studio uses `replace` for both moves, so Back never returns to the sign-in screen after a sign-in, and never to a studio screen after a sign-out.
+
+**A session that ends while working.** Any call that answers 401 `unauthenticated` (the shell Data table) clears the kept email and opens the sign-in screen with the current address as `next` and the "session ended" Note. Values not yet saved on that screen are lost; when that screen had unsaved changes (for example the block editor's leave guard was on), the Note says so plainly.
 
 **Already signed in.** Opening `/sign-in` with a session (GET `/session` answers 200) opens `next`, or the site list, as above.
 
@@ -126,7 +140,8 @@ Server errors. `error.message` is never shown; the screen branches on `error.cod
 | Situation | Note copy |
 |---|---|
 | After sign-out | Note: You're signed out. |
-| A 401 while working | Note: Your session has ended. Sign in again to continue. Changes you hadn't saved are lost. |
+| A 401 while working | Note: Your session has ended. Sign in again to continue. |
+| A 401 while working, on a screen with unsaved changes | Note: Your session has ended. Sign in again to continue. Changes you hadn't saved are lost. |
 | Started without a session, or `/sign-in` opened directly | no Note |
 
 The Note stays until the next sign-in attempt, then goes.
@@ -167,7 +182,7 @@ While Try again runs, the button is busy ("Trying again…"). The top bar shows 
 - Email up to 254 code points after trimming, password up to 128 code points as typed. Both far above real values, so there are no counters: a counter on Password would also read out the password's length to anyone listening. A value over the limit gets the field error; inputs carry no `maxlength` (shell Limit counter), so a pasted value is never cut short silently.
 - One request at a time; the button is busy until it ends. Enter while busy does nothing.
 - A long email typed into the field scrolls inside the input, as any input does; it is never shown elsewhere on this screen.
-- `next` is at most one studio path. It is never shown as text.
+- `next` is at most one studio path, checked by the return rule (Data). It is never shown as text.
 
 ## Responsive
 
@@ -186,7 +201,7 @@ While Try again runs, the button is busy ("Trying again…"). The top bar shows 
 - **Focus after a failed attempt.**
   - Client check or `invalid_request` with a `field`: the first invalid field (shell rule).
   - `invalid_credentials`, or `invalid_request` without a field: the sign-in message (`tabindex="-1"`), so its text is read; Shift+Tab goes back to Password, Tab to Sign in. The message id is also added to both inputs' `aria-describedby` while it shows, so it is heard again on either field.
-  - Error toast: focus stays on the Sign in button.
+  - Error toast: focus stays where it was, on the field or on the Sign in button. Enter in Password submits, so focus is often still in Password; it does not move.
 - **Focus after sign-in.** The `<h1>` of the return screen (shell Screen change).
 - **Autocomplete.** `autocomplete="username"` on Email and `autocomplete="current-password"` on Password, so browsers and password managers offer and save the login. Email has `autocapitalize="none"`, `spellcheck="false"`, `inputmode="email"`.
 - **Pasting.** Paste is never blocked in either field.
