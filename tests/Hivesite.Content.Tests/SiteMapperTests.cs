@@ -23,6 +23,20 @@ public sealed class SiteMapperTests
 
         Assert.AreEqual("en", site.Language);
         Assert.AreEqual("", site.Description);
+        Assert.AreEqual("atelier", site.Theme);
+    }
+
+    [TestMethod]
+    public void A_theme_is_mapped_on_post_and_merged_on_patch_AC1_AC2()
+    {
+        var posted = SiteMapper.ToEntity(new SitePostDto { Name = "A", Slug = "abc", Settings = new SiteSettingsInputDto { Theme = " studio " } });
+        var site = Stored();
+
+        SiteMapper.Apply(new SitePatchDto { Settings = new SiteSettingsInputDto { Theme = "ivory" } }, site);
+
+        Assert.AreEqual("studio", posted.Theme);
+        Assert.AreEqual("ivory", site.Theme);
+        Assert.AreEqual("nl", site.Language);
     }
 
     [TestMethod]
@@ -46,7 +60,7 @@ public sealed class SiteMapperTests
 
         var dto = SiteMapper.ToDto(site);
 
-        Assert.AreEqual(new SiteSettingsDto("nl", "Ceramics."), dto.Settings);
+        Assert.AreEqual(new SiteSettingsDto("nl", "Ceramics.", "atelier"), dto.Settings);
         Assert.AreEqual(site.Id, dto.Id);
     }
 }

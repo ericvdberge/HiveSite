@@ -15,6 +15,8 @@ public sealed class SiteDao
 
     public string Description { get; set; } = "";
 
+    public string Theme { get; set; } = "";
+
     public DateTime CreatedAt { get; set; }
 
     public DateTime UpdatedAt { get; set; }

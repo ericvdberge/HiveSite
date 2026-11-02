@@ -301,10 +301,22 @@ export interface components {
         SiteSettingsDto: {
             language: string;
             description: string;
+            /**
+             * @description The theme Rendering publishes the site with: atelier, ivory or studio.
+             * @default atelier
+             * @enum {string}
+             */
+            theme: "atelier" | "ivory" | "studio";
         };
         SiteSettingsInputDto: {
             language?: null | string;
             description?: null | string;
+            /**
+             * @description One of atelier, ivory or studio. Default atelier. Any other value, including an empty string, is 400 `invalid_request` with field `/settings/theme`.
+             * @default atelier
+             * @enum {null|string}
+             */
+            theme: "atelier" | "ivory" | "studio" | null;
         };
     };
     responses: never;

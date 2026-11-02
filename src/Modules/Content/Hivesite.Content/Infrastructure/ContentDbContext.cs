@@ -26,6 +26,8 @@ public sealed class ContentDbContext(DbContextOptions<ContentDbContext> options)
             site.HasKey(s => s.Id).HasName("pkSites");
             site.Property(s => s.Id).ValueGeneratedNever();
             site.Property(s => s.Slug).HasMaxLength(40);
+            // Sites stored before API-001 v4 get the default when the migration adds the column.
+            site.Property(s => s.Theme).HasDefaultValue(Domain.SiteThemes.Default);
             site.HasIndex(s => s.Slug).IsUnique().HasDatabaseName(SiteSlugIndex);
             // Serves GET /sites: one owner, newest first, ties by id ascending.
             site.HasIndex(s => new { s.OwnerId, s.CreatedAt, s.Id })

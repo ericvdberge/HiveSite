@@ -127,6 +127,13 @@ namespace Hivesite.Content.Infrastructure.Migrations
                         .HasColumnType("character varying(40)")
                         .HasColumnName("slug");
 
+                    b.Property<string>("Theme")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("text")
+                        .HasDefaultValue("atelier")
+                        .HasColumnName("theme");
+
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("updatedAt");
