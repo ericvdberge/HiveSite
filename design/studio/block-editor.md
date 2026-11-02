@@ -207,7 +207,7 @@ Server errors from PUT `/pages/{id}/blocks` and the two GETs. `error.message` is
 | `request_too_large` | 413 | form message | This page is too large to save. Remove a block or shorten some text. |
 | `unsupported_media_type` | 415 | Cannot happen: the editor always sends `application/json`. If it does, the error toast. | |
 | `page_not_found` | 404 | Not-found screen, page variant, with "Back to pages" when the site is known ([shell.md](shell.md#not-found-screen)) | |
-| `unauthenticated` | 401 | Sign-in (#45), as in the shell | |
+| `unauthenticated` | 401 | Sign-in ([sign-in.md](sign-in.md#data)), as in the shell | |
 | `invalid_patch`, `patch_test_failed`, `too_many_operations`, `document_too_large`, `precondition_required` | 400, 428 | Cannot happen: they belong to PATCH, which the editor does not send. If one arrives, the error toast. | |
 | `invalid_request`, `invalid_cursor` from GET `/block-types` | 400 | Cannot happen: the studio sends no `limit` and only a `next_cursor` it was given. If it does, the load error. | |
 | network or server failure on save | | Error toast | We couldn't save the blocks. Your changes are still here. |

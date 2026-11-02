@@ -23,7 +23,7 @@ GET `/sites` (API-001), default `limit` of 20, then `cursor` from `next_cursor` 
 |---|---|
 | `invalid_request` (`limit`) | Cannot happen: the studio always sends the default. If it does, the list error below. |
 | `invalid_cursor` | On Load more: the studio reloads the list from the start, and the status line says "The list was refreshed." |
-| `unauthenticated` | Sign-in (#45). |
+| `unauthenticated` | Sign-in ([sign-in.md](sign-in.md#data)). |
 | network or server failure | The list error (first load) or Load more failed (later pages). |
 
 ## Structure
