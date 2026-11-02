@@ -5,6 +5,7 @@ import type { Component } from 'vue'
 import { checkLink, checkMax, checkText, checkUrl } from './checks'
 import HeroForm from './forms/HeroForm.vue'
 import { HERO_LIMITS, URL_MAX } from './limits'
+import { fieldId } from './ids'
 import type { BlockNode, Json } from './model'
 
 /** Copy of the broken rules by path inside `attrs`, in field order. Empty when the block is fine. */
@@ -54,4 +55,23 @@ export const registry: Readonly<Record<string, BlockEntry>> = {
             attrs: { title: '', subtitle: '', image: null, cta: null },
         }),
     },
+}
+
+/** A new block of `type` with every schema default, or `undefined` when the type has no form. */
+export function newBlock(type: string): BlockNode | undefined {
+    return registry[type]?.newBlock()
+}
+
+/** The path inside `attrs` of the field that gets focus on a new block, by type. */
+const FIRST_FIELDS: Readonly<Record<string, string>> = {
+    hero: 'title',
+    rich_text: 'text',
+    image: 'image.url',
+    embed: 'provider',
+}
+
+/** The element id that gets focus after a block is added: its first field, else the panel heading. */
+export function firstFocusId(key: string, type: string): string {
+    const path = FIRST_FIELDS[type]
+    return path && registry[type] ? fieldId(key, path) : `${key}-name`
 }
