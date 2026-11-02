@@ -1,5 +1,7 @@
 // Rules of the site form (design/studio/site-form.md, API-001 Rules: Site fields).
 
+import { count } from './text'
+
 export const LIMITS = { name: 80, slug: 40, language: 35, description: 160 } as const
 export const DEFAULT_LANGUAGE = 'en'
 
@@ -9,10 +11,7 @@ const LANGUAGE_PATTERN = /^[a-z]{2,3}(-[A-Za-z0-9]{2,8})*$/
 export type FieldName = 'name' | 'slug' | 'language' | 'description'
 export const FIELD_ORDER: FieldName[] = ['name', 'slug', 'language', 'description']
 
-/** Length in code points after trimming, the count the server uses. */
-export function count(value: string): number {
-    return [...value.trim()].length
-}
+export { count }
 
 /** Copy for a broken client rule, or '' when the value is fine. */
 export function checkField(field: FieldName, raw: string): string {

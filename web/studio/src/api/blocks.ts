@@ -33,3 +33,38 @@ export function listAllBlockTypes(signal?: AbortSignal): Promise<BlockTypeInfo[]
         return data
     })
 }
+
+async function replace(
+    id: string,
+    document: BlocksDocumentDto,
+    headers: Record<string, string>,
+    signal?: AbortSignal,
+): Promise<{ document: BlocksDocumentDto; etag: string | null }> {
+    const { data, response } = await api.PUT('/pages/{id}/blocks', {
+        params: { path: { id } },
+        body: document,
+        headers,
+        signal,
+    })
+    if (!data) throw new ApiError(UNKNOWN_ERROR_CODE, 'Something went wrong. Try again.')
+    return { document: data, etag: response.headers.get('ETag') }
+}
+
+/**
+ * Replaces the blocks of a page (API-004) with `If-Match` set by hand to the last `ETag`, because
+ * the generated types do not declare the header. The `etag` is required: a normal save never goes
+ * without a known version. Returns the stored document and its new `ETag` (`null` if unreadable).
+ */
+export function putPageBlocks(
+    id: string,
+    document: BlocksDocumentDto,
+    etag: string,
+    signal?: AbortSignal,
+) {
+    return replace(id, document, { 'If-Match': etag }, signal)
+}
+
+/** The deliberate overwrite: no `If-Match`, last write wins. Only the changed-elsewhere dialog calls it. */
+export function overwritePageBlocks(id: string, document: BlocksDocumentDto, signal?: AbortSignal) {
+    return replace(id, document, {}, signal)
+}
