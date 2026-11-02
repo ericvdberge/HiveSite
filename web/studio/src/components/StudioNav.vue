@@ -4,6 +4,8 @@ import { RouterLink } from 'vue-router'
 export interface SiteNavLink {
     label: string
     to: string
+    /** Marks the item as the current page when the route is below it, not at it. */
+    current?: boolean
 }
 
 // On a site screen the nav adds the site name (a group label, not a link) and its links.
@@ -17,7 +19,9 @@ defineProps<{ siteName?: string; siteLinks?: SiteNavLink[] }>()
             <template v-if="siteName">
                 <li class="hs-nav__site hs-label">{{ siteName }}</li>
                 <li v-for="link in siteLinks ?? []" :key="link.to">
-                    <RouterLink :to="link.to">{{ link.label }}</RouterLink>
+                    <RouterLink :to="link.to" :aria-current="link.current ? 'page' : undefined">{{
+                        link.label
+                    }}</RouterLink>
                 </li>
             </template>
         </ul>
