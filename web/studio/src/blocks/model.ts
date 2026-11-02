@@ -33,6 +33,8 @@ export interface WorkingBlock {
     node: BlockNode
     /** Unknown type, or a version other than 1: shown read-only and sent as loaded. */
     readOnly: boolean
+    /** Objects of an unchecked optional (`image`, `cta`), kept so checking again restores them. Never sent. */
+    kept: Record<string, Json>
 }
 
 export interface WorkingCopy {
@@ -65,7 +67,51 @@ export function toWorkingCopy(doc: BlocksDocument, versions: TypeVersions): Work
             key: `b${i + 1}`,
             node: clone(node),
             readOnly: !isSupported(node.type, versions),
+            kept: {},
         })),
+    }
+}
+
+/** The value at a dotted path inside `attrs` (`image.url`), or `undefined`. */
+export function getAttr(block: WorkingBlock, path: string): Json | undefined {
+    let at: Json | undefined = block.node.attrs
+    for (const key of path.split('.')) {
+        if (!isObj(at)) return undefined
+        at = at[key]
+    }
+    return at
+}
+
+/** Sets the value at a dotted path inside `attrs`, making the objects on the way. */
+export function setAttr(block: WorkingBlock, path: string, value: Json): void {
+    const keys = path.split('.')
+    const last = keys.pop() as string
+    block.node.attrs ??= {}
+    let at: Obj = block.node.attrs
+    for (const key of keys) {
+        const next = at[key]
+        if (isObj(next)) at = next
+        else {
+            const made: Obj = {}
+            at[key] = made
+            at = made
+        }
+    }
+    at[last] = value
+}
+
+/**
+ * Checks (`on`) or unchecks an optional object. Unchecking sets `null` and keeps the object;
+ * checking again brings it back, or starts from `blank`.
+ */
+export function setOptional(block: WorkingBlock, key: string, on: boolean, blank: Json): void {
+    const current = getAttr(block, key)
+    if (on) {
+        if (isObj(current)) return
+        setAttr(block, key, block.kept[key] ?? clone(blank))
+    } else if (isObj(current)) {
+        block.kept[key] = current
+        setAttr(block, key, null)
     }
 }
 

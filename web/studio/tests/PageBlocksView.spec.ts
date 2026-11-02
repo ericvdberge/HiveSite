@@ -197,7 +197,7 @@ describe('page blocks: head', () => {
         expect(back?.attributes('href')).toBe(`/sites/${SITE_ID}/pages`)
     })
 
-    it('(AC9) has the status line, empty while saved, and a Save blocks button that does nothing yet', async () => {
+    it('(AC9) has the status line, empty while saved, and a Save blocks button that makes no call without changes', async () => {
         serve()
         const w = await open()
         expect(w.get('.hs-status').text()).toBe('')
@@ -208,7 +208,8 @@ describe('page blocks: head', () => {
         await save.trigger('click')
         await flushPromises()
         expect(fetchMock.mock.calls.length).toBe(before)
-        expect(w.get('.hs-status').text()).toBe('')
+        // Story 141: a save with nothing changed says so.
+        expect(w.get('.hs-status').text()).toBe('No changes to save.')
     })
 
     it('(AC9) every request carries an abort signal and leaving aborts them', async () => {
