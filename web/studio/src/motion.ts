@@ -35,6 +35,8 @@ export async function play(
 
 /** Glides an element from where it was (`fromTop`) to where it is now. */
 export function glide(el: HTMLElement, fromTop: number): Promise<void> {
+    // A glide still running is cancelled first, so the end position is read without its transform.
+    if (typeof el.getAnimations === 'function') el.getAnimations().forEach((a) => a.cancel())
     const delta = fromTop - el.getBoundingClientRect().top
     if (!delta) return Promise.resolve()
     return play(el, [{ transform: `translateY(${delta}px)` }, { transform: 'none' }])

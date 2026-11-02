@@ -8,7 +8,7 @@ import { api, isApiError, listAll, type components } from '../api'
 import { takeAddedPage } from '../composables/useAddedPage'
 import { clearSiteNav, setSiteNav } from '../composables/useSiteNav'
 import { glide, play } from '../motion'
-import { showErrorToast } from '../composables/useToast'
+import { dismissToast, showErrorToast } from '../composables/useToast'
 
 type Site = components['schemas']['SiteDto']
 type PageItem = components['schemas']['PageDto']
@@ -245,6 +245,10 @@ const movedId = ref('')
 const dragDy = ref(0)
 const dragSlot = ref(-1)
 let dragStartY = 0
+let dragStartScroll = 0
+let dragPointerId = -1
+let dragClientY = 0
+let dragFrame = 0
 let saved: PageItem[] = []
 let suppressBlur = false
 let lastControl: { id: string; kind: ControlKind } = { id: '', kind: 'handle' }
@@ -365,7 +369,12 @@ async function onHandleKey(e: KeyboardEvent, page: PageItem): Promise<void> {
         await cancelGrab()
         await focusControl(page.id, 'handle')
     } else if (e.key === 'Tab') {
+        // cancelGrab moves the row back first, so Tab would land in another row: move focus by hand
+        // to where Tab goes from the row's original place.
+        e.preventDefault()
+        const back = e.shiftKey
         await cancelGrab()
+        focusFromHandle(page.id, back)
     } else if (['ArrowUp', 'ArrowDown', 'Home', 'End'].includes(e.key)) {
         e.preventDefault()
         const to =
@@ -383,6 +392,23 @@ async function onHandleKey(e: KeyboardEvent, page: PageItem): Promise<void> {
         await focusControl(page.id, 'handle')
         suppressBlur = false
     }
+}
+
+/** Where Tab (or Shift+Tab) goes from a row's handle: its title link, or the control before the row. */
+function focusFromHandle(id: string, back: boolean): void {
+    const row = rowElement(id)
+    if (!row) return
+    if (!back) {
+        row.querySelector<HTMLElement>('.hs-row__title')?.focus()
+        return
+    }
+    const before = row.previousElementSibling as HTMLElement | null
+    const target = before
+        ? before.querySelector<HTMLElement>('[data-action="delete"]')
+        : document.querySelector<HTMLElement>(
+              '.hs-screen-head__actions a, .hs-screen-head__actions button',
+          )
+    target?.focus()
 }
 
 function onHandleBlur(page: PageItem): void {
@@ -438,6 +464,7 @@ async function save(id: string): Promise<void> {
         setPages(ordered)
         remember()
         mismatch.value = false
+        dismissToast()
         const home = pages.value[0]
         notice.value =
             home && home.id !== oldHome
@@ -458,7 +485,9 @@ async function save(id: string): Promise<void> {
         } else {
             revert(previous)
             // Sign-in owns a 401: the order goes back and nothing else shows.
-            if (!(isApiError(error) && error.code === 'unauthenticated')) {
+            if (isApiError(error) && error.code === 'unauthenticated') {
+                notice.value = ''
+            } else {
                 showErrorToast(
                     "We couldn't save the new order. Your pages are back in their last saved order.",
                 )
@@ -518,8 +547,38 @@ async function refresh(): Promise<void> {
 function onEscapeDuringDrag(e: KeyboardEvent): void {
     if (e.key === 'Escape' && grab.value?.mode === 'pointer') void cancelGrab()
 }
+
+/** The row follows the pointer in page coordinates, so scrolling during a drag keeps it under the pointer. */
+function updateDrag(): void {
+    if (grab.value?.mode !== 'pointer') return
+    dragDy.value = dragClientY + window.scrollY - (dragStartY + dragStartScroll)
+    dragSlot.value = dragOthers.value.filter((p) => {
+        const r = rowElement(p.id)?.getBoundingClientRect()
+        return r ? r.top + r.height / 2 < dragClientY : false
+    }).length
+}
+
+/** Pointer-captured drags get no browser drag scroll, so near the viewport edge the page scrolls. */
+function autoScroll(): void {
+    dragFrame = 0
+    const g = grab.value
+    if (g?.mode !== 'pointer') return
+    // Edge and step come from the row itself: one row height from the edge, an eighth per frame.
+    const height = rowElement(g.id)?.getBoundingClientRect().height ?? 0
+    let step = 0
+    if (dragClientY < height) step = -height / 8
+    else if (dragClientY > window.innerHeight - height) step = height / 8
+    if (!step) return
+    window.scrollBy?.(0, step)
+    updateDrag()
+    dragFrame = requestAnimationFrame(autoScroll)
+}
+
 function removeEscapeListener(): void {
     window.removeEventListener('keydown', onEscapeDuringDrag)
+    window.removeEventListener('scroll', updateDrag)
+    if (dragFrame) cancelAnimationFrame(dragFrame)
+    dragFrame = 0
 }
 
 function onPointerDown(e: PointerEvent, page: PageItem): void {
@@ -528,25 +587,27 @@ function onPointerDown(e: PointerEvent, page: PageItem): void {
     const handle = e.currentTarget as HTMLElement
     handle.setPointerCapture?.(e.pointerId)
     lastControl = { id: page.id, kind: 'handle' }
+    dragPointerId = e.pointerId
     dragStartY = e.clientY
+    dragClientY = e.clientY
+    dragStartScroll = window.scrollY
     dragDy.value = 0
     pickUp(page, 'pointer')
     dragSlot.value = pages.value.findIndex((p) => p.id === page.id)
     window.addEventListener('keydown', onEscapeDuringDrag)
+    window.addEventListener('scroll', updateDrag)
 }
 
 function onPointerMove(e: PointerEvent): void {
-    if (grab.value?.mode !== 'pointer') return
-    dragDy.value = e.clientY - dragStartY
-    dragSlot.value = dragOthers.value.filter((p) => {
-        const r = rowElement(p.id)?.getBoundingClientRect()
-        return r ? r.top + r.height / 2 < e.clientY : false
-    }).length
+    if (grab.value?.mode !== 'pointer' || e.pointerId !== dragPointerId) return
+    dragClientY = e.clientY
+    updateDrag()
+    if (!dragFrame) dragFrame = requestAnimationFrame(autoScroll)
 }
 
 async function onPointerUp(e: PointerEvent): Promise<void> {
     const g = grab.value
-    if (g?.mode !== 'pointer') return
+    if (g?.mode !== 'pointer' || e.pointerId !== dragPointerId) return
     const handle = e.currentTarget as HTMLElement
     if (handle.hasPointerCapture?.(e.pointerId)) handle.releasePointerCapture?.(e.pointerId)
     const area = list.value?.getBoundingClientRect()
@@ -579,8 +640,8 @@ async function onPointerUp(e: PointerEvent): Promise<void> {
     suppressBlur = false
 }
 
-function onPointerCancel(): void {
-    if (grab.value?.mode === 'pointer') void cancelGrab()
+function onPointerCancel(e: PointerEvent): void {
+    if (grab.value?.mode === 'pointer' && e.pointerId === dragPointerId) void cancelGrab()
 }
 
 /** After add: say where the page landed and focus its title link. */
@@ -960,6 +1021,7 @@ onBeforeUnmount(() => {
 }
 
 .hs-handle[aria-disabled='true'] {
+    border-color: var(--hs-color-disabled-border);
     color: var(--hs-color-disabled-text);
     cursor: default;
 }

@@ -4,7 +4,8 @@ import { createMemoryHistory } from 'vue-router'
 import App from '../src/App.vue'
 import { createStudioRouter } from '../src/router'
 import { dismissToast, useToast } from '../src/composables/useToast'
-import { baseDuration, play } from '../src/motion'
+import { readFileSync } from 'node:fs'
+import { baseDuration, glide, play } from '../src/motion'
 
 // The typed client captures fetch when it is created, so the stub is installed before imports run.
 const fetchMock = vi.hoisted(() => {
@@ -373,9 +374,9 @@ describe('menu reorder: pointer drag', () => {
     }
 
     /** jsdom has no PointerEvent: a MouseEvent of the pointer type carries the same fields. */
-    async function fire(el: Element, type: string, x: number, y: number) {
+    async function fire(el: Element, type: string, x: number, y: number, id = 1) {
         const event = new MouseEvent(type, { clientX: x, clientY: y, button: 0, bubbles: true })
-        Object.defineProperty(event, 'pointerId', { value: 1 })
+        Object.defineProperty(event, 'pointerId', { value: id })
         Object.defineProperty(event, 'pointerType', { value: 'mouse' })
         el.dispatchEvent(event)
         await flushPromises()
@@ -446,6 +447,71 @@ describe('menu reorder: pointer drag', () => {
         expect(puts).toHaveLength(0)
         expect(titles(w)).toEqual(['Home', 'About', 'Our work'])
         expect(status(w)).toBe('Move cancelled. Home is back at position 1 of 3.')
+        w.unmount()
+    })
+    it('AC7: a pointercancel (the browser takes the touch) cancels the drag and sends nothing', async () => {
+        layout()
+        serve([THREE], echo)
+        const w = await open()
+
+        await drag(w, 0, 160)
+        await fire(control(w, 0, 'handle').element, 'pointercancel', 20, 160)
+
+        expect(puts).toHaveLength(0)
+        expect(titles(w)).toEqual(['Home', 'About', 'Our work'])
+        expect(rows(w)[0]?.attributes('data-reorder')).toBe('rest')
+        expect(status(w)).toBe('Move cancelled. Home is back at position 1 of 3.')
+        w.unmount()
+    })
+
+    it('AC7: events from another pointer are ignored during a drag', async () => {
+        layout()
+        serve([THREE], echo)
+        const w = await open()
+
+        await drag(w, 0, 160)
+        const handle = control(w, 0, 'handle').element
+        await fire(handle, 'pointermove', 20, 400, 2)
+        await fire(handle, 'pointerup', 50, 400, 2)
+        await fire(handle, 'pointercancel', 20, 400, 2)
+
+        expect(rows(w)[0]?.attributes('data-reorder')).toBe('grabbed')
+        expect(rows(w)[0]?.attributes('style')).toContain('translateY(110px)')
+        expect(puts).toHaveLength(0)
+        w.unmount()
+    })
+
+    it('AC7: scrolling during a drag keeps the row under the pointer', async () => {
+        layout()
+        serve([THREE], echo)
+        const w = await open()
+        Object.defineProperty(window, 'scrollY', { value: 0, configurable: true, writable: true })
+
+        await drag(w, 0, 160)
+        expect(rows(w)[0]?.attributes('style')).toContain('translateY(110px)')
+        Object.defineProperty(window, 'scrollY', { value: 100, configurable: true, writable: true })
+        window.dispatchEvent(new Event('scroll'))
+        await flushPromises()
+
+        expect(rows(w)[0]?.attributes('style')).toContain('translateY(210px)')
+        Object.defineProperty(window, 'scrollY', { value: 0, configurable: true, writable: true })
+        w.unmount()
+    })
+
+    it('AC7: dragging near the top edge scrolls the page', async () => {
+        layout()
+        serve([THREE], echo)
+        const frames: FrameRequestCallback[] = []
+        vi.spyOn(window, 'requestAnimationFrame').mockImplementation((cb) => frames.push(cb))
+        const scrollBy = vi.fn()
+        window.scrollBy = scrollBy as unknown as typeof window.scrollBy
+        const w = await open()
+
+        await drag(w, 1, 20)
+        frames.shift()?.(0)
+
+        expect(scrollBy).toHaveBeenCalledTimes(1)
+        expect((scrollBy.mock.calls[0] as number[])[1]).toBeLessThan(0)
         w.unmount()
     })
 })
@@ -598,5 +664,105 @@ describe('menu reorder: motion', () => {
             await play(el, [{ opacity: 0 }, { opacity: 1 }])
         })
         expect(animate).not.toHaveBeenCalled()
+    })
+})
+
+describe('menu reorder: fix round', () => {
+    it('AC7: Tab while a moved row is picked up cancels and focuses the title link of its original row', async () => {
+        serve([THREE], echo)
+        const w = await open()
+
+        await key(w, 1, ' ')
+        await key(w, 1, 'ArrowDown')
+        await flushPromises()
+        await control(w, 2, 'handle').trigger('keydown', { key: 'Tab' })
+        await flushPromises()
+
+        expect(titles(w)).toEqual(['Home', 'About', 'Our work'])
+        expect(document.activeElement).toBe(rows(w)[1]?.get('.hs-row__title').element)
+        w.unmount()
+    })
+
+    it('AC7: Shift+Tab while picked up focuses the control before the original row', async () => {
+        serve([THREE], echo)
+        const w = await open()
+
+        await key(w, 1, ' ')
+        await key(w, 1, 'ArrowDown')
+        await flushPromises()
+        await control(w, 2, 'handle').trigger('keydown', { key: 'Tab', shiftKey: true })
+        await flushPromises()
+
+        expect(document.activeElement).toBe(
+            control(w, 0, 'handle').element.parentElement?.querySelector('[data-action="delete"]'),
+        )
+        w.unmount()
+    })
+
+    it('AC7: a successful save after a failed one dismisses the error toast', async () => {
+        let first = true
+        serve([THREE], (sent) => {
+            if (first) {
+                first = false
+                return fail(500, 'internal_error')
+            }
+            return echo(sent)
+        })
+        const w = await open()
+
+        await control(w, 2, 'up').trigger('click')
+        await flushPromises()
+        expect(useToast().message.value).not.toBeNull()
+        await control(w, 2, 'up').trigger('click')
+        await flushPromises()
+
+        expect(useToast().message.value).toBeNull()
+        w.unmount()
+    })
+
+    it('AC7: after a 401 the status line no longer says Saving order', async () => {
+        serve([THREE], () => fail(401, 'unauthenticated'))
+        const w = await open()
+
+        await control(w, 2, 'up').trigger('click')
+        await flushPromises()
+
+        expect(status(w)).toBe('')
+        w.unmount()
+    })
+
+    it('AC7: an unavailable handle has the unavailable look (disabled edge and text)', () => {
+        const source = readFileSync('src/views/PageListView.vue', 'utf8')
+        const rule = /\.hs-handle\[aria-disabled='true'\]\s*\{([^}]*)\}/.exec(source)?.[1] ?? ''
+        expect(rule).toContain('border-color: var(--hs-color-disabled-border)')
+        expect(rule).toContain('color: var(--hs-color-disabled-text)')
+    })
+
+    it('AC7: a glide cancels a running glide before reading where the row is', () => {
+        const order: string[] = []
+        const el = document.createElement('div')
+        el.getAnimations = (() => [
+            { cancel: () => order.push('cancel') },
+        ]) as unknown as HTMLElement['getAnimations']
+        el.getBoundingClientRect = () => {
+            order.push('read')
+            return { top: 0 } as DOMRect
+        }
+        glide(el, 40)
+        expect(order).toEqual(['cancel', 'read'])
+    })
+})
+
+describe('menu reorder: motion tokens', () => {
+    it('AC7: tokens.css gives motion.duration_base 300 ms and reduced motion maps it to 0 ms', () => {
+        const tokens = readFileSync('src/styles/tokens.css', 'utf8')
+        const base = readFileSync('src/styles/base.css', 'utf8')
+        expect(tokens).toMatch(/--hs-motion-duration-base:\s*300ms;/)
+        expect(tokens).toMatch(/--hs-motion-reduced-duration:\s*0ms;/)
+        const reduced =
+            /@media \(prefers-reduced-motion: reduce\)\s*\{\s*:root\s*\{([^}]*)\}/.exec(
+                base,
+            )?.[1] ?? ''
+        expect(reduced).toContain('--hs-motion-duration-base: var(--hs-motion-reduced-duration)')
     })
 })
