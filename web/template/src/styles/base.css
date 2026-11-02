@@ -1,0 +1,9 @@
+/* Token-only reset. No literal colors, sizes or fonts: only var(--hs-…). */
+*,*::before,*::after{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--hs-color-background);color:var(--hs-color-text);font-family:var(--hs-font-text);font-weight:var(--hs-font-weight-text);font-size:var(--hs-font-size-body);line-height:var(--hs-line-height-body);letter-spacing:var(--hs-letter-spacing-body)}
+@media breakpoint(md){body{font-size:var(--hs-font-size-body-l)}}
+img,svg,video{max-width:100%;height:auto}
+h1,h2,h3{font-family:var(--hs-font-display);font-weight:var(--hs-font-weight-display);line-height:var(--hs-line-height-heading)}
+a{color:var(--hs-color-accent-text)}
+:focus-visible{outline:var(--hs-border-width-focus) solid var(--hs-color-focus);outline-offset:var(--hs-border-width-focus-offset)}
