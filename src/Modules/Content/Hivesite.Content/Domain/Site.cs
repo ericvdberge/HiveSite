@@ -15,6 +15,8 @@ public sealed record Site
 
     public string Description { get; set; } = "";
 
+    public string Theme { get; set; } = SiteThemes.Default;
+
     public DateTime CreatedAt { get; set; }
 
     public DateTime UpdatedAt { get; set; }

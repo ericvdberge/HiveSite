@@ -142,3 +142,103 @@ a {
     font-family: var(--hs-font-label);
     letter-spacing: var(--hs-letter-spacing-body);
 }
+
+/* Destructive button: no fill, an error edge, and its words say what it does (shell.md). */
+.hs-button--danger {
+    background: transparent;
+    border-color: var(--hs-color-error);
+    color: var(--hs-color-error);
+}
+
+/* Dialog (shell.md, Dialog). Opened with showModal(), so it sits in the top layer. */
+.hs-dialog {
+    inline-size: min(var(--hs-layout-dialog-width), 100% - 2 * var(--hs-layout-gutter));
+    max-inline-size: var(--hs-layout-dialog-width);
+    padding: var(--hs-space-5);
+    background: var(--hs-color-surface);
+    border: var(--hs-border-width-hairline) solid var(--hs-color-border-strong);
+    border-radius: var(--hs-radius-card);
+    color: var(--hs-color-text);
+    animation: hs-dialog-in var(--hs-motion-duration-base) var(--hs-motion-easing-enter) both;
+}
+
+.hs-dialog::backdrop {
+    background: var(--hs-color-overlay);
+}
+
+.hs-dialog h2 {
+    font-family: var(--hs-font-display);
+    font-size: var(--hs-font-size-display-m);
+    font-weight: var(--hs-font-weight-display-strong);
+    line-height: var(--hs-line-height-heading);
+    overflow-wrap: anywhere;
+}
+
+.hs-dialog > div:first-of-type {
+    margin-block-start: var(--hs-space-4);
+    overflow-wrap: anywhere;
+}
+
+.hs-dialog > div:first-of-type > p + p {
+    margin-block-start: var(--hs-space-2);
+}
+
+.hs-dialog__lead {
+    font-weight: var(--hs-font-weight-text-strong);
+}
+
+.hs-dialog__aside {
+    font-size: var(--hs-font-size-body-s);
+    color: var(--hs-color-text-muted);
+}
+
+.hs-dialog__message {
+    margin-block-start: var(--hs-space-4);
+}
+
+.hs-dialog__actions {
+    display: flex;
+    flex-direction: column;
+    gap: var(--hs-space-3);
+    margin-block-start: var(--hs-space-5);
+}
+
+@media (width >= breakpoint(sm)) {
+    .hs-dialog {
+        padding: var(--hs-space-6);
+    }
+
+    .hs-dialog__actions {
+        flex-direction: row;
+        justify-content: flex-end;
+        margin-block-start: var(--hs-space-6);
+    }
+}
+
+@keyframes hs-dialog-in {
+    from {
+        opacity: 0;
+        transform: translateY(var(--hs-motion-rise-distance));
+    }
+}
+
+/* Note: a calm notice that is not an error (shell.md). The edge is decorative. */
+.hs-note {
+    padding: var(--hs-space-4);
+    background: var(--hs-color-surface);
+    border-inline-start: var(--hs-border-width-focus) solid var(--hs-color-rule);
+    color: var(--hs-color-text);
+    overflow-wrap: anywhere;
+    animation: hs-note-in var(--hs-motion-duration-base) var(--hs-motion-easing-standard) both;
+}
+
+.hs-note strong {
+    font-weight: var(--hs-font-weight-text-strong);
+    color: var(--hs-color-accent-text);
+}
+
+@keyframes hs-note-in {
+    from {
+        opacity: 0;
+    }
+}
