@@ -155,40 +155,11 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: {
-            parameters: {
-                query?: {
-                    /** @description How many items to return, 1 to 100. */
-                    limit?: number | string;
-                    /** @description The `next_cursor` of the previous page. Leave out for the first page. */
-                    cursor?: string;
-                };
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["BlockTypeDtoList"];
-                    };
-                };
-                /** @description Bad Request */
-                400: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["ApiError"];
-                    };
-                };
-            };
-        };
+        /**
+         * List the block types
+         * @description The seven block types with their JSON schemas. Errors: 400 `invalid_request`, 400 `invalid_cursor`, 401 `unauthenticated`.
+         */
+        get: operations["ListBlockTypes"];
         put?: never;
         post?: never;
         delete?: never;
@@ -809,6 +780,8 @@ export interface operations {
             /** @description OK */
             200: {
                 headers: {
+                    /** @description The version of the document, quoted, e.g. `"3"`. Send it back as `If-Match` on the next PUT. */
+                    ETag: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -838,7 +811,10 @@ export interface operations {
     ReplacePageBlocks: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description The `ETag` of the document being replaced. A stale one answers 412 `precondition_failed`. Leave out to write without the check. */
+                "If-Match"?: string;
+            };
             path: {
                 id: string;
             };
@@ -854,6 +830,8 @@ export interface operations {
             /** @description OK */
             200: {
                 headers: {
+                    /** @description The version of the document, quoted, e.g. `"3"`. Send it back as `If-Match` on the next PUT. */
+                    ETag: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -907,6 +885,49 @@ export interface operations {
             };
             /** @description Unsupported Media Type */
             415: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    ListBlockTypes: {
+        parameters: {
+            query?: {
+                /** @description How many items to return, 1 to 100. */
+                limit?: number | string;
+                /** @description The `next_cursor` of the previous page. Leave out for the first page. */
+                cursor?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BlockTypeDtoList"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
                 headers: {
                     [name: string]: unknown;
                 };
