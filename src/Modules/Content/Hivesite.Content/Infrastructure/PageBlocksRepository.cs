@@ -7,18 +7,29 @@ namespace Hivesite.Content.Infrastructure;
 /// <summary>All database access for page blocks. A page without a row has the empty document at version 1; the service knows that.</summary>
 internal sealed class PageBlocksRepository(ContentDbContext db)
 {
-    public async Task<PageBlocks?> GetAsync(PageBlocksFilter filter, CancellationToken ct)
+    public async Task<PageBlocks?> GetAsync(PageBlocksFilter filter, CancellationToken ct) =>
+        await Query(filter).AsNoTracking().SingleOrDefaultAsync(ct) is { } dao ? PageBlocksDaoMapper.ToDomain(dao) : null;
+
+    /// <summary>The stored blocks that match, in no particular order. Pages without a row are not in the list.</summary>
+    public async Task<IReadOnlyList<PageBlocks>> ListAsync(PageBlocksFilter filter, CancellationToken ct) =>
+        PageBlocksDaoMapper.ToDomain(await Query(filter).AsNoTracking().ToListAsync(ct));
+
+    private IQueryable<PageBlocksDao> Query(PageBlocksFilter filter)
     {
         var query = db.PageBlocks.AsQueryable();
         if (filter.PageId is not null)
         {
             query = query.Where(b => b.PageId == filter.PageId);
         }
+        if (filter.SiteId is not null)
+        {
+            query = query.Where(b => db.Pages.Any(p => p.Id == b.PageId && p.SiteId == filter.SiteId));
+        }
         if (filter.OwnerId is not null)
         {
             query = query.Where(b => db.Pages.Any(p => p.Id == b.PageId && db.Sites.Any(s => s.Id == p.SiteId && s.OwnerId == filter.OwnerId)));
         }
-        return await query.AsNoTracking().SingleOrDefaultAsync(ct) is { } dao ? PageBlocksDaoMapper.ToDomain(dao) : null;
+        return query;
     }
 
     /// <summary>

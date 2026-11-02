@@ -23,6 +23,20 @@ public sealed class StudioCorsTests
     }
 
     [TestMethod]
+    public async Task A_request_from_a_listed_origin_may_read_the_ETag()
+    {
+        await using var factory = HostFactory.WithoutDatabase();
+        using var client = factory.CreateClient();
+        using var request = new HttpRequestMessage(HttpMethod.Get, "/block-types");
+        request.Headers.Add("Origin", StudioDevServer);
+
+        using var response = await client.SendAsync(request);
+
+        Assert.AreEqual(StudioDevServer, Header(response, "Access-Control-Allow-Origin"));
+        StringAssert.Contains(Header(response, "Access-Control-Expose-Headers"), "ETag");
+    }
+
+    [TestMethod]
     public async Task A_preflight_from_an_unlisted_origin_gets_no_cors_headers()
     {
         await using var factory = HostFactory.WithoutDatabase();

@@ -4,6 +4,8 @@ on:
   pull_request:
   push:
     branches: [main]
+  # Started by the Update open PRs workflow after it merges main into a PR branch.
+  workflow_dispatch:
 
 jobs:
   specs:
@@ -26,6 +28,20 @@ jobs:
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 10.0.x
+      - id: template
+        run: echo "found=$(test -f web/template/package.json && echo yes)" >> "$GITHUB_OUTPUT"
+      - if: steps.template.outputs.found == 'yes'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Default template builds and its tests pass
+        if: steps.template.outputs.found == 'yes'
+        working-directory: web/template
+        run: |
+          npm ci
+          npm run lint
+          npm test
+          npm run build
       - if: steps.sln.outputs.found != ''
         run: dotnet format --verify-no-changes
       - if: steps.sln.outputs.found != ''

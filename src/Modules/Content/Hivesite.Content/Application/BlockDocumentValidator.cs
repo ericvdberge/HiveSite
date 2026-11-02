@@ -68,8 +68,7 @@ internal sealed partial class BlockDocumentValidator
 
             var (normalized, error) = Apply(block.DeepClone(), schema.Root, schema, pointer);
             error ??= FirstError(schema.Whole, normalized, pointer);
-            // Seam for #127: the checks of API-003 "Rules beyond the schemas" (BlockRules) run here, after the schema check of this block,
-            // and fail with the same invalid_block error.
+            error ??= BlockRules.Check(normalized!.AsObject(), pointer);
             if (error is not null)
             {
                 return error;
@@ -273,7 +272,7 @@ internal sealed partial class BlockDocumentValidator
         return new Error("invalid_block", $"{field}: {message}", field);
     }
 
-    private static string Escape(string segment) => segment.Replace("~", "~0", StringComparison.Ordinal).Replace("/", "~1", StringComparison.Ordinal);
+    internal static string Escape(string segment) => segment.Replace("~", "~0", StringComparison.Ordinal).Replace("/", "~1", StringComparison.Ordinal);
 
     [GeneratedRegex(@"/oneOf/\d+")]
     private static partial Regex InsideBranch();

@@ -33,6 +33,9 @@ public sealed class SiteValidatorTests
     [DataRow("""{"name":"A","slug":"-abc"}""", "/slug")]
     [DataRow("""{"name":"A","slug":"Abc"}""", "/slug")]
     [DataRow("""{"name":"A","slug":"abc","settings":{"language":"en_US"}}""", "/settings/language")]
+    [DataRow("""{"name":"A","slug":"abc","settings":{"theme":"dark"}}""", "/settings/theme")]
+    [DataRow("""{"name":"A","slug":"abc","settings":{"theme":""}}""", "/settings/theme")]
+    [DataRow("""{"name":"A","slug":"abc","settings":{"theme":"Atelier"}}""", "/settings/theme")]
     public void An_invalid_post_names_the_field_AC5_AC6(string body, string field) =>
         Assert.AreEqual(field, FailingField<SitePostDto>(body));
 

@@ -1,4 +1,5 @@
 using FluentValidation;
+using Hivesite.Content.Domain;
 using Hivesite.Shared;
 
 namespace Hivesite.Content.Endpoints;
@@ -21,6 +22,8 @@ internal sealed class SiteSettingsValidator : AbstractValidator<SiteSettingsInpu
     {
         RuleFor(x => x.Language).CodePoints(2, 35).Matches("^[a-z]{2,3}(-[A-Za-z0-9]{2,8})*$");
         RuleFor(x => x.Description).CodePoints(0, 160);
+        RuleFor(x => x.Theme).Must(theme => theme is null || SiteThemes.Keys.Contains(theme))
+            .WithMessage("'{PropertyName}' must be one of: " + string.Join(", ", SiteThemes.Keys) + ".");
     }
 }
 

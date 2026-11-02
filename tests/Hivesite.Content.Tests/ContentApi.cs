@@ -137,6 +137,7 @@ public sealed class ContentApi : IAsyncDisposable
                     services.AddSingleton<IPageChangedHandler>(api.PageEvents);
                     services.AddSingleton<IMenuChangedHandler>(api.PageEvents);
                     services.AddSingleton<TimeProvider>(api.Clock);
+                    services.ConfigureDbContext<Hivesite.Content.Infrastructure.ContentDbContext>(options => options.AddInterceptors(new DatabaseRecorder(), new TransactionRecorder()));
                 });
             });
             await api._factory.Services.MigrateContentDatabaseAsync();
