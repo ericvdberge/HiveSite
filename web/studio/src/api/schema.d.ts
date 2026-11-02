@@ -313,10 +313,9 @@ export interface components {
             description?: null | string;
             /**
              * @description One of atelier, ivory or studio. Default atelier. Any other value, including an empty string, is 400 `invalid_request` with field `/settings/theme`.
-             * @default atelier
              * @enum {null|string}
              */
-            theme: "atelier" | "ivory" | "studio" | null;
+            theme?: "atelier" | "ivory" | "studio" | null;
         };
     };
     responses: never;

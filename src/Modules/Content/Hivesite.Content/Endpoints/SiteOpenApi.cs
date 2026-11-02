@@ -17,6 +17,10 @@ internal static class SiteOpenApi
         if (context.JsonPropertyInfo is { Name: "theme", DeclaringType: var type } && (type == typeof(SiteSettingsDto) || type == typeof(SiteSettingsInputDto)))
         {
             schema.Enum = SiteThemes.Keys.Select(key => (JsonNode)JsonValue.Create(key)!).ToList();
+            if (type == typeof(SiteSettingsInputDto))
+            {
+                schema.Enum.Add(null!);   // the schema allows null (not sent, API-001), so the enum must too
+            }
         }
         return Task.CompletedTask;
     }

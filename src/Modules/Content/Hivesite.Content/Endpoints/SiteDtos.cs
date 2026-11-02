@@ -28,7 +28,6 @@ public sealed record SiteSettingsInputDto
     public string? Description { get; init => field = value?.Trim(); }
 
     [Description("One of atelier, ivory or studio. Default atelier. Any other value, including an empty string, is 400 `invalid_request` with field `/settings/theme`.")]
-    [DefaultValue(SiteThemes.Default)]
     public string? Theme { get; init => field = value?.Trim(); }
 }
 
