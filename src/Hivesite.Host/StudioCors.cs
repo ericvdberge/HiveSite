@@ -16,6 +16,8 @@ public static class StudioCors
             .WithOrigins(origins)
             .AllowCredentials()
             .AllowAnyHeader()
-            .AllowAnyMethod()));
+            .AllowAnyMethod()
+            // The studio sends If-Match with the version it read (API-004); a browser only lets it read ETag if it is exposed.
+            .WithExposedHeaders("ETag")));
     }
 }

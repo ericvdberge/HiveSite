@@ -32,3 +32,4 @@ Vue 3 (Composition API, `<script setup lang="ts">`), Vite, TypeScript in strict 
 - Before you push, run from `web/studio`: `npm ci`, `npm run lint`, `npm run typecheck`, `npm test`, `npm run build`. All must pass.
 - Before you open or update the PR, read your diff against these rules and fix what drifts.
 - Branch `story/<issue>-<slug>`, Conventional Commits (`feat(studio): …`), draft PR with the PR template, `Closes #<issue>` and `Spec: API-xxx` or `Spec: none`.
+- Branch from `origin/main` only, never from another open PR's branch. If the story needs code from an open PR, stop and say so; the manager runs it once that PR is merged. Before pushing to an existing branch, `git pull` it (a workflow merges `main` into open PRs).
