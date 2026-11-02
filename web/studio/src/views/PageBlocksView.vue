@@ -11,8 +11,10 @@ import {
     type Ref,
 } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
+import AddBlockDialog, { type OfferedType } from '../components/AddBlockDialog.vue'
 import BlockPanel from '../components/BlockPanel.vue'
 import NotFoundScreen from '../components/NotFoundScreen.vue'
+import RemoveBlockDialog from '../components/RemoveBlockDialog.vue'
 import ScreenHead from '../components/ScreenHead.vue'
 import {
     api,
@@ -28,15 +30,18 @@ import {
     documentToSend,
     type WorkingBlock,
     sameDocument,
+    SUPPORTED_TYPES,
+    SUPPORTED_VERSION,
     toWorkingCopy,
     type BlocksDocument,
     type TypeVersions,
     type WorkingCopy,
 } from '../blocks/model'
 import { fieldId } from '../blocks/ids'
-import { registry } from '../blocks/registry'
+import { firstFocusId, newBlock, registry } from '../blocks/registry'
 import { blockSummary } from '../blocks/summary'
 import { clearSiteNav, setSiteNav } from '../composables/useSiteNav'
+import { play } from '../motion'
 import { dismissToast, showErrorToast, toastCopy } from '../composables/useToast'
 
 type Site = components['schemas']['SiteDto']
@@ -54,6 +59,7 @@ const phase = ref<'loading' | 'ready' | 'failed' | 'missing'>('loading')
 const page = ref<PageItem | null>(null)
 const site = ref<Site | null>(null)
 const names = ref(new Map<string, string>())
+const descriptions = ref(new Map<string, string>())
 // The last saved document and its ETag, and the copy the screen works on.
 const saved = shallowRef<BlocksDocument | null>(null)
 const etag = ref<string | null>(null)
@@ -62,6 +68,16 @@ const copy = ref({ blocks: [] }) as Ref<WorkingCopy>
 const versions = shallowRef<TypeVersions>(new Map())
 const openBlocks = reactive(new Set<string>())
 const sending = ref(false)
+// Add and remove (block-editor.md): the dialogs, the list status line and the blocks added since
+// the last load or save (an added block nothing was typed into is removed without a dialog).
+const adding = ref(false)
+const removing = ref<string | null>(null)
+const addDialog = ref<InstanceType<typeof AddBlockDialog> | null>(null)
+const removeDialog = ref<InstanceType<typeof RemoveBlockDialog> | null>(null)
+const listStatus = ref('')
+const addedKeys = new Set<string>()
+let addedCount = 0
+let closing = false
 // "Blocks saved." or "No changes to save.", until the next edit.
 const notice = ref('')
 // A message for the whole form, or for a client-error summary with links to the blocks.
@@ -83,6 +99,19 @@ const documentTitle = computed(() =>
     page.value ? `Blocks · ${page.value.title} · Hivesite Studio` : undefined,
 )
 const heading = computed(() => (page.value ? `Blocks of ${page.value.title}` : 'Blocks'))
+const atLimit = computed(() => copy.value.blocks.length >= BLOCK_LIMIT)
+const hasHero = computed(() => copy.value.blocks.some((b) => b.node.type === 'hero'))
+/** Types with a form and at version 1, in API-003 order; the others appear as their forms land. */
+const offered = computed<OfferedType[]>(() =>
+    SUPPORTED_TYPES.filter(
+        (t) => registry[t] && versions.value.get(t) === SUPPORTED_VERSION && names.value.has(t),
+    ).map((t) => ({
+        type: t,
+        name: names.value.get(t) ?? t,
+        description: descriptions.value.get(t) ?? '',
+    })),
+)
+const removeIndex = computed(() => copy.value.blocks.findIndex((b) => b.key === removing.value))
 const countText = computed(() => `${copy.value.blocks.length} of ${BLOCK_LIMIT} blocks`)
 const unsaved = computed(
     () => saved.value !== null && !sameDocument(documentToSend(copy.value), saved.value),
@@ -183,6 +212,9 @@ async function load(): Promise<void> {
         if (!data) throw new Error('Empty response')
         const document = blocks.document as unknown as BlocksDocument
         names.value = new Map(types.map((t) => [t.type, t.name]))
+        descriptions.value = new Map(types.map((t) => [t.type, t.description]))
+        addedKeys.clear()
+        listStatus.value = ''
         versions.value = new Map(types.map((t) => [t.type, Number(t.version)]))
         page.value = pageData
         site.value = data
@@ -284,6 +316,8 @@ async function save(): Promise<void> {
         copy.value = fresh
         serverErrors.clear()
         notice.value = 'Blocks saved.'
+        listStatus.value = ''
+        addedKeys.clear()
         dismissToast()
     } catch (error) {
         if (isAbort(error) || signal.aborted) return
@@ -336,6 +370,117 @@ async function showFailure(error: unknown): Promise<void> {
     }
 }
 
+function blockElement(key: string): HTMLElement | null {
+    return document.getElementById(`${key}-name`)?.closest('li') ?? null
+}
+
+/** Runs one dialog close at a time: Escape can fire both `cancel` and `close`. */
+async function closeDialog(
+    dialog: { dismiss: () => Promise<void> | undefined } | null,
+    after: () => void,
+): Promise<boolean> {
+    if (closing) return false
+    closing = true
+    try {
+        await dialog?.dismiss()
+        after()
+    } finally {
+        closing = false
+    }
+    await nextTick()
+    return true
+}
+
+function openAdd(): void {
+    if (sending.value || atLimit.value || adding.value || removing.value) return
+    adding.value = true
+}
+
+async function cancelAdd(): Promise<void> {
+    if (!adding.value) return
+    const ok = await closeDialog(addDialog.value, () => (adding.value = false))
+    if (ok) {
+        const empty = copy.value.blocks.length === 0
+        document.getElementById(empty ? 'add-block-empty' : 'add-block')?.focus()
+    }
+}
+
+async function confirmAdd(type: string, index: number): Promise<void> {
+    const node = newBlock(type)
+    if (!node || !adding.value) return
+    const ok = await closeDialog(addDialog.value, () => (adding.value = false))
+    if (!ok || atLimit.value) return
+    const block: WorkingBlock = { key: `n${++addedCount}`, node, readOnly: false, kept: {} }
+    copy.value.blocks.splice(index, 0, block)
+    addedKeys.add(block.key)
+    openBlocks.add(block.key)
+    formMessage.value = null
+    notice.value = ''
+    const total = copy.value.blocks.length
+    listStatus.value = `${names.value.get(type) ?? type} added at position ${index + 1} of ${total}. Not saved yet.`
+    await nextTick()
+    // The new block fades in and rises as the one moving shape.
+    const el = blockElement(block.key)
+    if (el) {
+        void play(
+            el,
+            [
+                { opacity: 0, transform: 'translateY(var(--hs-motion-rise-distance))' },
+                { opacity: 1, transform: 'none' },
+            ],
+            '--hs-motion-easing-enter',
+        )
+    }
+    await focusField(firstFocusId(block.key, type))
+}
+
+/** Nothing typed into a block added in this session: it goes without a question. */
+function isEmptyNew(block: WorkingBlock): boolean {
+    return addedKeys.has(block.key) && sameDocument(block.node, newBlock(block.node.type))
+}
+
+async function removeAt(index: number): Promise<void> {
+    const block = copy.value.blocks[index]
+    if (!block || sending.value || adding.value || removing.value) return
+    if (isEmptyNew(block)) return doRemove(block.key)
+    removing.value = block.key
+}
+
+async function cancelRemove(): Promise<void> {
+    const key = removing.value
+    if (!key) return
+    const ok = await closeDialog(removeDialog.value, () => (removing.value = null))
+    if (ok) document.getElementById(`${key}-remove`)?.focus()
+}
+
+async function confirmRemove(): Promise<void> {
+    const key = removing.value
+    if (!key) return
+    const ok = await closeDialog(removeDialog.value, () => (removing.value = null))
+    if (ok) await doRemove(key)
+}
+
+async function doRemove(key: string): Promise<void> {
+    const block = copy.value.blocks.find((b) => b.key === key)
+    if (!block) return
+    const name = nameOf(block)
+    // The block fades out, then the ones below close the gap.
+    const el = blockElement(key)
+    if (el) await play(el, [{ opacity: 1 }, { opacity: 0 }])
+    const index = copy.value.blocks.findIndex((b) => b.key === key)
+    if (index < 0) return
+    copy.value.blocks.splice(index, 1)
+    addedKeys.delete(key)
+    openBlocks.delete(key)
+    formMessage.value = null
+    notice.value = ''
+    listStatus.value = `${name} removed. Not saved yet.`
+    await nextTick()
+    const rest = copy.value.blocks
+    const next = rest[Math.min(index, rest.length - 1)]
+    document.getElementById(next ? `${next.key}-name` : 'add-block-empty')?.focus()
+}
+
 /** Enter in a field submits nothing: a page has many blocks. Buttons keep their own Enter. */
 function onEnter(event: KeyboardEvent): void {
     if (event.target instanceof HTMLInputElement) event.preventDefault()
@@ -382,13 +527,11 @@ onBeforeUnmount(() => {
                         </button>
                     </template>
                     <!-- One status region for the whole screen; its text changes, the element stays. -->
-                    <p
-                        class="hs-status"
-                        :class="{ 'hs-visually-hidden': phase !== 'ready' }"
-                        role="status"
-                    >
-                        {{ statusText }}
-                    </p>
+                    <div :class="{ 'hs-visually-hidden': phase !== 'ready' }" role="status">
+                        <p class="hs-status">{{ statusText }}</p>
+                        <!-- The list status (adds and removes) is read in the same region. -->
+                        <p class="hs-visually-hidden">{{ listStatus }}</p>
+                    </div>
                 </div>
             </template>
         </ScreenHead>
@@ -433,6 +576,15 @@ onBeforeUnmount(() => {
                 <p class="hs-empty__hint">
                     Add a hero to open the page, then text, images or a form.
                 </p>
+                <button
+                    id="add-block-empty"
+                    type="button"
+                    class="hs-button hs-button--secondary hs-empty__add"
+                    :aria-disabled="sending ? 'true' : undefined"
+                    @click="openAdd"
+                >
+                    Add a block
+                </button>
             </section>
             <ol
                 v-else
@@ -450,6 +602,8 @@ onBeforeUnmount(() => {
                     :unsupported="block.readOnly || !registry[block.node.type]"
                     :open="openBlocks.has(block.key)"
                     :flagged="Object.keys(shownErrors(i)).length > 0"
+                    :locked="sending"
+                    @remove="removeAt(i)"
                     @update:open="
                         (open) => (open ? openBlocks.add(block.key) : openBlocks.delete(block.key))
                     "
@@ -466,7 +620,40 @@ onBeforeUnmount(() => {
                     />
                 </BlockPanel>
             </ol>
+            <div v-if="copy.blocks.length > 0" class="hs-add-row">
+                <button
+                    id="add-block"
+                    type="button"
+                    class="hs-button hs-button--secondary"
+                    :aria-disabled="atLimit || sending ? 'true' : undefined"
+                    :aria-describedby="atLimit ? 'add-block-limit' : undefined"
+                    @click="openAdd"
+                >
+                    Add block
+                </button>
+                <p v-if="atLimit" id="add-block-limit" class="hs-add-row__limit">
+                    A page holds {{ BLOCK_LIMIT }} blocks at most.
+                </p>
+            </div>
         </form>
+
+        <AddBlockDialog
+            v-if="adding"
+            ref="addDialog"
+            :types="offered"
+            :block-names="copy.blocks.map(nameOf)"
+            :has-hero="hasHero"
+            @cancel="cancelAdd"
+            @confirm="confirmAdd"
+        />
+        <RemoveBlockDialog
+            v-if="removing && removeIndex >= 0"
+            ref="removeDialog"
+            :position="removeIndex + 1"
+            :name="nameOf(copy.blocks[removeIndex] as WorkingBlock)"
+            @cancel="cancelRemove"
+            @confirm="confirmRemove"
+        />
     </template>
 </template>
 
@@ -537,6 +724,31 @@ onBeforeUnmount(() => {
     margin: 0;
     font-size: var(--hs-font-size-body-l);
     color: var(--hs-color-text);
+}
+
+.hs-empty__add {
+    margin-block-start: var(--hs-space-5);
+}
+
+.hs-add-row {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--hs-space-3);
+    margin-block-start: var(--hs-space-5);
+}
+
+@media (width >= breakpoint(sm)) {
+    .hs-add-row {
+        flex-direction: row;
+        align-items: center;
+    }
+}
+
+.hs-add-row__limit {
+    margin: 0;
+    font-size: var(--hs-font-size-body-s);
+    color: var(--hs-color-text-muted);
 }
 
 .hs-empty__hint {

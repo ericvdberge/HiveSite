@@ -14,8 +14,10 @@ defineProps<{
     open: boolean
     /** The block has an error: "Error: needs attention" shows even when the block is closed. */
     flagged?: boolean
+    /** Remove is unavailable (a save is running). */
+    locked?: boolean
 }>()
-const emit = defineEmits<{ 'update:open': [open: boolean] }>()
+const emit = defineEmits<{ 'update:open': [open: boolean]; remove: [] }>()
 </script>
 
 <template>
@@ -37,6 +39,18 @@ const emit = defineEmits<{ 'update:open': [open: boolean] }>()
             </h2>
             <p v-if="summary" class="hs-block__summary">{{ summary }}</p>
             <p v-if="flagged" class="hs-block__flag"><strong>Error:</strong> needs attention</p>
+            <div class="hs-block__actions">
+                <button
+                    :id="`${blockId}-remove`"
+                    type="button"
+                    class="hs-button hs-button--quiet"
+                    :aria-label="`Remove block ${position}, ${name}`"
+                    :aria-disabled="locked ? 'true' : undefined"
+                    @click="!locked && emit('remove')"
+                >
+                    Remove
+                </button>
+            </div>
         </div>
         <Transition name="hs-block-body">
             <div v-show="open" :id="`${blockId}-body`" class="hs-block__body">
@@ -131,6 +145,10 @@ const emit = defineEmits<{ 'update:open': [open: boolean] }>()
 
 .hs-block__flag strong {
     font-weight: var(--hs-font-weight-text-strong);
+}
+
+.hs-block__actions {
+    margin-inline-start: auto;
 }
 
 .hs-block__body {

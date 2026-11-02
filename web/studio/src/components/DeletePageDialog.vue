@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
-import { play } from '../motion'
+import { computed, ref } from 'vue'
+import StudioDialog from './StudioDialog.vue'
 
 const props = defineProps<{
     title: string
@@ -12,8 +12,7 @@ const props = defineProps<{
 }>()
 const emit = defineEmits<{ cancel: []; confirm: [] }>()
 
-const dialog = ref<HTMLDialogElement | null>(null)
-const cancelButton = ref<HTMLButtonElement | null>(null)
+const dialog = ref<InstanceType<typeof StudioDialog> | null>(null)
 
 const lead = computed(() => {
     if (props.onlyPage) {
@@ -25,15 +24,6 @@ const lead = computed(() => {
     return ''
 })
 
-onMounted(() => {
-    // showModal puts the dialog in the top layer and makes the page behind inert.
-    // jsdom lacks it; the open attribute is then the fallback.
-    if (typeof dialog.value?.showModal === 'function') dialog.value.showModal()
-    else dialog.value?.setAttribute('open', '')
-    cancelButton.value?.focus()
-})
-
-// Escape does nothing until the call ends.
 function onCancel(): void {
     if (!props.busy) emit('cancel')
 }
@@ -42,47 +32,31 @@ function onConfirm(): void {
     if (!props.busy) emit('confirm')
 }
 
-/** Backstop: the browser closed the dialog by itself (a repeated Escape can skip `cancel`). */
-function onClose(): void {
-    if (props.busy) {
-        if (typeof dialog.value?.showModal === 'function') dialog.value.showModal()
-        else dialog.value?.setAttribute('open', '')
-    } else {
-        emit('cancel')
-    }
-}
-
-/** Fades the panel out over motion.duration_base; the parent removes the dialog afterwards. */
-async function dismiss(): Promise<void> {
-    if (dialog.value) await play(dialog.value, [{ opacity: 1 }, { opacity: 0 }])
-}
-defineExpose({ dismiss })
+defineExpose({ dismiss: () => dialog.value?.dismiss() })
 </script>
 
 <template>
-    <dialog
+    <StudioDialog
         ref="dialog"
-        class="hs-dialog"
-        aria-labelledby="del-title"
-        aria-describedby="del-body"
-        @cancel.prevent="onCancel"
-        @keydown.esc.prevent="onCancel"
-        @close="onClose"
+        title-id="del-title"
+        body-id="del-body"
+        :busy="busy"
+        @cancel="emit('cancel')"
     >
-        <h2 id="del-title">Delete "{{ title }}"?</h2>
-        <div id="del-body">
-            <p v-if="lead" class="hs-dialog__lead">{{ lead }}</p>
-            <p>This deletes the page and all its blocks. It can't be undone.</p>
-            <p class="hs-dialog__aside">Releases you have already published keep their copy.</p>
-        </div>
-        <p v-if="failed" class="hs-form-message hs-dialog__message" role="alert">
-            <strong>Error:</strong> We couldn't delete the page. Please try again.
-        </p>
-        <div class="hs-dialog__actions">
+        <template #title>Delete "{{ title }}"?</template>
+        <p v-if="lead" class="hs-dialog__lead">{{ lead }}</p>
+        <p>This deletes the page and all its blocks. It can't be undone.</p>
+        <p class="hs-dialog__aside">Releases you have already published keep their copy.</p>
+        <template #after>
+            <p v-if="failed" class="hs-form-message hs-dialog__message" role="alert">
+                <strong>Error:</strong> We couldn't delete the page. Please try again.
+            </p>
+        </template>
+        <template #actions>
             <button
-                ref="cancelButton"
                 type="button"
                 class="hs-button hs-button--secondary"
+                data-autofocus
                 :aria-disabled="busy ? 'true' : undefined"
                 @click="onCancel"
             >
@@ -96,6 +70,6 @@ defineExpose({ dismiss })
             >
                 {{ busy ? 'Deleting…' : 'Delete page' }}
             </button>
-        </div>
-    </dialog>
+        </template>
+    </StudioDialog>
 </template>
