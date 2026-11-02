@@ -29,7 +29,7 @@ The screen an owner signs in on, the check the studio makes on start, and where 
   - its second character is neither `/` nor `\` (this refuses `//evil.example` and `/\evil.example`);
   - it holds no control characters and no whitespace (this refuses tabs and newlines, which browsers strip, and their encoded forms after the one decode);
   - `new URL(next, location.origin).origin === location.origin`;
-  - the resolved URL's `pathname` is not `/sign-in` (this also refuses `/sign-in?…` and `/sign-in/`).
+  - the resolved URL's `pathname`, with one trailing `/` removed, is not `/sign-in` (this also refuses `/sign-in?…` and `/sign-in/`).
 - The studio opens it only with `router.replace(next)`, never with `location.href`, `location.assign` or `window.open`.
 - Anything else, or no `next`, opens the site list (`/sites`).
 
