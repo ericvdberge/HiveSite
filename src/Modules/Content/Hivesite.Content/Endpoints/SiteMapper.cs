@@ -33,6 +33,7 @@ internal static partial class SiteMapper
 
     [MapperIgnoreTarget(nameof(SiteFilter.OwnerId))] // the signed-in owner, set by SiteService
     [MapperIgnoreTarget(nameof(SiteFilter.Id))] // a list filters by owner, not by one id
+    [MapperIgnoreTarget(nameof(SiteFilter.Slug))] // only the slug lookup of IContentApi filters by slug
     public static partial SiteFilter ToFilter(PageQuery query);
 
     public static PageDto<SiteDto> ToDto(Page<Site> page) =>

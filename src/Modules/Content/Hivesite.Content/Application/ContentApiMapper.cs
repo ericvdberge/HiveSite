@@ -12,6 +12,8 @@ internal static partial class ContentApiMapper
 {
     public static partial IReadOnlyList<BlockTypeInfo> ToInfo(IReadOnlyList<BlockType> blockTypes);
 
+    public static partial SiteSummary ToSummary(Site site);
+
     [MapValue(nameof(Contracts.SiteSnapshot.SnapshotFormat), Contracts.SiteSnapshot.Format)]
     public static partial Contracts.SiteSnapshot ToContract(Domain.SiteSnapshot snapshot);
 
