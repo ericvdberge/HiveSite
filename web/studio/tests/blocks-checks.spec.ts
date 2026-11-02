@@ -2,11 +2,14 @@ import { describe, expect, it } from 'vitest'
 import {
     LINK_COPY,
     URL_COPY,
+    checkEmbedUrl,
     checkLink,
     checkMax,
+    checkProvider,
     checkRequired,
     checkText,
     checkUrl,
+    embedUrlHint,
 } from '../src/blocks/checks'
 import { registry } from '../src/blocks/registry'
 
@@ -76,5 +79,45 @@ describe('client checks', () => {
             'cta.label',
             'cta.href',
         ])
+    })
+})
+
+describe('embed host checks', () => {
+    const cases: Array<[string, string, string]> = [
+        ['youtube', 'https://www.youtube.com/watch?v=abc', ''],
+        ['youtube', 'https://YouTube.com/embed/abc', ''],
+        ['youtube', 'https://youtu.be/abc', ''],
+        ['youtube', 'https://m.youtube.com/watch?v=abc', 'Use a YouTube address.'],
+        ['youtube', 'https://vimeo.com/1', 'Use a YouTube address.'],
+        ['youtube', 'https://youtube.com.evil.test/x', 'Use a YouTube address.'],
+        ['vimeo', 'https://vimeo.com/1', ''],
+        ['vimeo', 'https://Player.Vimeo.com/video/1', ''],
+        ['vimeo', 'https://www.vimeo.com/1', 'Use a Vimeo address.'],
+        ['vimeo', 'https://youtu.be/abc', 'Use a Vimeo address.'],
+        ['google_maps', 'https://www.google.com/maps/embed?pb=1', ''],
+        ['google_maps', 'https://WWW.GOOGLE.COM/Maps/Embed?pb=1', ''],
+        ['google_maps', 'https://www.google.com/maps?q=x', 'Use a Google Maps embed address.'],
+        ['google_maps', 'https://google.com/maps/embed', 'Use a Google Maps embed address.'],
+        ['youtube', 'http://youtu.be/abc', URL_COPY],
+        ['youtube', '', URL_COPY],
+    ]
+
+    it.each(cases)('(AC5) %s %s gives "%s"', (provider, url, expected) => {
+        expect(checkEmbedUrl(provider, url, 2048)).toBe(expected)
+    })
+
+    it('(AC5) no provider: "Choose a provider."; the address is then only checked as an address', () => {
+        expect(checkProvider('')).toBe('Choose a provider.')
+        expect(checkProvider('toString')).toBe('Choose a provider.')
+        expect(checkProvider('vimeo')).toBe('')
+        expect(checkEmbedUrl('', 'https://a.test/x', 2048)).toBe('')
+        expect(checkEmbedUrl('', 'nope', 2048)).toBe(URL_COPY)
+    })
+
+    it('(AC4) the hint follows the provider', () => {
+        expect(embedUrlHint('')).toBe('Choose a provider first.')
+        expect(embedUrlHint('youtube')).toBe('A youtube.com or youtu.be address.')
+        expect(embedUrlHint('vimeo')).toBe('A vimeo.com address.')
+        expect(embedUrlHint('google_maps')).toMatch(/^In Google Maps choose Share/)
     })
 })

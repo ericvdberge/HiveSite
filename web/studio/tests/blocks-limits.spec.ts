@@ -2,7 +2,15 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { checkLink, checkUrl } from '../src/blocks/checks'
-import { HERO_LIMITS, URL_MAX } from '../src/blocks/limits'
+import {
+    EMBED_ASPECT_RATIOS,
+    EMBED_LIMITS,
+    EMBED_PROVIDERS,
+    HERO_LIMITS,
+    IMAGE_LIMITS,
+    IMAGE_WIDTHS,
+    URL_MAX,
+} from '../src/blocks/limits'
 
 // Tests run from web/studio; the schemas live in the Content module at the repo root.
 const dir = resolve(process.cwd(), '../../src/Modules/Content/Hivesite.Content/BlockTypes')
@@ -19,6 +27,21 @@ describe('hero limits', () => {
         expect(HERO_LIMITS.ctaLabel).toBe(defs.action.properties.label.maxLength)
         expect(URL_MAX).toBe(defs.url.maxLength)
         expect(URL_MAX).toBe(defs.link.maxLength)
+    })
+
+    it("(AC7) the image and embed limits and values equal Content's image.json, embed.json and defs.json", () => {
+        const image = read('image.json').properties.attrs.properties
+        const embed = read('embed.json').properties.attrs.properties
+        expect(IMAGE_LIMITS.caption).toBe(image.caption.maxLength)
+        expect(HERO_LIMITS.imageAlt).toBe(defs.image.properties.alt.maxLength)
+        expect(IMAGE_WIDTHS).toEqual(image.width.enum)
+        expect(image.width.default).toBe('content')
+        expect(EMBED_LIMITS.title).toBe(embed.title.maxLength)
+        expect(embed.title.minLength).toBe(1)
+        expect(EMBED_PROVIDERS).toEqual(embed.provider.enum)
+        expect(EMBED_ASPECT_RATIOS).toEqual(embed.aspect_ratio.enum)
+        expect(embed.aspect_ratio.default).toBe('16:9')
+        expect(URL_MAX).toBe(defs.url.maxLength)
     })
 
     it('(AC10) whatever the schema patterns refuse, the checks refuse too', () => {

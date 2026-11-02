@@ -6,16 +6,24 @@ defineProps<{
     legend: string
     options: ReadonlyArray<{ value: string; label: string }>
     readonly?: boolean
+    /** The error copy, without "Error:". */
+    error?: string
 }>()
+// The value is a string; '' means none chosen.
 const model = defineModel<string>({ required: true })
 </script>
 
 <template>
-    <fieldset class="hs-radios">
+    <fieldset
+        class="hs-radios"
+        :aria-invalid="error ? 'true' : undefined"
+        :aria-describedby="error ? `${id}-error` : undefined"
+    >
         <legend>{{ legend }}</legend>
         <div class="hs-radios__options">
-            <label v-for="option in options" :key="option.value" class="hs-radios__option">
+            <label v-for="(option, i) in options" :key="option.value" class="hs-radios__option">
                 <input
+                    :id="i === 0 ? id : undefined"
                     type="radio"
                     :name="id"
                     :value="option.value"
@@ -27,6 +35,9 @@ const model = defineModel<string>({ required: true })
                 {{ option.label }}
             </label>
         </div>
+        <p v-if="error" :id="`${id}-error`" class="hs-radios__error">
+            <strong>Error:</strong> {{ error }}
+        </p>
     </fieldset>
 </template>
 
@@ -58,6 +69,16 @@ legend {
     min-block-size: var(--hs-control-min-height);
     font-size: var(--hs-font-size-body);
     color: var(--hs-color-text);
+}
+
+.hs-radios__error {
+    margin-block-start: var(--hs-space-2);
+    font-size: var(--hs-font-size-body-s);
+    color: var(--hs-color-error);
+}
+
+.hs-radios__error strong {
+    font-weight: var(--hs-font-weight-text-strong);
 }
 
 input[type='radio'] {
