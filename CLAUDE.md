@@ -14,7 +14,7 @@ A block-based website builder, designed and built by a team of AI agents. Owners
 - Test: `dotnet test`
 - Format: `dotnet format`
 - Spec index: `node scripts/spec-index.mjs` (CI runs it with `--check`)
-- Default template (from `web/template`): `npm ci`, `npm run lint`, `npm test`, `npm run build` (writes `dist/render.mjs` and `dist/themes/`; build it before `dotnet test`)
+- Default template (from `web/template`): `npm ci`, `npm run lint`, `npm run typecheck`, `npm test`, `npm run build` (writes `dist/render.mjs` and `dist/themes/`; build it before `dotnet test`)
 - Studio (from `web/studio`): `npm ci`, `npm run dev`, `npm run lint`, `npm run typecheck`, `npm test`, `npm run build`
 - Board: `node scripts/board.mjs list [Column]`, `node scripts/board.mjs move <issue> "<Column>"`, `node scripts/board.mjs sync` (closed issues → Done; run it after you merge)
 
