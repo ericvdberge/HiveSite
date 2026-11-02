@@ -256,6 +256,11 @@ async function save(): Promise<void> {
         notice.value = 'No changes to save.'
         return
     }
+    // Without a known version a save could overwrite another tab's work: send nothing.
+    if (etag.value === null) {
+        showErrorToast(toastCopy.saveFailed('blocks'))
+        return
+    }
     sending.value = true
     const signal = controller.signal
     try {
@@ -274,8 +279,8 @@ async function save(): Promise<void> {
             if (before && before.node.type === b.node.type) b.kept = before.kept
         })
         saved.value = savedDocument
-        // Without a new ETag the old one stays: a stale value is refused, never overwritten.
-        if (result.etag) etag.value = result.etag
+        // A response without an ETag leaves no known version: the next save sends nothing.
+        etag.value = result.etag
         copy.value = fresh
         serverErrors.clear()
         notice.value = 'Blocks saved.'
@@ -324,7 +329,7 @@ async function showFailure(error: unknown): Promise<void> {
             )
         case 'precondition_failed':
             return showMessage(
-                'This page was changed somewhere else. Reload it to see the latest blocks.',
+                'This page changed somewhere else. Someone saved these blocks after you opened them, perhaps in another tab. Your changes are not saved yet.',
             )
         default:
             return showErrorToast(toastCopy.saveFailed('blocks'))

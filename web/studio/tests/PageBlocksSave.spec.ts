@@ -57,13 +57,16 @@ function json(body: unknown, status = 200, headers: Record<string, string> = {})
 const fail = (status: number, code: string, field?: string) =>
     json({ error: { code, message: 'Server words.', ...(field ? { field } : {}) } }, status)
 
+// The ETag of the GET; null leaves the header out.
+let getEtag: string | null = '"7"'
+
 /** Serves the four loading calls; `put` answers the PUT. */
 function serve(content: unknown[], put: (req: Request) => Promise<Response> | Response) {
     fetchMock.mockImplementation((req: Request) => {
         const url = new URL(req.url)
         if (url.pathname === PATH) {
             if (req.method === 'PUT') return Promise.resolve(put(req))
-            return Promise.resolve(json(doc(content), 200, { ETag: '"7"' }))
+            return Promise.resolve(json(doc(content), 200, getEtag ? { ETag: getEtag } : {}))
         }
         if (url.pathname === `/pages/${PAGE_ID}`) return Promise.resolve(json(PAGE))
         if (url.pathname === '/block-types') {
@@ -104,6 +107,7 @@ async function blur(w: VueWrapper, selector: string) {
 
 beforeEach(() => {
     fetchMock.mockReset()
+    getEtag = '"7"'
     dismissToast()
 })
 afterEach(() => {
@@ -389,13 +393,45 @@ describe('save: unsaved changes', () => {
 })
 
 describe('save: server errors', () => {
-    it('a 412 shows a plain form message for now', async () => {
+    it('a save is never sent when the GET gave no ETag, and shows the save-failed copy', async () => {
+        getEtag = null
+        serve([hero('A')], () => json(doc([hero('B')]), 200, { ETag: '"8"' }))
+        const w = await open()
+        await type(w, '#b1-title', 'B')
+        await saveButton(w).trigger('click')
+        await flushPromises()
+        expect(puts()).toHaveLength(0)
+        expect(useToast().message.value).toBe(
+            "We couldn't save the blocks. Your changes are still here.",
+        )
+        expect(status(w)).toBe('Unsaved changes')
+    })
+
+    it('a 200 without an ETag leaves no version: the next save sends nothing', async () => {
+        serve([hero('A')], () => json(doc([hero('B')])))
+        const w = await open()
+        await type(w, '#b1-title', 'B')
+        await saveButton(w).trigger('click')
+        await flushPromises()
+        expect(puts()).toHaveLength(1)
+        await type(w, '#b1-title', 'C')
+        await saveButton(w).trigger('click')
+        await flushPromises()
+        expect(puts()).toHaveLength(1)
+        expect(useToast().message.value).toBe(
+            "We couldn't save the blocks. Your changes are still here.",
+        )
+    })
+
+    it('a 412 shows the changed-elsewhere wording as a form message for now', async () => {
         serve([hero('A')], () => fail(412, 'precondition_failed'))
         const w = await open()
         await type(w, '#b1-title', 'B')
         await saveButton(w).trigger('click')
         await flushPromises()
-        expect(w.get('.hs-blocks__message').text()).toContain('Error:')
+        expect(w.get('.hs-blocks__message').text()).toBe(
+            'Error: This page changed somewhere else. Someone saved these blocks after you opened them, perhaps in another tab. Your changes are not saved yet.',
+        )
         expect(document.activeElement).toBe(w.get('.hs-blocks__message').element)
         expect(status(w)).toBe('Unsaved changes')
     })

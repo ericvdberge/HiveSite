@@ -55,8 +55,8 @@ function onChange(event: Event): void {
 
 input[type='checkbox'] {
     flex: none;
-    inline-size: var(--hs-control-min-height);
-    block-size: var(--hs-control-min-height);
+    inline-size: var(--hs-space-5);
+    block-size: var(--hs-space-5);
     margin: 0;
     accent-color: var(--hs-color-accent);
 }
