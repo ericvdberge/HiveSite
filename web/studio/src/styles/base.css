@@ -221,3 +221,24 @@ a {
         transform: translateY(var(--hs-motion-rise-distance));
     }
 }
+
+/* Note: a calm notice that is not an error (shell.md). The edge is decorative. */
+.hs-note {
+    padding: var(--hs-space-4);
+    background: var(--hs-color-surface);
+    border-inline-start: var(--hs-border-width-focus) solid var(--hs-color-rule);
+    color: var(--hs-color-text);
+    overflow-wrap: anywhere;
+    animation: hs-note-in var(--hs-motion-duration-base) var(--hs-motion-easing-standard) both;
+}
+
+.hs-note strong {
+    font-weight: var(--hs-font-weight-text-strong);
+    color: var(--hs-color-accent-text);
+}
+
+@keyframes hs-note-in {
+    from {
+        opacity: 0;
+    }
+}

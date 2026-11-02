@@ -8,6 +8,7 @@ import { api, isApiError, listAll, type components } from '../api'
 import { takeAddedPage } from '../composables/useAddedPage'
 import { clearSiteNav, setSiteNav } from '../composables/useSiteNav'
 import { glide, play } from '../motion'
+import { showErrorToast } from '../composables/useToast'
 
 type Site = components['schemas']['SiteDto']
 type PageItem = components['schemas']['PageDto']
@@ -34,8 +35,16 @@ const count = computed(() => pages.value.length)
 const atLimit = computed(() => count.value >= PAGE_LIMIT)
 const isEmpty = computed(() => phase.value === 'ready' && count.value === 0)
 const countText = computed(() => `${count.value} of ${PAGE_LIMIT} pages`)
-const isHome = (p: PageItem) => Number(p.menu_order) === 0
-const position = (p: PageItem) => Number(p.menu_order) + 1
+// The home marker follows the saved order; it moves with a drop, not during a drag.
+const homeId = ref('')
+const isHome = (p: PageItem) => p.id === homeId.value
+const position = (p: PageItem) => pages.value.findIndex((x) => x.id === p.id) + 1
+
+/** Takes a list in menu order as the saved state: menu_order follows the index and home is the first. */
+function setPages(list: PageItem[]): void {
+    pages.value = list.map((p, i) => ({ ...p, menu_order: i }))
+    homeId.value = pages.value[0]?.id ?? ''
+}
 
 function isAbort(error: unknown): boolean {
     return error instanceof DOMException && error.name === 'AbortError'
@@ -82,7 +91,8 @@ async function load(): Promise<void> {
         const [loadedSite, all] = await Promise.all([fetchSite(), fetchPagesRestarting()])
         site.value = loadedSite
         setSiteNav({ id: loadedSite.id, name: loadedSite.name })
-        pages.value = all
+        setPages(all)
+        remember()
         phase.value = 'ready'
         await announceAdded()
     } catch (error) {
@@ -92,6 +102,12 @@ async function load(): Promise<void> {
         phase.value = isApiError(error) && error.code === 'site_not_found' ? 'missing' : 'failed'
         if (phase.value === 'missing') clearSiteNav()
     }
+}
+
+/** Links leave the screen; they do nothing while a save is out. */
+function go(e: MouseEvent, navigate: (e?: MouseEvent) => unknown): void {
+    if (busy.value) e.preventDefault()
+    else navigate(e)
 }
 
 /** Confirm dialog state (delete-confirm.md). The dialog opens with data already on the page. */
@@ -106,7 +122,7 @@ const nextHomeTitle = computed(() =>
 )
 
 function openDelete(page: PageItem): void {
-    if (deleting.value) return
+    if (deleting.value || busy.value || grab.value) return
     deleteFailed.value = false
     deleteBusy.value = false
     deleting.value = page
@@ -194,12 +210,8 @@ async function removeRow(target: PageItem, index: number): Promise<void> {
     const tops = new Map(
         below.map((p) => [p.id, rowElement(p.id)?.getBoundingClientRect().top ?? 0] as const),
     )
-    const removed = Number(target.menu_order)
-    pages.value = pages.value
-        .filter((p) => p.id !== target.id)
-        .map((p) =>
-            Number(p.menu_order) > removed ? { ...p, menu_order: Number(p.menu_order) - 1 } : p,
-        )
+    setPages(pages.value.filter((p) => p.id !== target.id))
+    remember()
     await nextTick()
     await Promise.all(
         below.map((p) => {
@@ -207,6 +219,357 @@ async function removeRow(target: PageItem, index: number): Promise<void> {
             return el ? glide(el, tops.get(p.id) ?? 0) : Promise.resolve()
         }),
     )
+}
+
+/* ---- Reorder (menu-reorder.md) ---- */
+
+type ControlKind = 'handle' | 'up' | 'down'
+type Grab = { id: string; mode: 'key' | 'pointer'; origin: number }
+
+const saving = ref(false)
+const refreshing = ref(false)
+const mismatch = ref(false)
+const grab = ref<Grab | null>(null)
+const movedId = ref('')
+const dragDy = ref(0)
+const dragSlot = ref(-1)
+let dragStartY = 0
+let saved: PageItem[] = []
+let suppressBlur = false
+let lastControl: { id: string; kind: ControlKind } = { id: '', kind: 'handle' }
+
+const busy = computed(() => saving.value || refreshing.value)
+const canMove = computed(() => !busy.value && count.value > 1)
+
+/** The saved state to go back to after a cancel or a failed save. */
+function remember(): void {
+    saved = pages.value.slice()
+}
+
+const dragOthers = computed(() =>
+    grab.value?.mode === 'pointer' ? pages.value.filter((p) => p.id !== grab.value?.id) : [],
+)
+const overBeforeId = computed(() =>
+    dragSlot.value >= 0 ? (dragOthers.value[dragSlot.value]?.id ?? '') : '',
+)
+const overAfterId = computed(() =>
+    dragSlot.value >= 0 && dragSlot.value >= dragOthers.value.length
+        ? (dragOthers.value[dragOthers.value.length - 1]?.id ?? '')
+        : '',
+)
+
+function rowState(page: PageItem): 'rest' | 'grabbed' | 'saving' {
+    if (grab.value?.id === page.id) return 'grabbed'
+    return saving.value && movedId.value === page.id ? 'saving' : 'rest'
+}
+
+function rowStyle(page: PageItem): Record<string, string> | undefined {
+    return grab.value?.mode === 'pointer' && grab.value.id === page.id
+        ? { transform: `translateY(${dragDy.value}px)` }
+        : undefined
+}
+
+function pageById(id: string): PageItem | undefined {
+    return pages.value.find((p) => p.id === id)
+}
+
+function controlElement(id: string, kind: ControlKind): HTMLElement | null {
+    return rowElement(id)?.querySelector<HTMLElement>(`[data-action="${kind}"]`) ?? null
+}
+
+async function focusControl(id: string, kind: ControlKind): Promise<void> {
+    await nextTick()
+    controlElement(id, kind)?.focus()
+}
+
+/** Moves a row in the list and glides it to its new place. The rows it passes jump. */
+async function moveTo(id: string, to: number): Promise<boolean> {
+    const from = pages.value.findIndex((p) => p.id === id)
+    const target = Math.max(0, Math.min(pages.value.length - 1, to))
+    if (from < 0 || from === target) return false
+    const top = rowElement(id)?.getBoundingClientRect().top ?? 0
+    const next = pages.value.slice()
+    const [moved] = next.splice(from, 1)
+    if (moved) next.splice(target, 0, moved)
+    suppressBlur = true
+    pages.value = next
+    await nextTick()
+    const el = rowElement(id)
+    if (el) void glide(el, top)
+    return true
+}
+
+function where(id: string): string {
+    const page = pageById(id)
+    return `position ${page ? position(page) : 0} of ${count.value}`
+}
+
+function pickUp(page: PageItem, mode: Grab['mode']): void {
+    grab.value = { id: page.id, mode, origin: pages.value.findIndex((p) => p.id === page.id) }
+    notice.value =
+        mode === 'key'
+            ? `${page.title} picked up. Position ${position(page)} of ${count.value}. Use the up and down arrow keys to move, Space to drop, Escape to cancel.`
+            : ''
+}
+
+/** Puts a picked-up row back where it was; nothing is sent. */
+async function cancelGrab(): Promise<void> {
+    const g = grab.value
+    if (!g) return
+    const title = pageById(g.id)?.title ?? ''
+    const top = rowElement(g.id)?.getBoundingClientRect().top ?? 0
+    grab.value = null
+    dragDy.value = 0
+    dragSlot.value = -1
+    removeEscapeListener()
+    suppressBlur = true
+    pages.value = saved.slice()
+    await nextTick()
+    const el = rowElement(g.id)
+    if (el) void glide(el, top)
+    notice.value = `Move cancelled. ${title} is back at ${where(g.id)}.`
+    suppressBlur = false
+}
+
+async function onHandleKey(e: KeyboardEvent, page: PageItem): Promise<void> {
+    if (!canMove.value) return
+    const g = grab.value
+    const select = e.key === ' ' || e.key === 'Enter'
+    if (!g) {
+        if (select) {
+            e.preventDefault()
+            lastControl = { id: page.id, kind: 'handle' }
+            pickUp(page, 'key')
+        }
+        return
+    }
+    if (g.mode !== 'key' || g.id !== page.id) return
+    const index = pages.value.findIndex((p) => p.id === page.id)
+    if (select) {
+        e.preventDefault()
+        grab.value = null
+        await dropRow(page.id, g.origin, 'dropped')
+    } else if (e.key === 'Escape') {
+        e.preventDefault()
+        await cancelGrab()
+        await focusControl(page.id, 'handle')
+    } else if (e.key === 'Tab') {
+        await cancelGrab()
+    } else if (['ArrowUp', 'ArrowDown', 'Home', 'End'].includes(e.key)) {
+        e.preventDefault()
+        const to =
+            e.key === 'ArrowUp'
+                ? index - 1
+                : e.key === 'ArrowDown'
+                  ? index + 1
+                  : e.key === 'Home'
+                    ? 0
+                    : pages.value.length - 1
+        if (await moveTo(page.id, to)) {
+            const home = position(page) === 1 && homeId.value !== page.id
+            notice.value = `Moved to ${where(page.id)}.${home ? ` ${page.title} will become the home page.` : ''}`
+        }
+        await focusControl(page.id, 'handle')
+        suppressBlur = false
+    }
+}
+
+function onHandleBlur(page: PageItem): void {
+    if (suppressBlur) return
+    if (grab.value?.mode === 'key' && grab.value.id === page.id) void cancelGrab()
+}
+
+/** A completed move: save unless the row is back where it started. */
+async function dropRow(id: string, origin: number, verb: 'dropped' | 'moved'): Promise<void> {
+    const page = pageById(id)
+    if (!page) return
+    if (pages.value.findIndex((p) => p.id === id) === origin) {
+        notice.value = `${page.title} ${verb} at ${where(id)}.`
+        return
+    }
+    // The home marker moves with the drop, not during the drag.
+    homeId.value = pages.value[0]?.id ?? ''
+    notice.value = `${page.title} ${verb === 'dropped' ? 'dropped at' : 'moved to'} ${where(id)}. Saving order.`
+    await save(id)
+}
+
+async function onMove(page: PageItem, delta: -1 | 1, kind: 'up' | 'down'): Promise<void> {
+    if (!canMove.value || grab.value) return
+    const origin = pages.value.findIndex((p) => p.id === page.id)
+    const target = origin + delta
+    if (target < 0 || target >= pages.value.length) return
+    lastControl = { id: page.id, kind }
+    await moveTo(page.id, target)
+    await dropRow(page.id, origin, 'moved')
+}
+
+async function save(id: string): Promise<void> {
+    const title = pageById(id)?.title ?? ''
+    const previous = saved
+    saving.value = true
+    movedId.value = id
+    suppressBlur = true
+    let refocus = true
+    try {
+        const { data } = await api.PUT('/sites/{id}/menu', {
+            params: { path: { id: siteId } },
+            body: { page_ids: pages.value.map((p) => p.id) },
+            signal: controller.signal,
+        })
+        if (controller.signal.aborted) return
+        const byId = new Map(pages.value.map((p) => [p.id, p] as const))
+        const ordered = (data?.page_ids ?? [])
+            .map((pid) => byId.get(pid))
+            .filter((p): p is PageItem => p !== undefined)
+        if (ordered.length !== pages.value.length) throw new Error('Unexpected menu response')
+        const oldHome = previous[0]?.id
+        // The echoed order wins.
+        setPages(ordered)
+        remember()
+        mismatch.value = false
+        const home = pages.value[0]
+        notice.value =
+            home && home.id !== oldHome
+                ? `Order saved. ${home.title} is now your home page.`
+                : 'Order saved.'
+    } catch (error) {
+        if (controller.signal.aborted || isAbort(error)) {
+            refocus = false
+            return
+        }
+        if (isApiError(error) && error.code === 'menu_mismatch') {
+            await refresh()
+            refocus = false
+        } else if (isApiError(error) && error.code === 'site_not_found') {
+            phase.value = 'missing'
+            clearSiteNav()
+            refocus = false
+        } else {
+            revert(previous)
+            // Sign-in owns a 401: the order goes back and nothing else shows.
+            if (!(isApiError(error) && error.code === 'unauthenticated')) {
+                showErrorToast(
+                    "We couldn't save the new order. Your pages are back in their last saved order.",
+                )
+                notice.value = `Order not saved. ${title} is back at ${where(id)}.`
+            }
+        }
+    } finally {
+        if (!controller.signal.aborted) {
+            saving.value = false
+            movedId.value = ''
+            if (refocus && phase.value === 'ready') {
+                await focusControl(lastControl.id, lastControl.kind)
+            }
+            suppressBlur = false
+        }
+    }
+}
+
+/** Back to the last saved order, the moved row gliding home. */
+function revert(previous: PageItem[]): void {
+    const id = movedId.value
+    const top = rowElement(id)?.getBoundingClientRect().top ?? 0
+    pages.value = previous.slice()
+    homeId.value = pages.value[0]?.id ?? ''
+    void nextTick().then(() => {
+        const el = rowElement(id)
+        if (el) void glide(el, top)
+    })
+}
+
+/** menu_mismatch: reload quietly (rows stay, controls wait), then ask to try again. */
+async function refresh(): Promise<void> {
+    refreshing.value = true
+    notice.value = ''
+    const id = lastControl.id
+    try {
+        const all = await fetchPagesRestarting()
+        if (controller.signal.aborted) return
+        setPages(all)
+        remember()
+        mismatch.value = true
+        await nextTick()
+        const handle = controlElement(id, 'handle')
+        if (handle) handle.focus()
+        else document.querySelector<HTMLElement>('h1')?.focus()
+    } catch (error) {
+        if (controller.signal.aborted || isAbort(error)) return
+        if (isApiError(error) && error.code === 'unauthenticated') return
+        phase.value = 'failed'
+    } finally {
+        if (!controller.signal.aborted) refreshing.value = false
+    }
+}
+
+/* Pointer drag: mouse, pen and touch share these events on the handle. */
+
+function onEscapeDuringDrag(e: KeyboardEvent): void {
+    if (e.key === 'Escape' && grab.value?.mode === 'pointer') void cancelGrab()
+}
+function removeEscapeListener(): void {
+    window.removeEventListener('keydown', onEscapeDuringDrag)
+}
+
+function onPointerDown(e: PointerEvent, page: PageItem): void {
+    if (!canMove.value || grab.value) return
+    if (e.pointerType === 'mouse' && e.button !== 0) return
+    const handle = e.currentTarget as HTMLElement
+    handle.setPointerCapture?.(e.pointerId)
+    lastControl = { id: page.id, kind: 'handle' }
+    dragStartY = e.clientY
+    dragDy.value = 0
+    pickUp(page, 'pointer')
+    dragSlot.value = pages.value.findIndex((p) => p.id === page.id)
+    window.addEventListener('keydown', onEscapeDuringDrag)
+}
+
+function onPointerMove(e: PointerEvent): void {
+    if (grab.value?.mode !== 'pointer') return
+    dragDy.value = e.clientY - dragStartY
+    dragSlot.value = dragOthers.value.filter((p) => {
+        const r = rowElement(p.id)?.getBoundingClientRect()
+        return r ? r.top + r.height / 2 < e.clientY : false
+    }).length
+}
+
+async function onPointerUp(e: PointerEvent): Promise<void> {
+    const g = grab.value
+    if (g?.mode !== 'pointer') return
+    const handle = e.currentTarget as HTMLElement
+    if (handle.hasPointerCapture?.(e.pointerId)) handle.releasePointerCapture?.(e.pointerId)
+    const area = list.value?.getBoundingClientRect()
+    const inside =
+        !!area &&
+        e.clientX >= area.left &&
+        e.clientX <= area.right &&
+        e.clientY >= area.top &&
+        e.clientY <= area.bottom
+    if (!inside) {
+        await cancelGrab()
+        return
+    }
+    const slot = dragSlot.value
+    const releasedTop = rowElement(g.id)?.getBoundingClientRect().top ?? 0
+    removeEscapeListener()
+    grab.value = null
+    dragDy.value = 0
+    dragSlot.value = -1
+    // The row settles from where it was released into its slot.
+    suppressBlur = true
+    const next = pages.value.filter((p) => p.id !== g.id)
+    const row = pageById(g.id)
+    if (row) next.splice(slot, 0, row)
+    pages.value = next
+    await nextTick()
+    const el = rowElement(g.id)
+    if (el) void glide(el, releasedTop)
+    await dropRow(g.id, g.origin, 'dropped')
+    suppressBlur = false
+}
+
+function onPointerCancel(): void {
+    if (grab.value?.mode === 'pointer') void cancelGrab()
 }
 
 /** After add: say where the page landed and focus its title link. */
@@ -233,6 +596,7 @@ onMounted(() => {
 })
 onBeforeUnmount(() => {
     controller.abort()
+    removeEscapeListener()
     clearSiteNav()
 })
 </script>
@@ -260,11 +624,18 @@ onBeforeUnmount(() => {
                     </button>
                     <RouterLink
                         v-else
-                        class="hs-button"
+                        v-slot="{ href, navigate }"
+                        custom
                         :to="`/sites/${siteId}/pages/new`"
-                        aria-describedby="page-count"
                     >
-                        Add page
+                        <a
+                            class="hs-button"
+                            :href="href"
+                            aria-describedby="page-count"
+                            :aria-disabled="busy ? 'true' : undefined"
+                            @click="go($event, navigate)"
+                            >Add page</a
+                        >
                     </RouterLink>
                     <p v-if="atLimit" id="page-limit-reason" class="hs-new__reason">
                         This site has {{ PAGE_LIMIT }} pages, the most a site can hold. Delete one
@@ -305,52 +676,150 @@ onBeforeUnmount(() => {
             <RouterLink class="hs-button" :to="`/sites/${siteId}/pages/new`">Add a page</RouterLink>
         </section>
 
-        <ol v-else ref="list" class="hs-list" aria-label="Pages">
-            <li
-                v-for="page in pages"
-                :key="page.id"
-                class="hs-row"
-                :class="{ 'hs-row--new': page.id === addedId }"
-                :data-page-id="page.id"
-            >
-                <span class="hs-row__pos" aria-hidden="true">{{ position(page) }}</span>
-                <div class="hs-row__main">
-                    <div class="hs-row__head">
-                        <RouterLink
-                            class="hs-row__title"
-                            :to="`/pages/${page.id}/edit`"
-                            :aria-describedby="isHome(page) ? `home-${page.id}` : undefined"
-                            >{{ page.title }}</RouterLink
-                        >
-                        <span v-if="isHome(page)" :id="`home-${page.id}`" class="hs-home"
-                            >Home page</span
-                        >
-                    </div>
-                    <p class="hs-row__meta">
-                        <span class="hs-path"
-                            >/s/{{ site?.slug }}/{{ isHome(page) ? '' : page.slug }}</span
-                        >
-                    </p>
-                </div>
-                <div class="hs-row__actions">
-                    <RouterLink
-                        class="hs-button hs-button--quiet"
-                        :to="`/pages/${page.id}/blocks`"
-                        :aria-label="`Edit blocks of ${page.title}`"
-                        >Edit blocks</RouterLink
-                    >
+        <template v-else>
+            <p v-if="count > 1" id="reorder-help" class="hs-visually-hidden">
+                Press Space to pick up the page. Use the up and down arrow keys to move it, Space to
+                drop it, Escape to cancel.
+            </p>
+            <div v-if="mismatch" class="hs-note" role="alert">
+                <strong>Note:</strong> Your pages changed somewhere else, so we reloaded the list.
+                Please make your move again.
+            </div>
+            <ol ref="list" class="hs-list" aria-label="Pages" :aria-busy="busy ? 'true' : 'false'">
+                <li
+                    v-for="page in pages"
+                    :key="page.id"
+                    class="hs-row"
+                    :class="{
+                        'hs-row--new': page.id === addedId,
+                        'hs-row--over-before': page.id === overBeforeId,
+                        'hs-row--over-after': page.id === overAfterId,
+                    }"
+                    :data-page-id="page.id"
+                    :data-reorder="rowState(page)"
+                    :style="rowStyle(page)"
+                >
                     <button
+                        v-if="count > 1"
                         type="button"
-                        class="hs-button hs-button--quiet"
-                        data-action="delete"
-                        :aria-label="`Delete ${page.title}`"
-                        @click="openDelete(page)"
+                        class="hs-handle"
+                        data-action="handle"
+                        aria-describedby="reorder-help"
+                        :aria-pressed="grab?.id === page.id ? 'true' : 'false'"
+                        :aria-disabled="busy ? 'true' : undefined"
+                        @keydown="onHandleKey($event, page)"
+                        @keyup.space.prevent
+                        @click.prevent
+                        @pointerdown="onPointerDown($event, page)"
+                        @pointermove="onPointerMove"
+                        @pointerup="onPointerUp"
+                        @pointercancel="onPointerCancel"
+                        @focusout="onHandleBlur(page)"
                     >
-                        Delete
+                        <span aria-hidden="true">⠿</span>
+                        <span class="hs-visually-hidden"
+                            >Reorder {{ page.title }}, position {{ position(page) }} of
+                            {{ count }}</span
+                        >
                     </button>
-                </div>
-            </li>
-        </ol>
+                    <span class="hs-row__pos" aria-hidden="true">{{ position(page) }}</span>
+                    <div class="hs-row__main">
+                        <div class="hs-row__head">
+                            <RouterLink
+                                v-slot="{ href, navigate }"
+                                custom
+                                :to="`/pages/${page.id}/edit`"
+                            >
+                                <a
+                                    class="hs-row__title"
+                                    :href="href"
+                                    :aria-describedby="isHome(page) ? `home-${page.id}` : undefined"
+                                    :aria-disabled="busy ? 'true' : undefined"
+                                    @click="go($event, navigate)"
+                                    >{{ page.title }}</a
+                                >
+                            </RouterLink>
+                            <span v-if="isHome(page)" :id="`home-${page.id}`" class="hs-home"
+                                >Home page</span
+                            >
+                        </div>
+                        <p class="hs-row__meta">
+                            <span class="hs-path"
+                                >/s/{{ site?.slug }}/{{ isHome(page) ? '' : page.slug }}</span
+                            >
+                        </p>
+                    </div>
+                    <div class="hs-row__actions">
+                        <RouterLink
+                            v-slot="{ href, navigate }"
+                            custom
+                            :to="`/pages/${page.id}/blocks`"
+                        >
+                            <a
+                                class="hs-button hs-button--quiet"
+                                :href="href"
+                                :aria-label="`Edit blocks of ${page.title}`"
+                                :aria-disabled="busy ? 'true' : undefined"
+                                @click="go($event, navigate)"
+                                >Edit blocks</a
+                            >
+                        </RouterLink>
+                        <template v-if="count > 1">
+                            <button
+                                type="button"
+                                class="hs-button hs-button--quiet"
+                                data-action="up"
+                                :aria-label="`Move ${page.title} up`"
+                                :aria-describedby="
+                                    position(page) === 1 ? `first-${page.id}` : undefined
+                                "
+                                :aria-disabled="busy || position(page) === 1 ? 'true' : undefined"
+                                @click="onMove(page, -1, 'up')"
+                            >
+                                <span aria-hidden="true">↑</span>
+                            </button>
+                            <button
+                                type="button"
+                                class="hs-button hs-button--quiet"
+                                data-action="down"
+                                :aria-label="`Move ${page.title} down`"
+                                :aria-describedby="
+                                    position(page) === count ? `last-${page.id}` : undefined
+                                "
+                                :aria-disabled="
+                                    busy || position(page) === count ? 'true' : undefined
+                                "
+                                @click="onMove(page, 1, 'down')"
+                            >
+                                <span aria-hidden="true">↓</span>
+                            </button>
+                            <span
+                                v-if="position(page) === 1"
+                                :id="`first-${page.id}`"
+                                class="hs-visually-hidden"
+                                >Already first</span
+                            >
+                            <span
+                                v-if="position(page) === count"
+                                :id="`last-${page.id}`"
+                                class="hs-visually-hidden"
+                                >Already last</span
+                            >
+                        </template>
+                        <button
+                            type="button"
+                            class="hs-button hs-button--quiet"
+                            data-action="delete"
+                            :aria-label="`Delete ${page.title}`"
+                            :aria-disabled="busy ? 'true' : undefined"
+                            @click="openDelete(page)"
+                        >
+                            Delete
+                        </button>
+                    </div>
+                </li>
+            </ol>
+        </template>
 
         <DeletePageDialog
             v-if="deleting"
@@ -404,6 +873,10 @@ onBeforeUnmount(() => {
     margin-block-end: var(--hs-space-4);
 }
 
+.hs-note {
+    margin-block-end: var(--hs-space-4);
+}
+
 .hs-list {
     max-inline-size: var(--hs-layout-content-width);
     margin: 0;
@@ -414,16 +887,70 @@ onBeforeUnmount(() => {
 
 .hs-row {
     display: grid;
-    grid-template-columns: auto minmax(0, 1fr);
+    position: relative;
+    grid-template-columns: auto auto minmax(0, 1fr);
     grid-template-areas:
-        'pos main'
-        'actions actions';
+        'handle pos main'
+        'actions actions actions';
     align-items: center;
     column-gap: var(--hs-space-3);
     row-gap: var(--hs-space-2);
     padding-block: var(--hs-space-4);
     padding-inline: var(--hs-space-3);
     border-block-end: var(--hs-border-width-hairline) solid var(--hs-color-border);
+    background: var(--hs-color-background);
+    transition: background-color var(--hs-motion-duration-base) var(--hs-motion-easing-standard);
+}
+
+/* Grab: the row is lifted. The edge stands in for elevation (shell.md, Token gaps). */
+.hs-row[data-reorder='grabbed'] {
+    background: var(--hs-color-surface-sunk);
+    outline: var(--hs-border-width-hairline) solid var(--hs-color-border-strong);
+    outline-offset: calc(-1 * var(--hs-border-width-hairline));
+}
+
+/* Over: a line in the gap where the dragged row would land. No transition. */
+.hs-row--over-before::before,
+.hs-row--over-after::after {
+    content: '';
+    position: absolute;
+    inset-inline: 0;
+    block-size: var(--hs-border-width-indicator);
+    background: var(--hs-color-accent);
+}
+
+.hs-row--over-before::before {
+    inset-block-start: calc(-0.5 * var(--hs-border-width-indicator));
+}
+
+.hs-row--over-after::after {
+    inset-block-end: calc(-0.5 * var(--hs-border-width-indicator));
+}
+
+.hs-handle {
+    grid-area: handle;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    inline-size: var(--hs-control-min-height);
+    block-size: var(--hs-control-min-height);
+    padding: 0;
+    border: var(--hs-border-width-control) solid transparent;
+    border-radius: var(--hs-radius-control);
+    background: transparent;
+    color: var(--hs-color-text-muted);
+    font-size: var(--hs-font-size-body);
+    cursor: grab;
+    touch-action: none;
+}
+
+.hs-row[data-reorder='grabbed'] .hs-handle {
+    cursor: grabbing;
+}
+
+.hs-handle[aria-disabled='true'] {
+    color: var(--hs-color-disabled-text);
+    cursor: default;
 }
 
 .hs-row__main {
@@ -491,8 +1018,8 @@ onBeforeUnmount(() => {
 
 @media (width >= breakpoint(sm)) {
     .hs-row {
-        grid-template-columns: auto minmax(0, 1fr) auto;
-        grid-template-areas: 'pos main actions';
+        grid-template-columns: auto auto minmax(0, 1fr) auto;
+        grid-template-areas: 'handle pos main actions';
     }
 }
 
