@@ -981,6 +981,12 @@ onBeforeUnmount(() => {
     outline-offset: calc(-1 * var(--hs-border-width-hairline));
 }
 
+/* The lifted and the saving row paint above the rows after them (z_index.drag has no token yet). */
+.hs-row[data-reorder='grabbed'],
+.hs-row[data-reorder='saving'] {
+    z-index: 1;
+}
+
 /* Over: a line in the gap where the dragged row would land. No transition. */
 .hs-row--over-before::before,
 .hs-row--over-after::after {
