@@ -13,6 +13,12 @@
 | [API-005](content/API-005-entities.md) | Entities | in review | #36 | API-001, API-002, API-003, API-004 |
 | [API-006](content/API-006-assets.md) | Site assets | in review | #92 | API-001 |
 
+## identity
+
+| Spec | Title | Status | Stories | Depends on |
+|---|---|---|---|---|
+| [API-030](identity/API-030-sign-in-and-sessions.md) | Owner sign-in and sessions | in review | #56, #57, #58 | API-001 |
+
 ## publishing
 
 | Spec | Title | Status | Stories | Depends on |
@@ -31,7 +37,7 @@
 ## By status
 
 - **draft** (1): API-012
-- **in review** (7): API-003, API-005, API-006, API-010, API-011, API-020, API-021
+- **in review** (8): API-003, API-005, API-006, API-010, API-011, API-020, API-021, API-030
 - **approved** (1): API-004
 - **built** (2): API-001, API-002
 

@@ -9,6 +9,7 @@ Every API is written down and approved before it is built. One markdown file per
 | Content | `specs/content/` | API-001 – API-009 |
 | Rendering | `specs/rendering/` | API-010 – API-019 |
 | Publishing | `specs/publishing/` | API-020 – API-029 |
+| Identity | `specs/identity/` | API-030 – API-039 |
 
 File name: `API-NNN-<slug>.md`. Start from [TEMPLATE.md](TEMPLATE.md).
 
