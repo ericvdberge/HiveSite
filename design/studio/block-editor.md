@@ -505,7 +505,7 @@ When any of the three opening calls fails: the shell form message "Error: We cou
 
 | Viewport | Change |
 |---|---|
-| below `breakpoint.sm` | Screen-head actions stack at full width under the heading: "Save blocks" first, then "Back to pages", then the status line. The block head wraps: handle and title on the first line, summary and flag on the second, the move and Remove buttons on a third line at the start. The move buttons are the main touch path; the handle still drags by touch. Radio options stack. Repeated item actions sit on their own line. The toolbar wraps to two lines. Dialog actions stack, Cancel first. |
+| below `breakpoint.sm` | Screen-head actions stack at full width under the heading: "Back to pages", "Save blocks", then the status line (the same order as the DOM and the tab order). The block head wraps: handle and title on the first line, summary and flag on the second, the move and Remove buttons on a third line at the start. The move buttons are the main touch path; the handle still drags by touch. Radio options stack. Repeated item actions sit on their own line. The toolbar wraps to two lines. Dialog actions stack, Cancel first. |
 | `breakpoint.sm` to `breakpoint.md` | As in Layout. |
 | from `breakpoint.md` | No change; the list stays at `layout.content_width` beside the side nav, and the head actions sit at the end of the screen head. |
 

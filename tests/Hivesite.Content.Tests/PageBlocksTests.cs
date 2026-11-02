@@ -322,6 +322,47 @@ public sealed class PageBlocksTests
     }
 
     [TestMethod]
+    [DataRow("""{"type":"image","attrs":{"image":{"url":"https://","alt":""}}}""", "/content/1/attrs/image/url")]
+    [DataRow("""{"type":"contact_form","attrs":{"action_url":"https://a.nl/s","fields":[{"name":"a","label":"A","kind":"text"},{"name":"a","label":"B","kind":"text"}]}}""", "/content/1/attrs/fields/1/name")]
+    [DataRow("""{"type":"embed","attrs":{"provider":"youtube","url":"https://youtube.com.evil.example/x","title":"T"}}""", "/content/1/attrs/url")]
+    [DataRow("""{"type":"rich_text","content":[{"type":"paragraph","content":[{"type":"text","text":"a","marks":[{"type":"bold"},{"type":"bold"}]}]}]}""", "/content/1/content/0/content/0/marks/1")]
+    public async Task A_block_that_breaks_a_rule_is_invalid_block_and_nothing_changes_AC11(string block, string field)
+    {
+        var (api, owner, _, id) = await SetUpAsync();
+        await PutAsync(api, owner, id, Doc(Hero));
+        var before = await GetBlocksAsync(api, owner, id);
+        var updatedAt = (await api.GetAsync(owner, "/pages/" + id)).Text("updated_at");
+        var events = BlockEvents(api, id);
+        api.Clock.Advance(TimeSpan.FromMinutes(5));
+
+        var response = await PutAsync(api, owner, id, Doc(Hero, block));
+
+        Assert.AreEqual(HttpStatusCode.BadRequest, response.Status);
+        Assert.AreEqual("invalid_block", response.ErrorCode);
+        Assert.AreEqual(field, response.ErrorField);
+        Assert.StartsWith(field + ": ", response.Text("error", "message"));
+        var after = await GetBlocksAsync(api, owner, id);
+        Assert.AreEqual(before.Body.GetRawText(), after.Body.GetRawText());
+        Assert.AreEqual(before.ETag, after.ETag);
+        Assert.AreEqual(updatedAt, (await api.GetAsync(owner, "/pages/" + id)).Text("updated_at"));
+        Assert.AreEqual(events, BlockEvents(api, id));
+    }
+
+    [TestMethod]
+    public async Task Html_and_the_extra_link_attributes_are_stored_as_sent_AC8()
+    {
+        var (api, owner, _, id) = await SetUpAsync();
+        var rich = """{"type":"rich_text","content":[{"type":"heading","attrs":{"level":2},"content":[{"type":"text","text":"<script>"}]},{"type":"paragraph","content":[{"type":"text","text":"<b>x</b>","marks":[{"type":"link","attrs":{"href":"/","target":"_blank","rel":"nofollow","class":"c"}}]}]},{"type":"orderedList","attrs":{"start":2,"type":"a"},"content":[{"type":"listItem","content":[{"type":"paragraph"}]}]}]}""";
+
+        var response = await PutAsync(api, owner, id, Doc(rich, """{"type":"hero","attrs":{"title":"<i>t</i>"}}"""));
+
+        Assert.AreEqual(HttpStatusCode.OK, response.Status);
+        var stored = (await GetBlocksAsync(api, owner, id)).Body;
+        Assert.IsTrue(JsonNode.DeepEquals(JsonNode.Parse(rich), JsonNode.Parse(stored.GetProperty("content")[0].GetRawText())));
+        Assert.AreEqual("<i>t</i>", stored.GetProperty("content")[1].GetProperty("attrs").GetProperty("title").GetString());
+    }
+
+    [TestMethod]
     public async Task A_body_over_256_KB_is_413_even_if_it_is_not_JSON_and_exactly_256_KB_passes_AC15()
     {
         var (api, owner, _, id) = await SetUpAsync();
