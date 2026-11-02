@@ -68,8 +68,7 @@ internal sealed partial class BlockDocumentValidator
 
             var (normalized, error) = Apply(block.DeepClone(), schema.Root, schema, pointer);
             error ??= FirstError(schema.Whole, normalized, pointer);
-            // Seam for #127: the checks of API-003 "Rules beyond the schemas" (BlockRules) run here, after the schema check of this block,
-            // and fail with the same invalid_block error.
+            error ??= BlockRules.Check(normalized!.AsObject(), pointer);
             if (error is not null)
             {
                 return error;

@@ -289,4 +289,39 @@ public sealed class BlockDocumentValidatorTests
 
         Assert.AreEqual(before, input.ToJsonString());
     }
+
+    private const string BadEmbed = """{"type":"embed","attrs":{"provider":"vimeo","url":"https://www.youtube.com/embed/x","title":"Film"}}""";
+
+    [TestMethod]
+    public void A_rule_failure_in_block_0_comes_before_a_schema_failure_in_block_1_AC9()
+    {
+        AssertFails(Doc(BadEmbed, """{"type":"hero","attrs":{}}"""), "invalid_block", "/content/0/attrs/url", "must be a Vimeo address");
+    }
+
+    [TestMethod]
+    public void A_schema_failure_comes_before_a_rule_failure_in_the_same_block_AC9()
+    {
+        AssertFails(Doc(BadEmbed.Replace("\"title\":\"Film\"", "\"title\":\"\"", StringComparison.Ordinal)), "invalid_block", "/content/0/attrs/title");
+    }
+
+    [TestMethod]
+    public void Rules_follow_the_order_of_the_spec_within_a_block_AC9()
+    {
+        var text = """{"type":"text","text":"a","marks":[{"type":"bold"},{"type":"bold"}]}""";
+        var list = $$"""{"type":"bulletList","content":[{"type":"listItem","content":[{"type":"bulletList","content":[{"type":"listItem","content":[{"type":"paragraph","content":[{{text}}]}]}]}]}]}""";
+
+        AssertFails(Doc($$"""{"type":"rich_text","content":[{{list}}]}"""), "invalid_block", "/content/0/content/0/content/0/content/0");
+    }
+
+    [TestMethod]
+    public void The_rules_leave_a_valid_document_as_the_schema_check_made_it_AC10()
+    {
+        var stored = Stored(Example("blocks-put-request.json"));
+
+        Assert.IsTrue(JsonNode.DeepEquals(JsonNode.Parse(Example("blocks-get-response.json"))!["content"], stored["content"]));
+        foreach (var block in Minimal.Values)
+        {
+            Assert.IsTrue(Check(Doc(block)).IsSuccess);
+        }
+    }
 }
