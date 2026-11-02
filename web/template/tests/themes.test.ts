@@ -6,7 +6,7 @@ import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { beforeAll, describe, expect, it } from 'vitest'
 import { buildThemes } from '../src/theme/build.ts'
-import { atLeast } from '../src/theme/media.ts'
+import { atLeast, resolveBreakpoints } from '../src/theme/media.ts'
 import { cssName, customProperties, flatten, loadTokens, type Tokens } from '../src/theme/tokens.ts'
 
 const root = fileURLToPath(new URL('../../..', import.meta.url))
@@ -105,6 +105,7 @@ describe('themes', () => {
             const widths = new Set(Object.values(theme['breakpoint'] as Record<string, string>))
             const queries = [...css.matchAll(/@media([^{]*)\{/g)].map((m) => m[1]!)
             expect(queries.length).toBeGreaterThan(0)
+            expect(css).not.toContain('breakpoint(')
             for (const q of queries) {
                 expect(q).not.toContain('var(')
                 for (const m of q.matchAll(/width\s*:\s*([^)\s]+)/g)) expect(widths.has(m[1]!)).toBe(true)
@@ -178,14 +179,15 @@ describe('themes', () => {
             const css = read(out, entry.key, entry.assets.stylesheet)
             const block = /@media \(prefers-reduced-motion:reduce\)\{:root\{([^}]*)\}/.exec(css)
             expect(block).not.toBeNull()
-            expect(block![1]).toContain('var(--hs-motion-reduced-duration)')
-            expect(block![1]).toContain('var(--hs-motion-reduced-rise-distance)')
+            for (const name of Object.keys(motion).filter((n) => n.startsWith('duration_') || n === 'stagger')) {
+                expect(block![1]).toContain(`${cssName('motion.' + name)}:var(--hs-motion-reduced-duration)`)
+            }
+            expect(block![1]).toContain('--hs-motion-rise-distance:var(--hs-motion-reduced-rise-distance)')
         }
     })
 
     it('passes the contrast check_AC9', () => {
         const run = spawnSync('node', ['design/check-contrast.mjs', 'design/tokens.json'], { cwd: root, encoding: 'utf8' })
-        expect(run.stdout + run.stderr).toBeDefined()
         expect(run.status).toBe(0)
     })
 
@@ -197,5 +199,34 @@ describe('themes', () => {
         const missing = structuredClone(tokens)
         delete (missing.themes['studio']!['space'] as Record<string, string>)['5']
         expect(() => build(missing)).toThrow(/studio.*space\.5/)
+    })
+
+    it('fails loudly on a token the build or styles need_AC10', () => {
+        for (const path of ['color.accent', 'breakpoint.md', 'font.display']) {
+            const [group, name] = path.split('.') as [string, string]
+            const t = structuredClone(tokens)
+            for (const theme of Object.values(t.themes)) Reflect.deleteProperty(theme[group] as Record<string, string>, name)
+            expect(() => build(t)).toThrow(new RegExp(`"${path}"`))
+        }
+        const noBase = structuredClone(tokens)
+        delete (noBase.themes['atelier']!['font_weight'] as Record<string, string>)['label']
+        expect(() => build(noBase)).toThrow(/atelier.*font_weight\.label/)
+        const orphan = structuredClone(tokens)
+        ;(orphan.themes['atelier']!['font_weight'] as Record<string, string>)['mono'] = '400'
+        expect(() => build(orphan)).toThrow(/font\.mono/)
+    })
+
+    it('removes stale theme folders on rebuild_AC7', () => {
+        const dir = mkdtempSync(join(tmpdir(), 'hs-stale-'))
+        buildThemes(tokens, dir)
+        expect(readdirSync(join(dir, 'themes'))).toContain('studio')
+        const fewer = structuredClone(tokens)
+        delete fewer.themes['studio']
+        buildThemes(fewer, dir)
+        expect(readdirSync(join(dir, 'themes'))).not.toContain('studio')
+    })
+
+    it('rejects unknown breakpoint names_AC4', () => {
+        expect(() => resolveBreakpoints('@media breakpoint(xl){}', tokens.themes['atelier']!)).toThrow(/xl/)
     })
 })

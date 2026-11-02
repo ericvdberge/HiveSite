@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto'
 import { copyFileSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { dirname, join } from 'node:path'
-import { assertSameTokens, customProperties, flatten, type ThemeTokens, type Tokens } from './tokens.ts'
+import { assertSameTokens, cssName, customProperties, flatten, type ThemeTokens, type Tokens } from './tokens.ts'
 import { resolveBreakpoints } from './media.ts'
 
 export const MAX_STYLESHEET_BYTES = 131_072
@@ -16,6 +16,24 @@ const require = createRequire(import.meta.url)
 const baseCss = readFileSync(new URL('../styles/base.css', import.meta.url), 'utf8')
 
 const hash = (bytes: Uint8Array | string): string => createHash('sha256').update(bytes).digest('hex').slice(0, 8)
+
+/** Reduced-motion overrides, one per duration, the stagger and the rise distance, generated from the tokens. */
+export function reducedMotion(theme: ThemeTokens): string {
+    const motion = theme['motion'] as Record<string, string>
+    const names = Object.keys(motion).filter((n) => n.startsWith('duration_') || n === 'stagger')
+    const rules = names.map((n) => `${cssName('motion.' + n)}:var(--hs-motion-reduced-duration)`)
+    rules.push(`${cssName('motion.rise_distance')}:var(--hs-motion-reduced-rise-distance)`)
+    return `@media (prefers-reduced-motion:reduce){:root{${rules.join(';')}}}`
+}
+
+/** Every var(--hs-…) a style uses must be a token of the theme. */
+function assertReferences(key: string, theme: ThemeTokens, css: string): void {
+    const known = new Set(flatten(theme).map(([p]) => cssName(p)))
+    for (const m of css.matchAll(/var\((--hs-[a-z0-9-]+)/g)) {
+        const name = m[1] ?? ''
+        if (!known.has(name)) throw new Error(`Theme "${key}" is missing the token behind ${name}`)
+    }
+}
 
 function minify(css: string): string {
     return css
@@ -39,13 +57,15 @@ export function fontsOf(theme: ThemeTokens): FontFace[] {
     for (const [role, stack] of Object.entries(fonts)) {
         const family = /^"([^"]+)"/.exec(stack)?.[1]
         if (!family) throw new Error(`font.${role} does not start with a quoted family`)
-        for (const w of [weights[role], weights[`${role}_strong`]]) {
+        const base = weights[role]
+        if (base === undefined) throw new Error(`Theme is missing token "font_weight.${role}"`)
+        for (const w of [base, weights[`${role}_strong`]]) {
             if (w === undefined) continue
             const slug = family.toLowerCase().replaceAll(' ', '-')
             seen.set(`${slug}-${w}`, { family, weight: w, slug })
         }
     }
-    return [...seen.values()].sort((a, b) => a.slug.localeCompare(b.slug) || Number(a.weight) - Number(b.weight))
+    return [...seen.values()].sort((a, b) => (a.slug < b.slug ? -1 : a.slug > b.slug ? 1 : 0) || Number(a.weight) - Number(b.weight))
 }
 
 export interface ThemeAssets {
@@ -74,7 +94,10 @@ export function buildTheme(key: string, theme: ThemeTokens, outDir: string): The
     }
 
     const blockStyles = styleSources.map((s) => minify(resolveBreakpoints(s(theme), theme)))
-    const css = [`:root{${customProperties(theme)}}`, ...fontRules, minify(resolveBreakpoints(baseCss, theme)), ...blockStyles].join('\n') + '\n'
+    const css =
+        [`:root{${customProperties(theme)}}`, ...fontRules, minify(resolveBreakpoints(baseCss, theme)), ...blockStyles, reducedMotion(theme)].join('\n') +
+        '\n'
+    assertReferences(key, theme, css)
     const bytes = Buffer.from(css, 'utf8')
     if (bytes.length > MAX_STYLESHEET_BYTES) {
         throw new Error(`Theme "${key}" stylesheet is ${bytes.length} bytes, the limit is ${MAX_STYLESHEET_BYTES}`)
@@ -86,8 +109,14 @@ export function buildTheme(key: string, theme: ThemeTokens, outDir: string): The
 
 export function buildThemes(tokens: Tokens, outDir: string): void {
     assertSameTokens(tokens)
+    rmSync(join(outDir, 'themes'), { recursive: true, force: true })
+    rmSync(join(outDir, 'themes.json'), { force: true })
     const themes = Object.entries(tokens.themes).map(([key, theme]) => {
-        const value = (path: string): string => flatten(theme).find(([p]) => p === path)?.[1] ?? ''
+        const value = (path: string): string => {
+            const found = flatten(theme).find(([p]) => p === path)
+            if (!found) throw new Error(`Theme "${key}" is missing token "${path}"`)
+            return found[1]
+        }
         return {
             key,
             name: theme.name,

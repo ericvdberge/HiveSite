@@ -12,5 +12,8 @@ export function atLeast(name: BreakpointName, theme: ThemeTokens): string {
 
 /** Replaces `breakpoint(md)` in style sources with the media condition of the theme. */
 export function resolveBreakpoints(css: string, theme: ThemeTokens): string {
-    return css.replace(/breakpoint\((sm|md|lg)\)/g, (_, name: BreakpointName) => atLeast(name, theme))
+    return css.replace(/breakpoint\(([^)]*)\)/g, (_, name: string) => {
+        if (name !== 'sm' && name !== 'md' && name !== 'lg') throw new Error(`Unknown breakpoint "${name}"`)
+        return atLeast(name, theme)
+    })
 }
