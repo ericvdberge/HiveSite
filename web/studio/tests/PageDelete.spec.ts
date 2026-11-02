@@ -307,3 +307,83 @@ describe('delete page: failures', () => {
         w.unmount()
     })
 })
+
+describe('delete page: fix round', () => {
+    it('AC6: a second Escape and a browser close while Deleting… keep the dialog and its state', async () => {
+        let release: (r: Response) => void = () => {}
+        fetchMock.mockImplementation((req: Request) => {
+            const url = new URL(req.url)
+            if (req.method === 'DELETE') return new Promise<Response>((r) => (release = r))
+            if (url.pathname === `/sites/${SITE_ID}`) return Promise.resolve(json(SITE))
+            return Promise.resolve(json({ items: three(), next_cursor: null }))
+        })
+        const w = await open()
+        await deleteButton(w, 1).trigger('click')
+        await button(w, 'Delete page').trigger('click')
+        await flushPromises()
+
+        await dialogOf(w).trigger('keydown', { key: 'Escape' })
+        await dialogOf(w).trigger('keydown', { key: 'Escape' })
+        dialogOf(w).element.dispatchEvent(new Event('close'))
+        await flushPromises()
+        expect(dialogOf(w).exists()).toBe(true)
+        expect(dialogOf(w).attributes('open')).toBeDefined()
+
+        release(fail(500, 'internal_error'))
+        await flushPromises()
+        expect(w.get('dialog [role="alert"]').text()).toContain("We couldn't delete the page.")
+        w.unmount()
+    })
+
+    it('AC6: a browser close of an idle dialog is a cancel, so Delete keeps working', async () => {
+        serveAll([{ items: three(), next_cursor: null }], noContent())
+        const w = await open()
+        await deleteButton(w, 1).trigger('click')
+        dialogOf(w).element.dispatchEvent(new Event('close'))
+        await flushPromises()
+
+        expect(dialogOf(w).exists()).toBe(false)
+        await confirm(w, 2)
+        expect(rows(w)).toHaveLength(2)
+        w.unmount()
+    })
+
+    it('AC6: a second delete cannot start while the first row is still being removed', async () => {
+        serveAll([{ items: three(), next_cursor: null }], noContent())
+        const animate = vi.fn(() => {
+            let done: () => void = () => {}
+            const finished = new Promise<void>((r) => (done = r))
+            setTimeout(done, 40)
+            return { finished }
+        })
+        Object.defineProperty(HTMLElement.prototype, 'animate', {
+            value: animate,
+            configurable: true,
+            writable: true,
+        })
+        document.documentElement.style.setProperty('--hs-motion-duration-base', '300ms')
+        try {
+            const w = await open()
+            await deleteButton(w, 0).trigger('click')
+            await button(w, 'Delete page').trigger('click')
+            // The dialog is closing or the row is fading: another Delete must do nothing.
+            await new Promise((r) => setTimeout(r, 60))
+            await deleteButton(w, 1).trigger('click')
+            expect(dialogOf(w).exists()).toBe(false)
+            await new Promise((r) => setTimeout(r, 200))
+            await flushPromises()
+            expect(deleteCalls()).toHaveLength(1)
+            expect(rows(w).map((r) => r.get('.hs-row__title').text())).toEqual([
+                'About',
+                'Our work',
+            ])
+            expect(rows(w).map((r) => r.get('.hs-row__pos').text())).toEqual(['1', '2'])
+            await deleteButton(w, 1).trigger('click')
+            expect(dialogOf(w).exists()).toBe(true)
+            w.unmount()
+        } finally {
+            document.documentElement.style.removeProperty('--hs-motion-duration-base')
+            Reflect.deleteProperty(HTMLElement.prototype, 'animate')
+        }
+    })
+})

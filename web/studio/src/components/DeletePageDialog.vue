@@ -42,6 +42,16 @@ function onConfirm(): void {
     if (!props.busy) emit('confirm')
 }
 
+/** Backstop: the browser closed the dialog by itself (a repeated Escape can skip `cancel`). */
+function onClose(): void {
+    if (props.busy) {
+        if (typeof dialog.value?.showModal === 'function') dialog.value.showModal()
+        else dialog.value?.setAttribute('open', '')
+    } else {
+        emit('cancel')
+    }
+}
+
 /** Fades the panel out over motion.duration_base; the parent removes the dialog afterwards. */
 async function dismiss(): Promise<void> {
     if (dialog.value) await play(dialog.value, [{ opacity: 1 }, { opacity: 0 }])
@@ -56,6 +66,8 @@ defineExpose({ dismiss })
         aria-labelledby="del-title"
         aria-describedby="del-body"
         @cancel.prevent="onCancel"
+        @keydown.esc.prevent="onCancel"
+        @close="onClose"
     >
         <h2 id="del-title">Delete "{{ title }}"?</h2>
         <div id="del-body">
