@@ -6,18 +6,20 @@ The studio uses the `atelier` theme from `tokens.json`, with no theme switch. Ev
 
 ## Data
 
-The shell reads one thing from the API: the error code of a failed call.
+The shell reads two things from the API: the error code of a failed call, and the signed-in owner's `email` for the account slot (from GET `/session` on start or POST `/session` on sign-in, API-030; see [sign-in.md](sign-in.md#data)).
 
 | Code | Status | Where it shows |
 |---|---|---|
 | `site_not_found` | 404 | Not-found screen, site variant. From GET, PATCH `/sites/{id}`, GET and POST `/sites/{id}/pages`, PUT `/sites/{id}/menu`. |
 | `page_not_found` | 404 | Not-found screen, page variant. From GET and PATCH `/pages/{id}`. DELETE has its own handling in [delete-confirm.md](delete-confirm.md). |
-| `unauthenticated` | 401 | Not shown by the shell. Sign-in (#45) owns it. |
+| `unauthenticated` | 401 | Handled by sign-in: the studio opens the sign-in screen with the current address as the return screen and the "session ended" Note ([sign-in.md](sign-in.md#data)). The shell shows nothing of its own. |
 | any other failure without a field (network, 5xx, an unknown code) | | Error toast. |
 
 `error.message` from the server is never shown. The studio branches on `error.code` and shows its own copy, as the API-001 Errors convention says.
 
 The navigation slot shows the site `name` (1 to 80 code points) when a site screen is open.
+
+The account slot shows the owner's `email` (1 to 254 code points) and a Sign out button. Sign out calls DELETE `/session` (API-030), which always answers 204.
 
 ## Structure
 
@@ -26,7 +28,10 @@ The navigation slot shows the site `name` (1 to 80 code points) when a site scre
   <a class="hs-skip" href="#main">Skip to content</a>
   <header class="hs-topbar">
     <a class="hs-topbar__mark" href="/">Hivesite <span>Studio</span></a>
-    <div class="hs-topbar__account"><!-- slot for #45 --></div>
+    <div class="hs-topbar__account">
+      <p class="hs-account__email"><span class="hs-vh">Signed in as </span>noor@atelier-noor.nl</p>
+      <button type="button" class="hs-button hs-button--quiet">Sign out</button>
+    </div>
   </header>
   <div class="hs-frame">
     <nav class="hs-nav" aria-label="Studio">
@@ -52,7 +57,8 @@ The navigation slot shows the site `name` (1 to 80 code points) when a site scre
 ```
 
 - Each screen has exactly one `<h1>`, inside the screen head. The notes name it.
-- The top bar and navigation are the same on every screen; only the nav items and the content change.
+- The top bar and navigation are the same on every screen; only the nav items and the content change. The sign-in screen and the start screens are the exception: top bar with the wordmark only, no account slot, no nav ([sign-in.md](sign-in.md#structure)).
+- `hs-vh` is the visually hidden pattern from menu-reorder.md.
 - The toast and dialogs use the browser's top layer (`popover`, `<dialog>` with `showModal()`), so they need no stacking value.
 
 ## Layout
@@ -62,7 +68,7 @@ The navigation slot shows the site `name` (1 to 80 code points) when a site scre
 **Top bar.**
 - Full width, `padding-inline: layout.gutter`, `padding-block: space.3`, a bottom edge of `border_width.hairline` solid `color.border`.
 - Start: the wordmark "Hivesite" in `font.display`, `font_size.display_m`, `font_weight.display`, `color.text`, then "Studio" in label style (`font.label`, `font_size.label`, `font_weight.label`, `letter_spacing.label`, uppercase) in `color.accent_text`, `space.2` apart. The wordmark is a link to the site list, at least `control.min_height` tall.
-- End: an empty account slot for #45.
+- End: the account slot (see [Account slot](#account-slot)).
 - The top bar scrolls with the page. A sticky bar needs a stacking token (see Token gaps).
 
 **Navigation slot.**
@@ -80,6 +86,22 @@ The navigation slot shows the site `name` (1 to 80 code points) when a site scre
 - Lead text under it, if any: `font_size.body`, `color.text_muted`, `space.3` above.
 - Actions sit at the end of the head from `breakpoint.md`, under the heading below it. `space.6` below the head.
 - Section headings inside a screen are `<h2>`: `font.display`, `font_size.display_m`, `font_weight.display_strong`, `line_height.heading`.
+
+### Account slot
+
+The account slot, at the end of the top bar, for a signed-in owner.
+
+- A row: the email, then Sign out, `space.3` apart, aligned to the center of the wordmark line. The slot takes the space left after the wordmark; the wordmark never shrinks.
+- Email: `font.text`, `font_size.body_s`, `color.text_muted`, `overflow-wrap: anywhere`, so a long address wraps instead of being cut off. "Signed in as " before it is visually hidden, so a screen reader hears what the address is. It is text, not a link or a control.
+- Sign out: the quiet button, "Sign out", at least `control.min_height` in both directions.
+- No menu, avatar or dropdown: one owner, one action.
+
+**Signing out.**
+- Pressing Sign out calls DELETE `/session` at once; there is no confirm dialog, since signing in again is one step and nothing is lost.
+- On a screen with unsaved changes (the block editor's leave guard), Sign out goes through that screen's leave dialog first, the same as any link away. Cancel keeps the owner signed in.
+- While the call runs, the button is busy: "Signing out…", unavailable. The email stays. Nothing else on the screen changes.
+- On 204, the studio clears the kept email and opens the sign-in screen with the "signed out" Note and no return screen ([sign-in.md](sign-in.md#data)). Focus goes to its `<h1>`.
+- On a network or server failure, the cookie is still there (it is `HttpOnly`; only the server can delete it), so the owner is still signed in. The button returns to "Sign out" and the error toast says "We couldn't sign you out. Check your connection and try again." Focus stays on Sign out.
 
 ### Not-found screen
 
@@ -254,11 +276,15 @@ One primary button per screen or dialog.
 | Limit reached | The count limit reads "10 of 10"; the action is unavailable with its reason in words. | `color.text_muted`, `color.border`, `color.text` |
 | Not found | The not-found screen in the content area, nav reduced to "Sites". | `font_size.display_l`, `font_size.body_l`, `color.text_muted`, `color.accent`, `color.on_accent` |
 | Error without a field | The error toast. | `color.surface`, `color.error`, `color.text`, `radius.card` |
+| Signed in | The account slot: email in `color.text_muted`, Sign out. | `color.text_muted`, `font_size.body_s`, `color.text` |
+| Signing out | Sign out busy ("Signing out…", unavailable); the email stays. | `color.text_muted`, `color.border` |
 | Skip link focused | The skip link shows at the top start, background `color.surface`, `color.text`, padding `space.3`, focus ring. Hidden off-screen until focused. | `color.surface`, `color.text`, `space.3` |
 
 ## Limits
 
 - Site name in the nav: up to 80 code points, wraps over at most three lines in the side column.
+- Owner email in the account slot: up to 254 code points. It wraps anywhere; it is never cut off with an ellipsis.
+- One sign-out request at a time.
 - One toast at a time; one open dialog at a time.
 - Screen heads: an `<h1>` is a fixed phrase or a page title (up to 80 code points). Long titles wrap; they are never cut off with an ellipsis.
 
@@ -266,17 +292,17 @@ One primary button per screen or dialog.
 
 | Viewport | Change |
 |---|---|
-| below `breakpoint.sm` | Content `padding-block: space.6`. Screen-head actions sit under the heading at full width. Every button that ends a form or a dialog is full width, and dialog actions stack, Cancel first. Dialog padding `space.5`. The toast spans the viewport width minus `space.4` on each side and sits at the bottom. The wordmark keeps "Studio". |
+| below `breakpoint.sm` | Content `padding-block: space.6`. Screen-head actions sit under the heading at full width. Every button that ends a form or a dialog is full width, and dialog actions stack, Cancel first. Dialog padding `space.5`. The toast spans the viewport width minus `space.4` on each side and sits at the bottom. The wordmark keeps "Studio". The top bar wraps: the wordmark at the start and Sign out at the end on the first line, the email on its own line under them, full width, `space.1` above it. |
 | `breakpoint.sm` to `breakpoint.md` | The nav is a row of links under the top bar, wrapping to a second line when needed, with a bottom edge of `border_width.hairline` solid `color.border`. The current link's mark moves to the block end. The site name label sits before the site links in the row. |
-| from `breakpoint.md` | Two columns: the nav as a side column (`max-content`, see Token gaps) and the content area, `space.7` apart. The nav sits `space.7` below the top bar. Screen-head actions move to the end of the head. |
+| from `breakpoint.md` | The account slot stays one row: email then Sign out at the end of the top bar. Two columns: the nav as a side column (`max-content`, see Token gaps) and the content area, `space.7` apart. The nav sits `space.7` below the top bar. Screen-head actions move to the end of the head. |
 | from `breakpoint.lg` | No change; the content area stops at `layout.wide_width`. |
 
 Below `breakpoint.md` the nav is the row described for `sm` to `md`; below `breakpoint.sm` it keeps that look.
 
 ## Accessibility
 
-- **Tab order.** Skip link, wordmark, account slot, nav links in order, then the content area from top to bottom, then the toast's Dismiss button when a toast is open.
-- **Keyboard paths.** Enter follows a link or presses a button; Space presses a button. Escape closes a dialog or, with focus inside it, the toast. Every action in the studio can be done without a pointer.
+- **Tab order.** Skip link, wordmark, Sign out (the email is text, not a stop), nav links in order, then the content area from top to bottom, then the toast's Dismiss button when a toast is open.
+- **Keyboard paths.** Enter follows a link or presses a button; Space presses a button. Escape closes a dialog or, with focus inside it, the toast. Every action in the studio can be done without a pointer. Sign out: Tab past the skip link and the wordmark, then Enter or Space. The busy label is the button's name, so a screen reader hears "Signing out…"; then focus lands on the sign-in `<h1>`.
 - **Focus ring.** Every interactive element shows `outline: border_width.focus solid color.focus` with `outline-offset: border_width.focus_offset` on `:focus-visible`, as in design/README.md. Never removed.
 - **Targets.** Every control and link that acts alone is at least `control.min_height` in both directions.
 - **Landmarks.** `header`, `nav` labelled "Studio", `main`. The toast is outside `main`.
@@ -290,6 +316,7 @@ Follows the brand and design/README.md Motion: one shape at a time, nothing fast
 
 - **Screen change.** The content area, as one shape, fades in from `opacity: 0` and `translateY(motion.rise_distance)` over `motion.duration_base` with `motion.easing_enter`. The top bar and nav never move.
 - **State changes.** Hover, focus and press change colors and borders over `motion.duration_base` with `motion.easing_standard`. Nothing grows or bounces.
+- **Account slot.** The busy label swaps at once. Leaving after sign-out is the screen change to sign-in; the top bar loses its slot without motion.
 - **Toast.** Enters with the same fade and rise over `motion.duration_base`, `motion.easing_enter`; leaves with a fade over `motion.duration_base`, `motion.easing_standard`.
 - **Dialog.** The backdrop appears at once; the panel, as the one moving shape, fades and rises over `motion.duration_base` with `motion.easing_enter`. Closing fades the panel over `motion.duration_base`, `motion.easing_standard`.
 - **Loading placeholder.** Pulses at `motion.duration_slower` each way, as above.
@@ -314,4 +341,5 @@ Values the studio notes needed that `tokens.json` does not have. Each note uses 
 | Drop indicator width | border_width.indicator | menu-reorder, block-editor | `border_width.focus` |
 | Rich text area minimum height | control.editor_min_height | block-editor | four lines of `font_size.body` at `line_height.body` |
 | Lines a block summary shows before it clips | line_clamp.summary | block-editor | two lines |
+| Narrow form column (sign-in) | layout.form_width | sign-in | `layout.content_width` |
 | Edge of a checked choice row | border_width.selected | block-editor (Add block dialog) | `border_width.focus` in `color.accent` |
