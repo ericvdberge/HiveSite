@@ -11,7 +11,8 @@
     "erasableSyntaxOnly": true,
     "noEmit": true,
     "skipLibCheck": true,
-    "types": ["node"]
+    "types": ["node"],
+    "paths": { "vue": ["./node_modules/vue"], "vue/server-renderer": ["./node_modules/vue/server-renderer"] }
   },
-  "include": ["src/**/*.ts", "tests/**/*.ts", "vitest.config.ts"]
+  "include": ["src/**/*.ts", "src/**/*.vue", "../packages/blocks/src/**/*.ts", "../packages/blocks/src/**/*.vue", "tests/**/*.ts", "vitest.config.ts", "vite.config.ts"]
 }

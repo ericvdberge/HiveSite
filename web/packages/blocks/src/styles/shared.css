@@ -1,0 +1,4 @@
+/* Rules shared by every block. Tokens only: var(--hs-…). */
+.hs-button{display:inline-flex;align-items:center;min-block-size:var(--hs-control-min-height);padding:var(--hs-control-padding-y) var(--hs-control-padding-x);border-radius:var(--hs-radius-control);background:var(--hs-color-accent);color:var(--hs-color-on-accent);font-family:var(--hs-font-text);font-size:var(--hs-font-size-body-s);font-weight:var(--hs-font-weight-text-strong);text-decoration:none}
+.hs-button:hover{text-decoration:underline;text-underline-offset:.2em}
+.hs-link-missing{color:inherit}

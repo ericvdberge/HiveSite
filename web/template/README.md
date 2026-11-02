@@ -1,17 +1,19 @@
 # @hivesite/template-default
 
-The default template. This story (#161) builds the theme assets; the page shell, block styles and `render.mjs` come with #162 onwards.
+The default template (API-011, API-010): the page shell, the theme assets and `dist/render.mjs`. Block components live in `../packages/blocks` (`@hivesite/blocks`, source only, no build of its own).
 
 ## Commands
 - `npm ci`
-- `npm run build`: writes `dist/themes/{key}/` and `dist/themes.json` from `design/tokens.json`. The same tokens give the same files.
+- `npm run build`: writes `dist/themes/{key}/` and `dist/themes.json` from `design/tokens.json`, then bundles `src/render.ts` to `dist/render.mjs` (Vite SSR, Vue and `themes.json` inlined, so it runs without `node_modules`). The same input gives the same files.
+- `node dist/render.mjs < request.json`: a JSON request on stdin (API-011, Running the template), `{ "files": [{ "path", "html" }] }` on stdout. On a bad request or an unknown block type: non-zero exit, nothing on stdout, a short reason on stderr.
 - `npm test`, `npm run lint`, `npm run typecheck`
 
-Block and shell styles join the stylesheet through `styleSources` in `src/theme/build.ts` (empty today). Media queries use `breakpoint(sm|md|lg)` in style sources; the build writes the theme's width.
+Shell styles (`src/styles/shell.css`) and block styles (`../packages/blocks/src/styles/*.css`, `shared.css` first) join the stylesheet through `styleSources` in `src/theme/build.ts`; a new block adds its CSS file there. Media queries use `breakpoint(sm|md|lg)` in style sources; the build writes the theme's width.
 
 ## Output
 ```
 dist/
+  render.mjs
   themes.json
   themes/{key}/theme.{hash}.css
   themes/{key}/{family}-{weight}.{hash}.woff2
