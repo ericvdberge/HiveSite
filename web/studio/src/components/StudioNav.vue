@@ -19,9 +19,11 @@ defineProps<{ siteName?: string; siteLinks?: SiteNavLink[] }>()
             <template v-if="siteName">
                 <li class="hs-nav__site hs-label">{{ siteName }}</li>
                 <li v-for="link in siteLinks ?? []" :key="link.to">
-                    <RouterLink :to="link.to" :aria-current="link.current ? 'page' : undefined">{{
-                        link.label
-                    }}</RouterLink>
+                    <RouterLink
+                        :to="link.to"
+                        v-bind="link.current ? { 'aria-current': 'page' } : {}"
+                        >{{ link.label }}</RouterLink
+                    >
                 </li>
             </template>
         </ul>

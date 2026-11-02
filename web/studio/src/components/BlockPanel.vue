@@ -37,13 +37,15 @@ const open = ref(props.startOpen)
             </h2>
             <p v-if="summary" class="hs-block__summary">{{ summary }}</p>
         </div>
-        <div v-show="open" :id="`${blockId}-body`" class="hs-block__body">
-            <p v-if="unsupported" class="hs-block__note">
-                <strong>Note:</strong> This studio can't edit this block yet. It stays as it is when
-                you save.
-            </p>
-            <slot />
-        </div>
+        <Transition name="hs-block-body">
+            <div v-show="open" :id="`${blockId}-body`" class="hs-block__body">
+                <p v-if="unsupported" class="hs-block__note">
+                    <strong>Note:</strong> This studio can't edit this block yet. It stays as it is
+                    when you save.
+                </p>
+                <slot />
+            </div>
+        </Transition>
     </li>
 </template>
 
@@ -124,13 +126,17 @@ const open = ref(props.startOpen)
     padding-inline: var(--hs-space-4);
     padding-block-end: var(--hs-space-5);
     border-block-start: var(--hs-border-width-hairline) solid var(--hs-color-border);
-    animation: hs-block-in var(--hs-motion-duration-base) var(--hs-motion-easing-standard) both;
 }
 
-@keyframes hs-block-in {
-    from {
-        opacity: 0;
-    }
+/* The body fades in and out as the one moving shape. Reduced motion swaps the duration token. */
+.hs-block-body-enter-active,
+.hs-block-body-leave-active {
+    transition: opacity var(--hs-motion-duration-base) var(--hs-motion-easing-standard);
+}
+
+.hs-block-body-enter-from,
+.hs-block-body-leave-to {
+    opacity: 0;
 }
 
 .hs-block__note {
@@ -144,11 +150,5 @@ const open = ref(props.startOpen)
 .hs-block__note strong {
     color: var(--hs-color-accent-text);
     font-weight: var(--hs-font-weight-text-strong);
-}
-
-@media (prefers-reduced-motion: reduce) {
-    .hs-block__body {
-        animation-name: none;
-    }
 }
 </style>
