@@ -6,6 +6,8 @@ import type { SiteNavLink } from '../components/StudioNav.vue'
 export interface SiteNav {
     id: string
     name: string
+    /** The nav item to mark as current when the screen is under it but not at its address. */
+    section?: 'pages'
 }
 
 const current = ref<SiteNav | null>(null)
@@ -18,9 +20,13 @@ export function clearSiteNav(): void {
     current.value = null
 }
 
-export function siteNavLinks(id: string): SiteNavLink[] {
+export function siteNavLinks(id: string, section?: SiteNav['section']): SiteNavLink[] {
     return [
-        { label: 'Pages', to: `/sites/${id}/pages` },
+        {
+            label: 'Pages',
+            to: `/sites/${id}/pages`,
+            ...(section === 'pages' ? { current: true } : {}),
+        },
         { label: 'Site settings', to: `/sites/${id}/edit` },
     ]
 }

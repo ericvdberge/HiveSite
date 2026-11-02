@@ -12,7 +12,7 @@ const { current } = useSiteNav()
         <template #nav>
             <StudioNav
                 :site-name="current?.name"
-                :site-links="current ? siteNavLinks(current.id) : []"
+                :site-links="current ? siteNavLinks(current.id, current.section) : []"
             />
         </template>
         <RouterView v-slot="{ Component, route }">

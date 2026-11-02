@@ -7,6 +7,7 @@ import App from '../src/App.vue'
 import AppShell from '../src/components/AppShell.vue'
 import StudioNav from '../src/components/StudioNav.vue'
 import { createStudioRouter } from '../src/router'
+import { siteNavLinks } from '../src/composables/useSiteNav'
 import { dismissToast, showErrorToast } from '../src/composables/useToast'
 
 // The site list (the "/" screen) loads on mount. The typed client captured fetch at import.
@@ -79,6 +80,22 @@ describe('layout shell', () => {
         expect(sites.text()).toBe('Sites')
         expect(sites.attributes('aria-current')).toBe('page')
         wrapper.unmount()
+    })
+
+    it.each([
+        ['/sites/1/pages', undefined, 'Pages'],
+        ['/sites/1/edit', undefined, 'Site settings'],
+        ['/pages/9/blocks', 'pages', 'Pages'],
+    ] as const)('Layout: at %s the nav marks "%s" current', async (path, section, label) => {
+        const router = createStudioRouter(createMemoryHistory())
+        await router.push(path)
+        await router.isReady()
+        const wrapper = mount(StudioNav, {
+            props: { siteName: 'Atelier Noor', siteLinks: siteNavLinks('1', section) },
+            global: { plugins: [router] },
+        })
+        const current = wrapper.findAll('a[aria-current="page"]').map((a) => a.text())
+        expect(current).toEqual([label])
     })
 
     it('Layout: on a site screen the nav shows the site name as a label, not a link', () => {
