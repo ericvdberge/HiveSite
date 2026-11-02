@@ -141,9 +141,7 @@ onBeforeUnmount(() => {
                         <RouterLink class="hs-button hs-button--secondary" :to="pagesPath"
                             >Back to pages</RouterLink
                         >
-                        <button type="submit" form="blocks" class="hs-button hs-actions__save">
-                            Save blocks
-                        </button>
+                        <button type="submit" form="blocks" class="hs-button">Save blocks</button>
                     </template>
                     <!-- One status region for the whole screen; its text changes, the element stays. -->
                     <p
@@ -201,25 +199,17 @@ onBeforeUnmount(() => {
     color: var(--hs-color-text-muted);
 }
 
-/* Below sm: Save blocks, Back to pages, then the status line, stacked. From sm: a row. */
+/* Below sm: Back to pages, Save blocks, then the status line, stacked. From sm: a row. */
 .hs-actions {
     display: flex;
     flex-direction: column;
     gap: var(--hs-space-3);
 }
 
-.hs-actions__save {
-    order: -1;
-}
-
 @media (width >= breakpoint(sm)) {
     .hs-actions {
         flex-direction: row;
         align-items: center;
-    }
-
-    .hs-actions__save {
-        order: 0;
     }
 }
 
