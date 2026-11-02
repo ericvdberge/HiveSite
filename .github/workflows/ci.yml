@@ -4,6 +4,8 @@ on:
   pull_request:
   push:
     branches: [main]
+  # Started by the Update open PRs workflow after it merges main into a PR branch.
+  workflow_dispatch:
 
 jobs:
   specs:
